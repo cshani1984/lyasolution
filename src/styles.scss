@@ -1,0 +1,183 @@
+/* Global design system — LYA SOLUTION */
+:root {
+  --color-primary: #9c27b0;
+  --color-accent: #00bcd4;
+  --color-accent-dark: #00838f;
+  --color-text: #37474f;
+  /* ≥4.5:1 on white (was #607d8b @ 4.37:1) */
+  --color-muted: #546e7a;
+  --color-bg: #ffffff;
+  --color-bg-soft: #f8f9fa;
+  --radius: 12px;
+  --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.05);
+  --shadow-hover: 0 12px 36px rgba(0, 0, 0, 0.1);
+  --font-sans: 'Heebo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Heebo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+.pill,
+.kicker {
+  display: none !important;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--color-text);
+  background: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+textarea  {
+  resize: none;
+}
+
+.container {
+  --gutter: 1.25rem;
+  width: min(
+    1120px,
+    calc(100% - 2 * var(--gutter) - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))
+  );
+  margin-inline: auto;
+}
+
+@media (max-width: 900px) {
+  .container {
+    --gutter: clamp(1.25rem, 5vw, 1.75rem);
+  }
+}
+
+.text-gradient {
+  color: var(--color-primary);
+  background: linear-gradient(90deg, #2f8ea9 0%, #4f72cc 48%, #7c3ff2 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+html[dir='ltr'] .text-gradient {
+  // background: linear-gradient(90deg, #7c3ff2 0%, #4f72cc 52%, #2f8ea9 100%);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1.35rem;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  text-decoration: none;
+  border: 1px solid transparent;
+  cursor: pointer;
+  /* Avoid transitioning border-color — non-composited, triggers layout/paint on hover */
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.btn--primary {
+  background: linear-gradient(135deg, var(--color-primary), #7b1fa2);
+  color: #fff;
+  box-shadow: 0 10px 28px rgba(156, 39, 176, 0.28);
+}
+
+.btn--primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 36px rgba(156, 39, 176, 0.35);
+}
+
+.btn--ghost {
+  background: #fff;
+  color: var(--color-text);
+  border-color: rgba(55, 71, 79, 0.18);
+}
+
+.btn--ghost:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-soft);
+}
+
+.btn--lg {
+  padding: 1rem 1.75rem;
+  font-size: 1rem;
+}
+
+.card-hover {
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-hover);
+}
+
+.card {
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 1.75rem;
+  box-shadow: var(--shadow-soft);
+  border: 1px solid rgba(55, 71, 79, 0.06);
+}
+
+/* Scroll reveal — avoid will-change when hidden (mobile compositing cost) */
+.reveal-item {
+  opacity: 0;
+  transform: translateY(22px);
+  transition:
+    opacity 0.65s ease,
+    transform 0.65s ease;
+}
+
+.reveal-item.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Image reveal */
+.img-reveal {
+  border-radius: var(--radius);
+  overflow: hidden;
+  transform: scale(1.02);
+  clip-path: inset(0 8% 0 8%);
+  filter: saturate(0.95);
+  transition:
+    clip-path 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.6s ease;
+}
+
+.img-reveal img {
+  display: block;
+  width: 100%;
+  height: auto;
+  vertical-align: middle;
+}
+
+.img-reveal--visible {
+  clip-path: inset(0 0 0 0);
+  transform: scale(1);
+  filter: saturate(1.05);
+}
+
+/* Dot grid utility */
+.dot-grid {
+  background-image: radial-gradient(rgba(55, 71, 79, 0.12) 1px, transparent 1px);
+  background-size: 18px 18px;
+}

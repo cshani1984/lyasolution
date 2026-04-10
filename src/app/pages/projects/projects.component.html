@@ -1,0 +1,28 @@
+<section class="page-hero dot-grid">
+  <div class="container">
+    <p class="kicker">{{ i18n.t('projects.hero.kicker') }}</p>
+    <h1>{{ i18n.t('projects.hero.title') }}</h1>
+    <p class="lede">{{ i18n.t('projects.hero.subtitle') }}</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container projects-grid">
+    @for (i of items; track i; let first = $first) {
+      <article class="project card card-hover" appRevealOnScroll>
+        <div class="project__visual">
+          <img
+            [ngSrc]="projectImage(i)"
+            [alt]="i18n.t('projects.' + i + '.title')"
+            width="960"
+            height="600"
+            sizes="(max-width: 899px) 100vw, (max-width: 1199px) 50vw, 33vw"
+            [priority]="first"
+            decoding="async"
+          />
+        </div>
+        <h2>{{ i18n.t('projects.' + i + '.title') }}</h2>
+      </article>
+    }
+  </div>
+</section>

@@ -1,0 +1,102 @@
+<section class="hero">
+  <!-- <div class="hero__glow" aria-hidden="true"></div> -->
+  <div class="container hero__grid">
+    <div class="hero__content">
+      <p class="pill">{{ i18n.t('home.hero.badge') }}</p>
+      <h1 class="hero__title">
+        {{ i18n.t('home.hero.title') }}
+        <div class="text-gradient">{{ i18n.t('home.hero.highlight') }}</div>
+      </h1>
+      <p class="hero__subtitle">{{ i18n.t('home.hero.subtitle') }}</p>
+      <div class="hero__actions">
+        <a routerLink="/contact" class="btn btn--primary">{{ i18n.t('home.hero.ctaPrimary') }}</a>
+        <a routerLink="/projects" class="btn btn--ghost">{{ i18n.t('home.hero.ctaSecondary') }}</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section section--tight">
+  <div class="container">
+    <div class="section-head" appRevealOnScroll>
+      <h2>{{ i18n.t('home.services.title') }}</h2>
+      <!-- <span class="section-head__line"></span> -->
+    </div>
+    <div class="cards-3">
+      @for (i of [1, 2, 3, 4]; track i) {
+        <article class="card card-hover" appRevealOnScroll>
+          <div class="card__icon" [attr.data-i]="i" aria-hidden="true"></div>
+          <h3>{{ i18n.t('home.services.' + i + '.title') }}</h3>
+          <p>{{ i18n.t('home.services.' + i + '.body') }}</p>
+          <!-- <p class="card__tags">{{ i18n.t('home.services.' + i + '.tags') }}</p> -->
+        </article>
+      }
+    </div>
+  </div>
+</section>
+
+<section class="section section--clients">
+  <div class="container">
+    <p class="clients-kicker" appRevealOnScroll>{{ i18n.t('home.clients.title') }}</p>
+    <div class="clients-grid" appRevealOnScroll>
+      @for (logo of clientLogos; track logo.file) {
+        <div class="clients-logo">
+          <picture>
+            @if (clientLogoWebp(logo.file); as webp) {
+              <source type="image/webp" [srcset]="webp" />
+            }
+            <img
+              [src]="clientLogoFallback(logo.file)"
+              [alt]="logo.name"
+              [class.clients-logo__img--black]="logo.name === 'DigitalMind'"
+              width="200"
+              height="56"
+              loading="lazy"
+              decoding="async"
+              fetchpriority="low"
+            />
+          </picture>
+        </div>
+      }
+    </div>
+  </div>
+</section>
+
+<section class="section section--muted">
+  <div class="container">
+    <div class="people-head" appRevealOnScroll>
+      <h2 class="center-title">{{ i18n.t('home.testimonials.title') }}</h2>
+    </div>
+    <div class="people-carousel" appRevealOnScroll>
+      <div
+        class="cards-3 cards-3--people"
+        [class.carousel--flow-ltr]="i18n.isRtl()"
+        [class.carousel--flow-rtl]="!i18n.isRtl()"
+      >
+      @for (i of testimonials; track $index) {
+        <article class="card card-hover testimonial carousel-item">
+          <!-- <div class="avatar" [attr.data-a]="i"></div> -->
+          <div class="testimonial__meta">
+            <strong>{{ i18n.t('home.testimonials.' + i + '.name') }}</strong>
+            <span>{{ i18n.t('home.testimonials.' + i + '.role') }}</span>
+          </div>
+          <p>“{{ i18n.t('home.testimonials.' + i + '.quote') }}”</p>
+        </article>
+      }
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="cta-banner card-hover" appRevealOnScroll>
+      <div class="cta-banner__bg" aria-hidden="true"></div>
+      <div class="cta-banner__inner">
+        <h2>{{ i18n.t('home.cta.title') }}</h2>
+        <p>{{ i18n.t('home.cta.sub') }}</p>
+        <a routerLink="/contact" class="btn btn--primary btn--lg">{{ i18n.t('home.cta.button') }}</a>
+      </div>
+    </div>
+  </div>
+</section>

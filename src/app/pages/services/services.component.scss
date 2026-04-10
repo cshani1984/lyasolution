@@ -1,0 +1,89 @@
+.page-hero {
+  padding: clamp(3rem, 8vw, 5rem) 0 2rem;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.kicker {
+  display: inline-block;
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(0, 188, 212, 0.12);
+  color: var(--color-accent-dark);
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  margin: 0 0 1rem;
+}
+
+.page-hero h1 {
+  margin: 0 0 1rem;
+  font-size: clamp(1.85rem, 3.5vw, 2.6rem);
+}
+
+.lede {
+  margin: 0;
+  max-width: 44rem;
+  font-size: 1.05rem;
+  line-height: 1.75;
+  color: var(--color-muted);
+}
+
+.section {
+  padding: clamp(2rem, 5vw, 4rem) 0 4rem;
+}
+
+.services-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+}
+
+@media (max-width: 860px) {
+  .services-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.service {
+  position: relative;
+  overflow: hidden;
+  /* מקום לאזור האייקון + מרווח לטקסט (ימין ב־RTL / שמאל ב־LTR) */
+  padding-inline-start: calc(1.75rem + 3rem + 1rem);
+}
+
+/* אזור הדגשה עם אייקון לבן על גרדיאנט — תואם לתוכן הכרטיס */
+.service__accent {
+  position: absolute;
+  inset-inline-start: 0.85rem;
+  inset-block-start: 0.85rem;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: linear-gradient(145deg, #2f8ea9 0%, #4f72cc 52%, #7c3ff2 100%);
+  box-shadow: 0 6px 16px rgba(79, 114, 204, 0.28);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.service__accent-icon {
+  width: 1.45rem;
+  height: 1.45rem;
+  flex-shrink: 0;
+}
+
+.service h2 {
+  margin: 0 0 0.65rem;
+  font-size: 1.2rem;
+  position: relative;
+}
+
+.service p {
+  margin: 0;
+  color: var(--color-muted);
+  line-height: 1.7;
+  position: relative;
+}

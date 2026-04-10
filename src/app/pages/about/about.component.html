@@ -1,0 +1,42 @@
+<section class="page-hero dot-grid">
+  <div class="container">
+    <p class="kicker">{{ i18n.t('about.hero.kicker') }}</p>
+    <h1>{{ i18n.t('about.hero.title') }}</h1>
+    <p class="lede">{{ i18n.t('about.hero.subtitle') }}</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <!-- <div class="quote-card card-hover" appRevealOnScroll>
+      
+    </div> -->
+
+    <div class="split" appRevealOnScroll>
+      <div>
+        <!-- <h2>{{ i18n.t('about.story.title') }}</h2> -->
+       
+        <div class="prose">
+          <p class="quote-card__text">“{{ i18n.t('about.quote') }}”</p>
+          <p>{{ i18n.t('about.story.body') }}</p>
+        </div>
+      </div>
+      <!-- <div class="split__decor" aria-hidden="true"></div> -->
+    </div>
+
+    <h2 class="block-title" appRevealOnScroll>{{ i18n.t('about.process.title') }}</h2>
+    <div class="process-grid">
+      @for (s of steps; track s) {
+        <article class="card card-hover process-card" appRevealOnScroll>
+          <div class="process-card__track">
+            <span class="process-card__idx">{{ s }}</span>
+          </div>
+          <div class="process-card__content">
+            <h3>{{ i18n.t('about.process.' + s + '.title') }}</h3>
+            <p>{{ i18n.t('about.process.' + s + '.body') }}</p>
+          </div>
+        </article>
+      }
+    </div>
+  </div>
+</section>

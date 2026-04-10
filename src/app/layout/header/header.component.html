@@ -1,0 +1,40 @@
+<header class="site-header">
+  <div class="site-header__inner container">
+    <a routerLink="/" class="site-header__brand" (click)="closeMenu()">
+      <app-ls-logo variant="header" />
+    </a>
+
+    <button
+      type="button"
+      class="site-header__burger"
+      [attr.aria-expanded]="menuOpen()"
+      aria-controls="primary-nav"
+      (click)="toggleMenu()"
+    >
+      <span class="visually-hidden">Menu</span>
+      <span class="site-header__burger-bar"></span>
+      <span class="site-header__burger-bar"></span>
+      <span class="site-header__burger-bar"></span>
+    </button>
+
+    <nav id="primary-nav" class="site-header__nav" [class.is-open]="menuOpen()">
+      @for (link of navLinks(); track link.path) {
+        <a
+          [routerLink]="link.path"
+          routerLinkActive="is-active"
+          [routerLinkActiveOptions]="{ exact: link.exact }"
+          (click)="closeMenu()"
+        >
+          {{ link.label }}
+        </a>
+      }
+      <button type="button" class="site-header__lang site-header__lang--mobile" (click)="toggleLang()">
+        <span>{{ i18n.t('lang.switch') }}</span>
+      </button>
+    </nav>
+
+    <button type="button" class="site-header__lang site-header__lang--desktop" (click)="toggleLang()">
+      <span>{{ i18n.t('lang.switch') }}</span>
+    </button>
+  </div>
+</header>

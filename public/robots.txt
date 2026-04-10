@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# Replace with your canonical origin when deployed for best results:
+# Sitemap: https://lyasolution.com/sitemap.xml

@@ -1,0 +1,54 @@
+<section class="page-hero dot-grid">
+  <div class="container">
+    <p class="kicker">{{ i18n.t('services.hero.kicker') }}</p>
+    <h1>{{ i18n.t('services.hero.title') }}</h1>
+    <p class="lede">{{ i18n.t('services.hero.subtitle') }}</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <h2>{{ i18n.t('services.title') }}</h2>
+  </div>
+  <div class="container services-grid">
+    @for (i of items; track i) {
+      <article class="service card card-hover" appRevealOnScroll>
+        <div class="service__accent" aria-hidden="true">
+          @switch (i) {
+            @case (1) {
+              <svg class="service__accent-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="16 18 22 12 16 6" />
+                <polyline points="8 6 2 12 8 18" />
+              </svg>
+            }
+            @case (2) {
+              <svg class="service__accent-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="7" height="7" rx="1" />
+                <rect x="14" y="3" width="7" height="7" rx="1" />
+                <rect x="3" y="14" width="7" height="7" rx="1" />
+                <rect x="14" y="14" width="7" height="7" rx="1" />
+              </svg>
+            }
+            @case (3) {
+              <svg class="service__accent-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2" />
+                <line x1="8" y1="21" x2="16" y2="21" />
+                <line x1="12" y1="17" x2="12" y2="21" />
+              </svg>
+            }
+            @case (4) {
+              <svg class="service__accent-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+            }
+          }
+        </div>
+        <h2>{{ i18n.t('services.' + i + '.title') }}</h2>
+        <p>{{ i18n.t('services.' + i + '.body') }}</p>
+      </article>
+    }
+  </div>
+</section>

@@ -1,0 +1,210 @@
+.page-hero {
+  padding: clamp(3rem, 8vw, 5rem) 0 2rem;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.kicker {
+  display: inline-block;
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(0, 188, 212, 0.12);
+  color: var(--color-accent-dark);
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  margin: 0 0 1rem;
+}
+
+.page-hero h1 {
+  margin: 0 0 1rem;
+  font-size: clamp(1.85rem, 3.5vw, 2.6rem);
+  max-width: 32rem;
+}
+
+.lede {
+  margin: 0;
+  max-width: 42rem;
+  font-size: 1.05rem;
+  line-height: 1.75;
+  color: var(--color-muted);
+}
+
+.section {
+  padding: clamp(2.5rem, 6vw, 4.5rem) 0;
+}
+
+.quote-card {
+  padding: clamp(1.5rem, 4vw, 2.25rem);
+  margin-bottom: 3rem;
+  border-radius: calc(var(--radius) + 4px);
+  background: linear-gradient(135deg, rgba(156, 39, 176, 0.08), rgba(0, 188, 212, 0.08));
+  border: 1px solid rgba(156, 39, 176, 0.12);
+}
+
+.quote-card__text {
+  margin: 0;
+  font-size: clamp(1.15rem, 2.2vw, 1.45rem);
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+// .split {
+//   display: grid;
+//   grid-template-columns: 1fr 1fr;
+//   gap: 2rem;
+//   align-items: center;
+//   margin-bottom: 3rem;
+// }
+
+.split h2 {
+  margin: 0 0 1rem;
+  font-size: 1.45rem;
+}
+
+.split__decor {
+  min-height: 220px;
+  border-radius: var(--radius);
+  background: radial-gradient(circle at 30% 30%, rgba(156, 39, 176, 0.2), transparent 55%),
+    radial-gradient(circle at 70% 60%, rgba(0, 188, 212, 0.18), transparent 50%);
+  border: 1px solid rgba(55, 71, 79, 0.06);
+}
+
+@media (max-width: 900px) {
+  .split {
+    grid-template-columns: 1fr;
+  }
+}
+
+.prose {
+  position: relative;
+  overflow: hidden;
+  margin: 0;
+  padding: clamp(1.5rem, 4vw, 2.25rem);
+  border-radius: calc(var(--radius) + 4px);
+  line-height: 1.8;
+  color: var(--color-muted);
+  box-shadow: var(--shadow-hover);
+  border: 1px solid rgba(55, 71, 79, 0.06);
+  /* כמו cta-banner__bg: ציאן בפינה שמאלית-עליונה, לבנדר בפינה ימנית-תחתונה, שאר השטח לבן */
+  background:
+    radial-gradient(
+      ellipse 95% 85% at 0% 0%,
+      #e8f4f8 0%,
+      rgba(232, 244, 248, 0.55) 32%,
+      transparent 58%
+    ),
+    radial-gradient(
+      ellipse 95% 85% at 100% 100%,
+      #f4e8f8 0%,
+      rgba(244, 232, 248, 0.55) 32%,
+      transparent 58%
+    ),
+    #ffffff;
+}
+
+.block-title {
+  margin: 3rem 0 1.5rem;
+  font-size: 1.5rem;
+}
+
+.process-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-width: 44rem;
+  margin-inline: auto;
+}
+
+.process-card {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+  margin: 0;
+  position: relative;
+}
+
+.process-card + .process-card {
+  margin-top: 1.35rem;
+}
+
+.process-card__track {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  padding-top: 0.35rem;
+}
+
+/* קו אנכי בין השלבים */
+.process-card__track::after {
+  content: '';
+  position: absolute;
+  top: calc(2rem + 0.35rem);
+  bottom: calc(-1.35rem - 0.35rem);
+  inset-inline-start: 0;
+  inset-inline-end: 0;
+  width: 2px;
+  margin-inline: auto;
+  border-radius: 2px;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 188, 212, 0.45) 0%,
+    rgba(156, 39, 176, 0.45) 100%
+  );
+}
+
+.process-card:last-child .process-card__track::after {
+  display: none;
+}
+
+.process-card__idx {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    0 0 0 4px rgba(255, 255, 255, 0.95),
+    0 4px 14px rgba(156, 39, 176, 0.25);
+    opacity: 0.8;
+}
+
+.process-card__content {
+  min-width: 0;
+}
+
+.process-card h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+}
+
+.process-card p {
+  margin: 0;
+  color: var(--color-muted);
+  line-height: 1.65;
+}
+
+@media (max-width: 520px) {
+  .process-card {
+    grid-template-columns: 2.5rem minmax(0, 1fr);
+    gap: 0.9rem;
+  }
+
+  .process-card__idx {
+    width: 1.75rem;
+    height: 1.75rem;
+    font-size: 0.68rem;
+  }
+
+  .process-card__track::after {
+    top: calc(1.75rem + 0.35rem);
+  }
+}

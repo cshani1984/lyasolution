@@ -1,0 +1,208 @@
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(55, 71, 79, 0.08);
+}
+
+.site-header__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 5rem;
+  padding-block: 0.35rem;
+}
+
+.site-header__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  text-decoration: none;
+  color: var(--color-text);
+  position: relative;
+  z-index: 2;
+}
+
+.site-header__nav {
+  display: flex;
+  align-items: center;
+  gap: 1.75rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.site-header__nav a {
+  color: var(--color-muted);
+  text-decoration: none;
+  padding: 0.35rem 0;
+  position: relative;
+  transition: color 0.2s ease;
+}
+
+.site-header__nav a:hover {
+  color: var(--color-text);
+}
+
+.site-header__nav a.is-active {
+  color: var(--color-primary);
+}
+
+.site-header__nav a.is-active::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
+}
+
+.site-header__lang {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid rgba(55, 71, 79, 0.12);
+  background: #fff;
+  border-radius: 999px;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-muted);
+  cursor: pointer;
+  transition:
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+  z-index: 2;
+}
+
+.site-header__lang:hover {
+  box-shadow: var(--shadow-soft);
+  transform: translateY(-1px);
+}
+
+.site-header__lang-icon {
+  opacity: 0.65;
+  font-size: 0.75rem;
+}
+
+.site-header__burger {
+  display: none;
+  position: relative;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 12px;
+  border: 1px solid rgba(55, 71, 79, 0.12);
+  background: #fff;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.site-header__burger-bar {
+  display: block;
+  height: 2px;
+  width: 1.25rem;
+  margin-inline: auto;
+  background: var(--color-text);
+  border-radius: 2px;
+  transition: transform 0.2s ease;
+}
+
+.site-header__lang--mobile {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  /* backdrop-filter creates a containing block; without it, fixed nav is viewport-relative
+     and cannot trap page scroll behind a translated full-screen layer (iOS/Safari). */
+  .site-header {
+    z-index: 200;
+    backdrop-filter: none;
+    background: rgba(255, 255, 255, 0.98);
+  }
+
+  .site-header__burger {
+    display: inline-flex;
+  }
+
+  .site-header__lang--desktop {
+    display: none;
+  }
+
+  .site-header__nav {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    min-height: 100dvh;
+    padding: 5.5rem 1.5rem calc(2rem + env(safe-area-inset-bottom, 0px));
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    background: #ffffff;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    transform: translateY(-100%);
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+    transition:
+      transform 0.35s ease,
+      opacity 0.35s ease,
+      visibility 0s linear 0.35s;
+  }
+
+  .site-header__brand,
+  .site-header__burger {
+    z-index: 110;
+  }
+
+  .site-header__nav.is-open {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+    visibility: visible;
+    transition:
+      transform 0.35s ease,
+      opacity 0.35s ease,
+      visibility 0s;
+  }
+
+  .site-header__nav a {
+    padding: 1rem 0;
+    border-bottom: 1px solid rgba(55, 71, 79, 0.08);
+    font-size: 1.1rem;
+  }
+
+  .site-header__nav a.is-active::after {
+    display: none;
+  }
+
+  .site-header__nav a.is-active {
+    padding-inline-start: 0.5rem;
+    border-inline-start: 3px solid var(--color-primary);
+  }
+
+  .site-header__lang--mobile {
+    display: inline-flex;
+    margin-top: 1rem;
+    justify-content: center;
+    width: 100%;
+  }
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
