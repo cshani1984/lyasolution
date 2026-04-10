@@ -106,6 +106,15 @@
 
 }
 
+.contact-form-panel .form-field__hint {
+  display: block;
+  margin: 0.2rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--color-muted);
+  font-weight: 500;
+}
+
 :host-context(html[dir='ltr']) .contact-form-panel .form-field > span:first-of-type {
   text-align: start;
 }
@@ -122,6 +131,19 @@
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease;
+}
+
+.contact-form-panel .form-field input[type='tel'] {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+:host-context(html[dir='rtl']) .contact-form-panel .form-field input[type='tel'] {
+  text-align: end;
+}
+
+:host-context(html[dir='ltr']) .contact-form-panel .form-field input[type='tel'] {
+  text-align: start;
 }
 
 .contact-form-panel .form-field input::placeholder,
@@ -188,9 +210,31 @@
     box-shadow 0.2s ease;
 }
 
-.btn--contact:hover {
+.btn--contact:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 12px 28px rgba(156, 39, 176, 0.38);
+}
+
+.btn--contact:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.form-submit-error {
+  margin: 0 0 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #b71c1c;
+  background: rgba(211, 47, 47, 0.08);
+  border: 1px solid rgba(211, 47, 47, 0.25);
+  text-align: end;
+}
+
+:host-context(html[dir='ltr']) .form-submit-error {
+  text-align: start;
 }
 
 .form-success {

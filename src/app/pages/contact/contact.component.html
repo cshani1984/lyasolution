@@ -48,6 +48,24 @@
               }
             </label>
           </div>
+          <label class="form-field" [class.form-field--invalid]="showFieldError('phone')">
+            <span>{{ i18n.t('contact.form.phone') }}</span>
+            <input
+              type="tel"
+              formControlName="phone"
+              autocomplete="tel"
+              inputmode="tel"
+              [placeholder]="i18n.t('contact.form.placeholder.phone')"
+              [attr.aria-invalid]="showFieldError('phone')"
+              [attr.aria-describedby]="
+                showFieldError('phone') ? 'hint-phone err-phone' : 'hint-phone'
+              "
+            />
+            <span class="form-field__hint" id="hint-phone">{{ i18n.t('contact.form.phoneHint') }}</span>
+            @if (showFieldError('phone')) {
+              <span class="field-error" id="err-phone" role="alert">{{ fieldError('phone') }}</span>
+            }
+          </label>
           <label class="form-field" [class.form-field--invalid]="showFieldError('email')">
             <span>{{ i18n.t('contact.form.email') }}</span>
             <input
@@ -63,19 +81,6 @@
               <span class="field-error" id="err-email" role="alert">{{ fieldError('email') }}</span>
             }
           </label>
-          <label class="form-field" [class.form-field--invalid]="showFieldError('projectType')">
-            <span>{{ i18n.t('contact.form.projectType') }}</span>
-            <input
-              type="text"
-              formControlName="projectType"
-              [placeholder]="i18n.t('contact.form.placeholder.projectType')"
-              [attr.aria-invalid]="showFieldError('projectType')"
-              [attr.aria-describedby]="showFieldError('projectType') ? 'err-project' : null"
-            />
-            @if (showFieldError('projectType')) {
-              <span class="field-error" id="err-project" role="alert">{{ fieldError('projectType') }}</span>
-            }
-          </label>
           <label class="form-field" [class.form-field--invalid]="showFieldError('message')">
             <span>{{ i18n.t('contact.form.message') }}</span>
             <textarea
@@ -89,8 +94,13 @@
               <span class="field-error" id="err-message" role="alert">{{ fieldError('message') }}</span>
             }
           </label>
+          @if (submitError()) {
+            <p class="form-submit-error" role="alert">{{ submitError() }}</p>
+          }
           <div class="form-actions">
-            <button type="submit" class="btn btn--contact">{{ i18n.t('contact.form.submit') }}</button>
+            <button type="submit" class="btn btn--contact" [disabled]="submitting()">
+              {{ submitting() ? i18n.t('contact.form.submitting') : i18n.t('contact.form.submit') }}
+            </button>
           </div>
           @if (submitted()) {
             <p class="form-success" role="status">{{ i18n.t('contact.form.success') }}</p>

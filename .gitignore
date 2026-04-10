@@ -28,6 +28,9 @@ yarn-error.log
 !.vscode/extensions.json
 .history/*
 
+# Supabase CLI local state (do not commit)
+supabase/.temp/
+
 # Miscellaneous
 /.angular/cache
 .sass-cache/

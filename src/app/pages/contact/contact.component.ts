@@ -10,6 +10,8 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ContactSubmissionsService } from '../../core/services/contact-submissions.service';
+import { contactPhoneValidator } from '../../core/validators/phone.validator';
 import { I18nService } from '../../core/services/i18n.service';
 import { RevealOnScrollDirective } from '../../core/directives/reveal-on-scroll.directive';
 
@@ -28,18 +30,21 @@ export class ContactComponent implements AfterViewInit, OnDestroy {
   private readonly fb = inject(FormBuilder);
   private readonly platformId = inject(PLATFORM_ID);
   readonly i18n = inject(I18nService);
+  private readonly submissions = inject(ContactSubmissionsService);
 
   private readonly mapContainer = viewChild<ElementRef<HTMLElement>>('mapEl');
 
   readonly submitted = signal(false);
+  readonly submitting = signal(false);
+  readonly submitError = signal<string | null>(null);
 
   private map: import('leaflet').Map | undefined;
 
   readonly form = this.fb.nonNullable.group({
     firstName: ['', [Validators.required, Validators.minLength(2)]],
     lastName: ['', [Validators.required, Validators.minLength(2)]],
+    phone: ['', [Validators.required, contactPhoneValidator()]],
     email: ['', [Validators.required, Validators.email]],
-    projectType: ['', [Validators.required, Validators.minLength(2)]],
     message: ['', [Validators.required, Validators.minLength(10)]],
   });
 
@@ -103,6 +108,9 @@ export class ContactComponent implements AfterViewInit, OnDestroy {
     if (e['email']) {
       return this.i18n.t('contact.form.error.email');
     }
+    if (e['phone']) {
+      return this.i18n.t('contact.form.error.phone');
+    }
     if (e['minlength']) {
       const n = e['minlength'].requiredLength as number;
       return this.i18n.t('contact.form.error.minLength').replace('{n}', String(n));
@@ -111,8 +119,36 @@ export class ContactComponent implements AfterViewInit, OnDestroy {
   }
 
   onSubmit(): void {
+    void this.handleSubmit();
+  }
+
+  private async handleSubmit(): Promise<void> {
     this.form.markAllAsTouched();
     if (this.form.invalid) return;
+
+    this.submitError.set(null);
+
+    if (!this.submissions.isConfigured()) {
+      this.submitError.set(this.i18n.t('contact.form.error.submit'));
+      return;
+    }
+
+    this.submitting.set(true);
+    const v = this.form.getRawValue();
+    const { error } = await this.submissions.save({
+      firstName: v.firstName,
+      lastName: v.lastName,
+      phone: v.phone,
+      email: v.email,
+      message: v.message,
+    });
+    this.submitting.set(false);
+
+    if (error) {
+      this.submitError.set(this.i18n.t('contact.form.error.submit'));
+      return;
+    }
+
     this.submitted.set(true);
     this.form.reset();
     Object.values(this.form.controls).forEach((ctrl) => ctrl.markAsUntouched());
