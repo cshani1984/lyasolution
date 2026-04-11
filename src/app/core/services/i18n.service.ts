@@ -108,7 +108,8 @@ const DICT: Record<Lang, Record<string, string>> = {
     'about.hero.kicker': 'אודות',
     'about.hero.title': 'פרופיל',
     'about.hero.subtitle':
-      'אנו מתמחים בבניית מערכו שעובדות בפרודקשיין - לא רק קוד, אלא פתרונות. בניית מערכות קרייות, משלב התכנון ועד לסקיילינג גלובלי. משלבים בין הנדסת תוכנה קפדנית לבין פתרונות יצירתיים המניעים עסקים קדימה ',
+     `אנו מתמחים בבניית מערכות שעובדות בפרודקשיין - לא רק קוד, אלא פתרונות. בניית מערכות קריטיות, משלב התכנון ועד לסקיילינג גלובלי. משלבים בין הנדסת תוכנה קפדנית לבין פתרונות יצירתיים המניעים עסקים קדימה.
+     כחלק מהפיתוח משתמשים בכלי בינה מלאכותית (כגון Cursor, Claude code, Copilot) וכו' כדי לשיפור את מהירות הפיתוח ובדיקות הקוד`,
 
     'about.quote':
       'הקוד הוא לא רק פתרון, הוא שפה של יעילות',
@@ -163,7 +164,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'services.hero.kicker': 'שירותים',
     'services.hero.title': 'מה אנחנו עושים',
     'services.hero.subtitle':
-      'אנחנו בונים פתרונות דיגיטליים המשלבים ארכיטקטורת תוכנה מתקדמת עם חווית משתמש בלתי מתפשרת, המשלבת חדשנות טכנולוגית כדי להפוך את החזון שלך למציאות מוחשית.',
+    'אנחנו בונים פתרונות דיגיטליים המשלבים ארכיטקטורת תוכנה מתקדמת עם חווית משתמש בלתי מתפשרת, המשלבת חדשנות טכנולוגית כדי להפוך את החזון שלך למציאות מוחשית. כמו כן נעזרים בסוכני AI להאיץ את תהליך ולשפר את תוצאות הפיתוח.',
     'services.title':'חלק משירותי הליבה',
      'services.1.title': 'פיתוח מקצה לקצה',
     'services.1.body':
@@ -320,7 +321,8 @@ We’re still working with him and hope to continue in the future.`,
     'about.hero.kicker': 'About',
     'about.hero.title': 'A strong profile for critical work',
     'about.hero.subtitle':
-      'I’m Chen — a senior Full Stack developer. I specialize in systems that run in production — not just code, but solutions.',
+      `We build systems that actually run in production—not just code, but solutions. We deliver critical systems end to end, from planning through global scaling, combining rigorous software engineering with creative approaches that move businesses forward.
+As part of how we build, we use AI tools (such as Cursor, Claude Code, Copilot, and more) to speed up development and strengthen code review.`,
 
     'about.quote': 'Code is not only a solution — it is a language of efficiency',
 
@@ -379,7 +381,7 @@ We’re still working with him and hope to continue in the future.`,
     'services.hero.kicker': 'Services',
     'services.hero.title': 'What we do',
     'services.hero.subtitle':
-      'We build digital solutions that combine advanced software architecture with an uncompromising user experience—using technological innovation to turn your vision into tangible reality.',
+      'We build digital solutions that combine advanced software architecture with an uncompromising user experience, applying technological innovation to turn your vision into tangible reality. We also use AI agents to accelerate the development process and improve outcomes.',
     'services.title':'Core services',
     'services.1.title': 'End-to-end development',
     'services.1.body':
