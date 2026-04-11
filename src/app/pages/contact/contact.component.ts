@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ContactSubmissionsService } from '../../core/services/contact-submissions.service';
+import { LeadWhatsAppNotifyService } from '../../core/services/lead-whatsapp-notify.service';
 import { contactPhoneValidator } from '../../core/validators/phone.validator';
 import { I18nService } from '../../core/services/i18n.service';
 import { RevealOnScrollDirective } from '../../core/directives/reveal-on-scroll.directive';
@@ -31,6 +32,7 @@ export class ContactComponent implements AfterViewInit, OnDestroy {
   private readonly platformId = inject(PLATFORM_ID);
   readonly i18n = inject(I18nService);
   private readonly submissions = inject(ContactSubmissionsService);
+  private readonly leadWhatsApp = inject(LeadWhatsAppNotifyService);
 
   private readonly mapContainer = viewChild<ElementRef<HTMLElement>>('mapEl');
 
@@ -148,6 +150,14 @@ export class ContactComponent implements AfterViewInit, OnDestroy {
       this.submitError.set(this.i18n.t('contact.form.error.submit'));
       return;
     }
+
+    this.leadWhatsApp.notify({
+      firstName: v.firstName,
+      lastName: v.lastName,
+      phone: v.phone,
+      email: v.email,
+      message: v.message,
+    });
 
     this.submitted.set(true);
     this.form.reset();

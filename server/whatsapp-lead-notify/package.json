@@ -1,0 +1,19 @@
+{
+  "name": "whatsapp-lead-notify",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Sends WhatsApp alerts for contact form leads via whatsapp-web.js (session on this machine).",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "qrcode-terminal": "^0.12.0",
+    "whatsapp-web.js": "^1.26.0"
+  }
+}

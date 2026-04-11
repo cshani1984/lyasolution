@@ -31,6 +31,9 @@ yarn-error.log
 # Supabase CLI local state (do not commit)
 supabase/.temp/
 
+# Local duplicate / experiments (contains node_modules)
+whatsapp-bridge/
+
 # Miscellaneous
 /.angular/cache
 .sass-cache/

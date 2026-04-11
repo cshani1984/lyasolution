@@ -31,10 +31,19 @@ ng generate --help
 To build the project run:
 
 ```bash
-ng build
+npm run build
 ```
 
+(`npm run build` runs `scripts/write-env.mjs` then `ng build`, so Vercel picks up `SUPABASE_*` and optional `LEAD_NOTIFY_*` env vars.)
+
 This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+
+## WhatsApp lead alerts (optional)
+
+A separate **Node** service under `server/whatsapp-lead-notify` uses `whatsapp-web.js` to send you a WhatsApp when someone submits the contact form (after Supabase save). It must run on a **long-lived host** (VPS, etc.), not on Vercel.
+
+- Setup: see `server/whatsapp-lead-notify/README.md`
+- Angular env: `whatsappNotifyApiUrl` / `whatsappNotifyApiKey` (local `environment.ts`), or Vercel `LEAD_NOTIFY_API_URL` / `LEAD_NOTIFY_API_KEY` for production builds
 
 ## Running unit tests
 
