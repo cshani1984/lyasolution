@@ -12,7 +12,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'nav.contact': 'צור קשר',
     'lang.switch': 'HE / EN',
 
-    'seo.title.home': 'LYA SOLUTION — פיתוח תוכנה, אתרים רספונסיבים, דשבורדים ומערכות בפרודקשן',
+    'seo.title.home': 'LYA SOLUTION —בניית פתרונות דיגיטליים מתקדמים ומורכבים, בניית אתרים רספונסיבים, מערכות מורכבות ודשבורדים',
     'seo.desc.home':
       'שותף טכנולוגי לפרויקטים קריטיים: ארכיטקטורה, ביצועים והעלאה לפרודקשן — מערכות מורכבות ובקנה מידה.',
     'seo.title.about': 'אודות — LYA SOLUTION',

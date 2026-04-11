@@ -230,11 +230,6 @@
   color: #b71c1c;
   background: rgba(211, 47, 47, 0.08);
   border: 1px solid rgba(211, 47, 47, 0.25);
-  text-align: end;
-}
-
-:host-context(html[dir='ltr']) .form-submit-error {
-  text-align: start;
 }
 
 .form-success {
