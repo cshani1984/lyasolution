@@ -14,7 +14,7 @@ const DICT: Record<Lang, Record<string, string>> = {
 
     'seo.title.home': 'LYA SOLUTION —בניית פתרונות דיגיטליים מתקדמים ומורכבים, בניית אתרים רספונסיבים, מערכות מורכבות ודשבורדים',
     'seo.desc.home':
-      'שותף טכנולוגי לפרויקטים קריטיים: ארכיטקטורה, ביצועים והעלאה לפרודקשן — מערכות מורכבות ובקנה מידה.',
+      'פיתוח אתרים רספונסיביים, דפי נחיתה, מערכות מורכבות ודשבורדים מקצועיים ללא פשרות - שימוש בטכנולוגיות עדכניות וארכיטקטורה נכונה',
     'seo.title.about': 'אודות — LYA SOLUTION',
     'seo.desc.about':
       'בונים מערכות שעובדות בפרודקשן: מהתכנון ועד סקיילינג. הנדסת תוכנה, ארכיטקטורה ופתרונות דיגיטליים.',
@@ -32,7 +32,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'home.hero.title': ' בניית פתרונות',
     'home.hero.highlight': 'דיגיטליים מתקדמים',
     'home.hero.subtitle':
-      'שותף טכנולוגי לפרויקטים קריטיים: ארכיטקטורה, ביצועים והעלאה לפרודקשן — עם דגש על מערכות מורכבות ובקנה מידה.',
+      'פיתוח אתרים רספונסיביים, דפי נחיתה, מערכות מורכבות ודשבורדים מקצועיים ללא פשרות - שימוש בטכנולוגיות עדכניות וארכיטקטורה נכונה',
     'home.hero.ctaPrimary': 'בואו נתחיל פרויקט',
     'home.hero.ctaSecondary': 'צפו בתיק עבודות',
 
@@ -242,7 +242,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'home.hero.title': 'Building advanced',
     'home.hero.highlight': 'digital solutions',
     'home.hero.subtitle':
-      'A technology partner for critical initiatives: architecture, performance, and production delivery — focused on complex, high-scale systems.',
+      'Responsive websites, landing pages, complex systems, and professional dashboards—without compromise—built with modern technologies and solid architecture.',
     'home.hero.ctaPrimary': "Let's start a project",
     'home.hero.ctaSecondary': 'View portfolio',
 
