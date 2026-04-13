@@ -46,7 +46,7 @@ If Gmail is configured but WhatsApp is not ready yet, the API can still return *
 | `NOTIFY_WINDOW_MS` | Rate-limit window in ms (default 900000) |
 | `TRUST_PROXY_HOPS` | Trust X-Forwarded-For hops (default 1; use behind Render) |
 | `WWEBJS_DATA_PATH` | תיקיית סשן WhatsApp (דיסק קבוע בפרודקשן) |
-| `OWNER_WHATSAPP_E164` | מספר יעד בלי `+`, ברירת מחדל `972509250384` |
+| `OWNER_WHATSAPP_E164` | מספר יעד בלי `+`, ברירת מחדל `+972509250384` |
 | `GMAIL_USER` | Gmail address used to send mail |
 | `GMAIL_APP_PASSWORD` | Google App Password (not your normal password) |
 | `GMAIL_FROM_NAME` | Optional display name (default `Lya Solution`) |

@@ -5,7 +5,7 @@
  * Env:
  *   PORT (default 3840)
  *   API_KEY — required when NODE_ENV=production; client sends header x-api-key
- *   OWNER_WHATSAPP_E164 — digits only, default 972509250384 (050-9250384)
+ *   OWNER_WHATSAPP_E164 — digits only, default +972509250384 (050-9250384)
  *   CORS_ORIGIN — optional; comma-separated list, or * for any (dev only)
  *   WWEBJS_DATA_PATH — optional; folder for WhatsApp session (use a persistent disk path in production, e.g. Render mount)
  *   NOTIFY_MAX_PER_IP — max POST /api/notify-lead per IP per window (default 30)
