@@ -197,6 +197,8 @@ const DICT: Record<Lang, Record<string, string>> = {
     'contact.form.submitting': 'שולחים…',
     'contact.form.success': 'ההודעה נשמרה. נחזור אליכם בקרוב.',
     'contact.form.error.submit': 'לא הצלחנו לשלוח כרגע. נסו שוב או כתבו במייל.',
+    'contact.form.error.supabaseConfig':
+      'שליחת הטופס לא פעילה: חסר מפתח Supabase (anon). הדביקו את המפתח בקובץ src/environments/environment.ts או הגדירו SUPABASE_ANON_KEY ב-Vercel.',
     'contact.form.error.required': 'שדה חובה',
     'contact.form.error.phone': 'מספר טלפון לא תקין',
     'contact.form.error.email': 'כתובת אימייל לא תקינה',
@@ -414,6 +416,8 @@ As part of how we build, we use AI tools (such as Cursor, Claude Code, Copilot, 
     'contact.form.submitting': 'Sending…',
     'contact.form.success': 'Your message was saved. We’ll get back to you shortly.',
     'contact.form.error.submit': 'Could not send right now. Please try again or email us.',
+    'contact.form.error.supabaseConfig':
+      'Form cannot send: Supabase anon key is missing. Add it in src/environments/environment.ts (dev) or set SUPABASE_ANON_KEY on Vercel (production).',
     'contact.form.error.required': 'This field is required',
     'contact.form.error.phone': 'Enter a valid phone number (9–15 digits).',
     'contact.form.error.email': 'Enter a valid email address',

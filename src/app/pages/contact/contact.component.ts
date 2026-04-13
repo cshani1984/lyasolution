@@ -131,12 +131,13 @@ export class ContactComponent implements AfterViewInit, OnDestroy {
     this.submitError.set(null);
 
     if (!this.submissions.isConfigured()) {
-      this.submitError.set(this.i18n.t('contact.form.error.submit'));
+      this.submitError.set(this.i18n.t('contact.form.error.supabaseConfig'));
       return;
     }
 
     this.submitting.set(true);
     const v = this.form.getRawValue();
+
     const { error } = await this.submissions.save({
       firstName: v.firstName,
       lastName: v.lastName,
@@ -151,7 +152,7 @@ export class ContactComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    this.leadWhatsApp.notify({
+    await this.leadWhatsApp.notifyLeadChannels({
       firstName: v.firstName,
       lastName: v.lastName,
       phone: v.phone,

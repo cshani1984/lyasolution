@@ -3,12 +3,11 @@ import { environment } from '../../../environments/environment';
 import type { ContactSubmissionPayload } from './contact-submissions.service';
 
 /**
- * Fire-and-forget POST to the Node whatsapp-web.js server after a lead is saved.
- * If URL is empty, no request is made.
+ * POST to the Node server (WhatsApp; Gmail confirmation disabled on server for now). Errors are silent in the browser; see server logs.
  */
 @Injectable({ providedIn: 'root' })
 export class LeadWhatsAppNotifyService {
-  notify(payload: ContactSubmissionPayload): void {
+  async notifyLeadChannels(payload: ContactSubmissionPayload): Promise<void> {
     const base = environment.whatsappNotifyApiUrl?.trim();
     if (!base) return;
 
@@ -21,12 +20,15 @@ export class LeadWhatsAppNotifyService {
       headers['x-api-key'] = key;
     }
 
-    void fetch(url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(payload),
-    }).catch(() => {
-      /* non-blocking; lead already in Supabase */
-    });
+    try {
+      await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+        mode: 'cors',
+      });
+    } catch {
+      /* server logs the failure */
+    }
   }
 }

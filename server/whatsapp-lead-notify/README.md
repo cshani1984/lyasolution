@@ -1,6 +1,6 @@
-# WhatsApp lead notifications (`whatsapp-web.js`)
+# Lead notifications: WhatsApp + Gmail (`whatsapp-web.js` + Nodemailer)
 
-שרת Node קטן שמקבל **POST** מהאתר אחרי מילוי טופס צור קשר, ושולח **הודעת WhatsApp** לבעלים (ברירת מחדל: `972509250384` — 050-9250384).
+שרת Node שמקבל **POST** אחרי טופס צור קשר: **WhatsApp** לבעלים (ברירת מחדל `972509250384`) וגם **מייל אישור ללקוח** דרך Gmail (אופציונלי: `GMAIL_USER` + `GMAIL_APP_PASSWORD`).
 
 ## איך זה עובד
 
@@ -24,13 +24,33 @@ npm start
 curl http://localhost:3840/health
 ```
 
+`GET /health` מחזיר גם `gmailConfigured: true/false`.
+
+## Gmail (confirmation to the person who submitted the form)
+
+1. Google account with **2-Step Verification** (required — without it you cannot create App Passwords).
+2. Create an **App password**: https://myaccount.google.com/apppasswords — choose “Mail” / “Other”, copy the **16-character** password into `GMAIL_APP_PASSWORD` (spaces are stripped automatically).
+3. Set `GMAIL_USER` to the **full Gmail address** (same account).
+
+**If you see `Invalid login` / `535`:** you are almost certainly using your **normal Gmail password**. Google does not allow that for SMTP anymore. You **must** use an **App Password**, not the password you use to sign in on the web.
+
+If Gmail is configured but WhatsApp is not ready yet, the API can still return **200** when the email sends successfully.
+
 ## משתני סביבה
 
 | משתנה | תיאור |
 |--------|--------|
 | `PORT` | פורט (ברירת מחדל `3840`) |
-| `API_KEY` | אם מוגדר — חובה header `x-api-key` זהה (מומלץ) |
+| `API_KEY` | חובה ב-production; ב-dev מומלץ; header `x-api-key` |
+| `NOTIFY_MAX_PER_IP` | Max notify POSTs per IP per window (default 30) |
+| `NOTIFY_WINDOW_MS` | Rate-limit window in ms (default 900000) |
+| `TRUST_PROXY_HOPS` | Trust X-Forwarded-For hops (default 1; use behind Render) |
+| `WWEBJS_DATA_PATH` | תיקיית סשן WhatsApp (דיסק קבוע בפרודקשן) |
 | `OWNER_WHATSAPP_E164` | מספר יעד בלי `+`, ברירת מחדל `972509250384` |
+| `GMAIL_USER` | Gmail address used to send mail |
+| `GMAIL_APP_PASSWORD` | Google App Password (not your normal password) |
+| `GMAIL_FROM_NAME` | Optional display name (default `Lya Solution`) |
+| `CLIENT_EMAIL_SUBJECT` | Optional subject line for the client email |
 | `CORS_ORIGIN` | מקורות מותרים לדפדפן, מופרדים בפסיקים; בפרודקשן מומלץ לציין את דומיין האתר |
 
 ## פרודקשן
@@ -41,4 +61,8 @@ curl http://localhost:3840/health
 
 ## אבטחה
 
-מפתח בצד הדפדפן **נחשף** בבניית הפרונט. לשימוש אמיתי שקלו **proxy** (למשל Supabase Edge Function עם סוד) שקורא לשרת הזה — לא ממומש כאן.
+- ב-production (`NODE_ENV=production`, למשל Render) חובה **`API_KEY`** — בלי זה השרת לא יעלה (מונע נקודת קצה פתוחה).
+| NOTIFY_MAX_PER_IP | Max notify POSTs per IP per window (default 30) |
+- השוואת מפתח עם **timing-safe** (מפחית חשיפת המפתח דרך זמני תגובה).
+- אורכי שדות מוגבלים כדי למנוע הודעות ענק / ניסיונות DoS.
+- **מפתח בצד הדפדפן עדיין נחשף** בבניית הפרונט — מי שמחפש בקוד יכול לשלוח בקשות. ה-rate limit והמפתח מצמצמים ספאם; לרמת אבטחה גבוהה: **proxy** (למשל Supabase Edge Function עם סוד בצד שרת בלבד) שקורא לשרת הזה אחרי אימות — לא ממומש כאן.
