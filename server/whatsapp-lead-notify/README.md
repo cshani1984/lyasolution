@@ -59,10 +59,30 @@ If Gmail is configured but WhatsApp is not ready yet, the API can still return *
 - ב־Vercel של האתר הגדירי `LEAD_NOTIFY_API_URL` (כתובת מלאה לשרת, למשל `https://notify.example.com`) ו־`LEAD_NOTIFY_API_KEY` (אותו `API_KEY` כמו בשרת).
 - פתחי חומת אש לפורט או השתמשו ב־reverse proxy עם HTTPS.
 
+### Render + Chrome (“Could not find Chrome”)
+
+On Render, **Native Node** often has no Puppeteer-downloaded browser, so you may see: `Could not find Chrome (ver. …)`.
+
+**Use Docker** for this service:
+
+1. Render → your Web Service → **Settings** → **Environment** = **Docker** (not Node).
+2. **Root directory:** `server/whatsapp-lead-notify` (uses `Dockerfile` in that folder).
+3. Start command is already `npm start` in the image; Render sets `PORT`.
+4. Image env: `PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true`, `PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium`.
+5. Keep **`WWEBJS_DATA_PATH`** on your persistent disk mount.
+
+Local: `docker build -t lead-notify .` then `docker run --rm -e API_KEY=test -e PORT=3840 -p 3840:3840 lead-notify`
+
+**QR on Render:** log viewers often break ASCII QR art. When the server logs `WhatsApp QR image ready`, open in a browser (use a private window; the URL contains your secret):
+
+`https://<your-service>.onrender.com/setup/qr?token=<same value as API_KEY>`
+
+`GET /health` includes `whatsappQrAvailable: true` while a QR is available.
+
 ## אבטחה
 
 - ב-production (`NODE_ENV=production`, למשל Render) חובה **`API_KEY`** — בלי זה השרת לא יעלה (מונע נקודת קצה פתוחה).
-| NOTIFY_MAX_PER_IP | Max notify POSTs per IP per window (default 30) |
+- **Rate limit** on `POST /api/notify-lead` (`NOTIFY_MAX_PER_IP`, `NOTIFY_WINDOW_MS`).
 - השוואת מפתח עם **timing-safe** (מפחית חשיפת המפתח דרך זמני תגובה).
 - אורכי שדות מוגבלים כדי למנוע הודעות ענק / ניסיונות DoS.
 - **מפתח בצד הדפדפן עדיין נחשף** בבניית הפרונט — מי שמחפש בקוד יכול לשלוח בקשות. ה-rate limit והמפתח מצמצמים ספאם; לרמת אבטחה גבוהה: **proxy** (למשל Supabase Edge Function עם סוד בצד שרת בלבד) שקורא לשרת הזה אחרי אימות — לא ממומש כאן.

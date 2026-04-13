@@ -11,12 +11,15 @@
  *   NOTIFY_MAX_PER_IP — max POST /api/notify-lead per IP per window (default 30)
  *   NOTIFY_WINDOW_MS — rate-limit window in ms (default 900000 = 15 min)
  *   TRUST_PROXY_HOPS — trust X-Forwarded-For from proxy (default 1; use on Render)
+ *
+ * First-time link (Render logs often hide ASCII QR): GET /setup/qr?token=<API_KEY>
  */
 import crypto from 'crypto';
 import express from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
-import qrcode from 'qrcode-terminal';
+import QRCode from 'qrcode';
+import qrcodeTerminal from 'qrcode-terminal';
 import pkg from 'whatsapp-web.js';
 // import { isGmailConfigured, sendClientConfirmationEmail } from './email.mjs';
 
@@ -91,6 +94,25 @@ function checkApiKey(req, res) {
   return true;
 }
 
+/** PNG data URL for current pairing QR (cleared on ready). */
+let whatsappQrDataUrl = null;
+
+function checkSetupQrToken(req, res) {
+  if (!API_KEY) {
+    if (IS_PRODUCTION) {
+      res.status(503).send('Service misconfigured');
+      return false;
+    }
+    return true;
+  }
+  const token = req.query.token;
+  if (!apiKeyMatches(typeof token === 'string' ? token : '')) {
+    res.status(401).send('Unauthorized');
+    return false;
+  }
+  return true;
+}
+
 let clientReady = false;
 let clientStarting = false;
 
@@ -108,10 +130,20 @@ const client = new Client({
 
 client.on('qr', (qr) => {
   console.log('Scan this QR with WhatsApp (Linked devices):');
-  qrcode.generate(qr, { small: true });
+  qrcodeTerminal.generate(qr, { small: true });
+  void QRCode.toDataURL(qr, { width: 400, margin: 2, errorCorrectionLevel: 'M' })
+    .then((dataUrl) => {
+      whatsappQrDataUrl = dataUrl;
+      log(
+        'WhatsApp QR image ready — open in browser (token = same as API_KEY):',
+        '/setup/qr?token=…',
+      );
+    })
+    .catch((e) => logErr('Failed to build QR image', e));
 });
 
 client.on('ready', () => {
+  whatsappQrDataUrl = null;
   clientReady = true;
   log('WhatsApp client ready. Owner JID:', OWNER_JID);
 });
@@ -137,9 +169,28 @@ app.get('/health', (_req, res) => {
   res.json({
     ok: true,
     whatsappReady: clientReady,
+    whatsappQrAvailable: Boolean(whatsappQrDataUrl),
     gmailConfigured: false, // was: isGmailConfigured() — email sending disabled
     apiKeyRequired: IS_PRODUCTION || Boolean(API_KEY),
   });
+});
+
+app.get('/setup/qr', (req, res) => {
+  if (!checkSetupQrToken(req, res)) return;
+  if (!whatsappQrDataUrl) {
+    res
+      .status(404)
+      .type('html')
+      .send(
+        '<!DOCTYPE html><meta charset="utf-8"><p>No QR right now. If the client is already linked, see <code>/health</code> for <code>whatsappReady</code>. Otherwise wait and refresh (QR rotates).</p>',
+      );
+    return;
+  }
+  res
+    .type('html')
+    .send(
+      `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="robots" content="noindex"/><title>WhatsApp — scan QR</title></head><body style="font-family:sans-serif;padding:1rem"><p>Scan with <strong>WhatsApp → Linked devices → Link a device</strong></p><p><img src="${whatsappQrDataUrl}" width="400" height="400" alt="WhatsApp QR"/></p></body></html>`,
+    );
 });
 
 app.post('/api/notify-lead', notifyRateLimiter, async (req, res) => {
@@ -256,6 +307,7 @@ app.post('/api/notify-lead', notifyRateLimiter, async (req, res) => {
 app.listen(PORT, () => {
   log(`listening on http://0.0.0.0:${PORT}`);
   log('POST /api/notify-lead — body: { firstName, lastName, phone, email, message }');
+  log('First-time WhatsApp link (Render logs hide ASCII QR): GET /setup/qr?token=<API_KEY>');
   if (IS_PRODUCTION) {
     if (!API_KEY) {
       logErr('FATAL: NODE_ENV=production requires API_KEY. Set API_KEY in your host env.');
