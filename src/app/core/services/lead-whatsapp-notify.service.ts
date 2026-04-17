@@ -22,14 +22,27 @@ export class LeadWhatsAppNotifyService {
     }
 
     try {
-      await fetch(url, {
+      const res = await fetch(url, {
         method: 'POST',
         headers,
         body: JSON.stringify(payload),
         mode: 'cors',
       });
+      if (!res.ok) {
+        let details = '';
+        try {
+          details = await res.text();
+        } catch {
+          /* ignore read body failure */
+        }
+        console.error('[lead-notify] notify endpoint failed', {
+          status: res.status,
+          statusText: res.statusText,
+          details,
+        });
+      }
     } catch {
-      /* server logs the failure */
+      console.error('[lead-notify] request failed (network/CORS)');
     }
   }
 }
