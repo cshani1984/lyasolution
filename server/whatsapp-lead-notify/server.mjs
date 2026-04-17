@@ -164,8 +164,12 @@ app.post('/api/notify-lead', notifyRateLimiter, async (req, res) => {
   let emailError = null;
   if (isGmailConfigured()) {
     try {
+      log('Email: START client confirmation →', lead.email);
       await sendClientConfirmationEmail(lead);
+      log('Email: OK client confirmation →', lead.email);
+      log('Email: START owner notification →', process.env.GMAIL_USER?.trim() ?? '(missing GMAIL_USER)');
       await sendOwnerLeadNotificationEmail(lead);
+      log('Email: OK owner notification');
       emailSent = true;
       log('Email: OK →', lead.email);
     } catch (e) {

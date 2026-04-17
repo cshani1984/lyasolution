@@ -99,6 +99,11 @@ export async function sendClientConfirmationEmail(lead) {
 </div>`.trim();
 
   try {
+    console.log('[email] sendClientConfirmationEmail: sending', {
+      to,
+      fromUser: user,
+      subject,
+    });
     await transporter.sendMail({
       from: `"${fromName}" <${user}>`,
       to,
@@ -107,7 +112,9 @@ export async function sendClientConfirmationEmail(lead) {
       text,
       html,
     });
+    console.log('[email] sendClientConfirmationEmail: sent', { to });
   } catch (err) {
+    console.error('[email] sendClientConfirmationEmail: failed', err);
     wrapAuthError(err);
   }
 }
@@ -142,6 +149,11 @@ export async function sendOwnerLeadNotificationEmail(lead) {
 </div>`.trim();
 
   try {
+    console.log('[email] sendOwnerLeadNotificationEmail: sending', {
+      to: user,
+      replyTo: lead.email.trim().toLowerCase(),
+      subject,
+    });
     await transporter.sendMail({
       from: `"${fromName}" <${user}>`,
       to: user,
@@ -150,7 +162,9 @@ export async function sendOwnerLeadNotificationEmail(lead) {
       text: body,
       html,
     });
+    console.log('[email] sendOwnerLeadNotificationEmail: sent', { to: user });
   } catch (err) {
+    console.error('[email] sendOwnerLeadNotificationEmail: failed', err);
     wrapAuthError(err);
   }
 }
