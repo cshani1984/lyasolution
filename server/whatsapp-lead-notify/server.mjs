@@ -1,29 +1,29 @@
-/**
+﻿/**
  * HTTP API after contact form: WhatsApp to owner.
- * Gmail confirmation to client — disabled (see commented import + block in /api/notify-lead, and email.mjs).
+ * Optional Gmail confirmation is sent to the lead when configured.
  *
  * Env:
  *   PORT (default 3840)
- *   API_KEY — required when NODE_ENV=production; client sends header x-api-key
- *   OWNER_WHATSAPP_E164 — digits only, default +972509250384 (050-9250384)
- *   CORS_ORIGIN — optional; comma-separated list, or * for any (dev only)
- *   WWEBJS_DATA_PATH — optional; folder for WhatsApp session (use a persistent disk path in production, e.g. Render mount)
- *   NOTIFY_MAX_PER_IP — max POST /api/notify-lead per IP per window (default 30)
- *   NOTIFY_WINDOW_MS — rate-limit window in ms (default 900000 = 15 min)
- *   TRUST_PROXY_HOPS — trust X-Forwarded-For from proxy (default 1; use on Render)
+ *   API_KEY â€” required when NODE_ENV=production; client sends header x-api-key
+ *   OWNER_WHATSAPP_E164 â€” digits only, default +972509250384 (050-9250384)
+ *   CORS_ORIGIN â€” optional; comma-separated list, or * for any (dev only)
+ *   WWEBJS_DATA_PATH â€” optional; folder for WhatsApp session (use a persistent disk path in production, e.g. Render mount)
+ *   NOTIFY_MAX_PER_IP â€” max POST /api/notify-lead per IP per window (default 30)
+ *   NOTIFY_WINDOW_MS â€” rate-limit window in ms (default 900000 = 15 min)
+ *   TRUST_PROXY_HOPS â€” trust X-Forwarded-For from proxy (default 1; use on Render)
  *
  * First-time link (Render logs often hide ASCII QR): GET /setup/qr?token=<API_KEY>
  */
 import crypto from 'crypto';
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
-import QRCode from 'qrcode';
-import qrcodeTerminal from 'qrcode-terminal';
-import pkg from 'whatsapp-web.js';
-// import { isGmailConfigured, sendClientConfirmationEmail } from './email.mjs';
-
-const { Client, LocalAuth } = pkg;
+import {
+  isGmailConfigured,
+  sendClientConfirmationEmail,
+  sendOwnerLeadNotificationEmail,
+} from './email.mjs';
 
 const log = (msg, ...args) => console.log(`[lead-notify ${new Date().toISOString()}]`, msg, ...args);
 const logErr = (msg, ...args) => console.error(`[lead-notify ${new Date().toISOString()}]`, msg, ...args);
@@ -31,8 +31,6 @@ const logErr = (msg, ...args) => console.error(`[lead-notify ${new Date().toISOS
 const PORT = Number(process.env.PORT) || 3840;
 const API_KEY = (process.env.API_KEY ?? '').trim();
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
-const OWNER_E164 = (process.env.OWNER_WHATSAPP_E164 ?? '+972509250384').replace(/\D/g, '');
-const OWNER_JID = `${OWNER_E164}@c.us`;
 
 const corsOrigin = process.env.CORS_ORIGIN?.trim();
 const corsOptions =
@@ -56,7 +54,7 @@ const notifyRateLimiter = rateLimit({
   message: { ok: false, error: 'Too many requests' },
 });
 
-/** Max lengths after trim — limits abuse / oversized WhatsApp payloads */
+/** Max lengths after trim â€” limits abuse / oversized WhatsApp payloads */
 const LEAD_FIELD_MAX = {
   firstName: 80,
   lastName: 80,
@@ -94,103 +92,16 @@ function checkApiKey(req, res) {
   return true;
 }
 
-/** PNG data URL for current pairing QR (cleared on ready). */
-let whatsappQrDataUrl = null;
-
-function checkSetupQrToken(req, res) {
-  if (!API_KEY) {
-    if (IS_PRODUCTION) {
-      res.status(503).send('Service misconfigured');
-      return false;
-    }
-    return true;
-  }
-  const token = req.query.token;
-  if (!apiKeyMatches(typeof token === 'string' ? token : '')) {
-    res.status(401).send('Unauthorized');
-    return false;
-  }
-  return true;
-}
-
-let clientReady = false;
-let clientStarting = false;
-
-const puppeteerExecutable = process.env.PUPPETEER_EXECUTABLE_PATH?.trim();
-const wwebjsDataPath = (process.env.WWEBJS_DATA_PATH ?? '.wwebjs_auth').trim() || '.wwebjs_auth';
-
-const client = new Client({
-  authStrategy: new LocalAuth({ dataPath: wwebjsDataPath }),
-  puppeteer: {
-    headless: true,
-    executablePath: puppeteerExecutable || undefined,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
-  },
-});
-
-client.on('qr', (qr) => {
-  console.log('Scan this QR with WhatsApp (Linked devices):');
-  qrcodeTerminal.generate(qr, { small: true });
-  void QRCode.toDataURL(qr, { width: 400, margin: 2, errorCorrectionLevel: 'M' })
-    .then((dataUrl) => {
-      whatsappQrDataUrl = dataUrl;
-      log(
-        'WhatsApp QR image ready — open in browser (token = same as API_KEY):',
-        '/setup/qr?token=…',
-      );
-    })
-    .catch((e) => logErr('Failed to build QR image', e));
-});
-
-client.on('ready', () => {
-  whatsappQrDataUrl = null;
-  clientReady = true;
-  log('WhatsApp client ready. Owner JID:', OWNER_JID);
-});
-
-client.on('auth_failure', (m) => logErr('WhatsApp auth_failure:', m));
-client.on('disconnected', (r) => {
-  clientReady = false;
-  logErr('WhatsApp disconnected:', r);
-});
-
-function startClient() {
-  if (clientStarting) return;
-  clientStarting = true;
-  client.initialize().catch((e) => {
-    clientStarting = false;
-    logErr('Failed to initialize WhatsApp client:', e);
-  });
-}
-
-startClient();
+const clientReady = false;
 
 app.get('/health', (_req, res) => {
   res.json({
     ok: true,
     whatsappReady: clientReady,
-    whatsappQrAvailable: Boolean(whatsappQrDataUrl),
-    gmailConfigured: false, // was: isGmailConfigured() — email sending disabled
+    whatsappQrAvailable: false,
+    gmailConfigured: isGmailConfigured(),
     apiKeyRequired: IS_PRODUCTION || Boolean(API_KEY),
   });
-});
-
-app.get('/setup/qr', (req, res) => {
-  if (!checkSetupQrToken(req, res)) return;
-  if (!whatsappQrDataUrl) {
-    res
-      .status(404)
-      .type('html')
-      .send(
-        '<!DOCTYPE html><meta charset="utf-8"><p>No QR right now. If the client is already linked, see <code>/health</code> for <code>whatsappReady</code>. Otherwise wait and refresh (QR rotates).</p>',
-      );
-    return;
-  }
-  res
-    .type('html')
-    .send(
-      `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="robots" content="noindex"/><title>WhatsApp — scan QR</title></head><body style="font-family:sans-serif;padding:1rem"><p>Scan with <strong>WhatsApp → Linked devices → Link a device</strong></p><p><img src="${whatsappQrDataUrl}" width="400" height="400" alt="WhatsApp QR"/></p></body></html>`,
-    );
 });
 
 app.post('/api/notify-lead', notifyRateLimiter, async (req, res) => {
@@ -241,39 +152,20 @@ app.post('/api/notify-lead', notifyRateLimiter, async (req, res) => {
   log('notify-lead: received', {
     toEmail: lead.email,
     name: `${lead.firstName} ${lead.lastName}`,
-    whatsappReady: clientReady,
-    gmailConfigured: false,
+    whatsappReady: false,
+    gmailConfigured: isGmailConfigured(),
   });
-
-  const text = [
-    'ליד חדש מהאתר:',
-    `שם: ${lead.firstName} ${lead.lastName}`,
-    `טלפון: ${lead.phone}`,
-    `מייל: ${lead.email}`,
-    `הודעה: ${lead.message}`,
-  ].join('\n');
 
   let whatsappSent = false;
   let whatsappError = null;
-  if (clientReady) {
-    try {
-      await client.sendMessage(OWNER_JID, text);
-      whatsappSent = true;
-      log('WhatsApp: OK →', OWNER_JID);
-    } catch (e) {
-      whatsappError = e instanceof Error ? e.message : String(e);
-      logErr('WhatsApp: FAIL', whatsappError);
-    }
-  } else {
-    log('WhatsApp: SKIP (client not ready — scan QR in this terminal)');
-  }
+  log('WhatsApp: DISABLED (email-only mode)');
 
   let emailSent = false;
   let emailError = null;
-  /*
   if (isGmailConfigured()) {
     try {
       await sendClientConfirmationEmail(lead);
+      await sendOwnerLeadNotificationEmail(lead);
       emailSent = true;
       log('Email: OK →', lead.email);
     } catch (e) {
@@ -283,12 +175,11 @@ app.post('/api/notify-lead', notifyRateLimiter, async (req, res) => {
   } else {
     log('Email: SKIP (GMAIL_USER / GMAIL_APP_PASSWORD not set)');
   }
-  */
 
   if (!whatsappSent && !emailSent) {
-    const hint = !clientReady
-      ? 'WhatsApp not connected. Scan QR in server logs.'
-      : 'Failed to send WhatsApp. Check logs.';
+    const hint = isGmailConfigured()
+      ? 'Failed to send email. Check logs and Gmail configuration.'
+      : 'Gmail not configured. Set GMAIL_USER + GMAIL_APP_PASSWORD.';
     logErr('notify-lead: no channel succeeded', { whatsappError, emailError });
     res.status(503).json({ ok: false, error: hint, whatsappError, emailError });
     return;
@@ -306,8 +197,8 @@ app.post('/api/notify-lead', notifyRateLimiter, async (req, res) => {
 
 app.listen(PORT, () => {
   log(`listening on http://0.0.0.0:${PORT}`);
-  log('POST /api/notify-lead — body: { firstName, lastName, phone, email, message }');
-  log('First-time WhatsApp link (Render logs hide ASCII QR): GET /setup/qr?token=<API_KEY>');
+  log('POST /api/notify-lead â€” body: { firstName, lastName, phone, email, message }');
+  log('WhatsApp runtime disabled (email-only mode).');
   if (IS_PRODUCTION) {
     if (!API_KEY) {
       logErr('FATAL: NODE_ENV=production requires API_KEY. Set API_KEY in your host env.');
@@ -318,8 +209,8 @@ app.listen(PORT, () => {
   } else if (API_KEY) {
     log('API_KEY is set (require x-api-key header)');
   } else {
-    log('API_KEY not set (open endpoint — dev only; set API_KEY before production)');
+    log('API_KEY not set (open endpoint â€” dev only; set API_KEY before production)');
   }
-  // if (isGmailConfigured()) log('Gmail: configured');
-  if (puppeteerExecutable) log('Puppeteer executable:', puppeteerExecutable);
+  if (isGmailConfigured()) log('Gmail: configured');
 });
+

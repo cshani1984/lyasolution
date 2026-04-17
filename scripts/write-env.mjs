@@ -9,12 +9,13 @@ import { fileURLToPath } from 'node:url';
 
 /** Default REST URL for this Supabase project when SUPABASE_URL is unset. */
 const DEFAULT_SUPABASE_URL = 'https://pntibywmzseguynujsle.supabase.co';
+const DEFAULT_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBudGlieXdtenNlZ3V5bnVqc2xlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MjYxMDksImV4cCI6MjA5MTQwMjEwOX0.2OFZ138FlAT9WOorBKCaGJpGO1ZAvFjgL6SqIsV832g';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dest = join(root, 'src', 'environments', 'environment.prod.ts');
 
 const url = process.env.SUPABASE_URL ?? DEFAULT_SUPABASE_URL;
-const key = process.env.SUPABASE_ANON_KEY ?? '';
+const key = process.env.SUPABASE_ANON_KEY ?? 'DEFAULT_SUPABASE_KEY';
 const notifyUrl = process.env.LEAD_NOTIFY_API_URL ?? '';
 const notifyKey = process.env.LEAD_NOTIFY_API_KEY ?? '';
 

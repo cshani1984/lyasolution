@@ -3,7 +3,8 @@ import { environment } from '../../../environments/environment';
 import type { ContactSubmissionPayload } from './contact-submissions.service';
 
 /**
- * POST to the Node server (WhatsApp; Gmail confirmation disabled on server for now). Errors are silent in the browser; see server logs.
+ * POST to the Node notify server (email-only in current backend mode).
+ * Errors are silent in the browser; see server logs.
  */
 @Injectable({ providedIn: 'root' })
 export class LeadWhatsAppNotifyService {
