@@ -1,6 +1,64 @@
-import { Injectable, computed, effect, signal } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
+import { Injectable, PLATFORM_ID, computed, effect, inject, signal } from '@angular/core';
 
 export type Lang = 'he' | 'en';
+
+const LANG_STORAGE_KEY = 'lya-lang';
+
+/** Common IANA zones for Israel; used as a practical “in Israel” signal in the browser. */
+const ISRAEL_TIMEZONES = new Set(['Asia/Jerusalem', 'Asia/Tel_Aviv']);
+
+function readSavedLang(): Lang | null {
+  if (typeof localStorage === 'undefined') {
+    return null;
+  }
+  try {
+    const v = localStorage.getItem(LANG_STORAGE_KEY);
+    if (v === 'he' || v === 'en') {
+      return v;
+    }
+  } catch {
+    /* private mode */
+  }
+  return null;
+}
+
+function persistLang(lang: Lang): void {
+  if (typeof localStorage === 'undefined') {
+    return;
+  }
+  try {
+    localStorage.setItem(LANG_STORAGE_KEY, lang);
+  } catch {
+    /* ignore */
+  }
+}
+
+function detectDefaultLangFromLocale(): Lang {
+  if (typeof Intl === 'undefined' || typeof Intl.DateTimeFormat === 'undefined') {
+    return 'en';
+  }
+  try {
+    const { timeZone, locale } = Intl.DateTimeFormat().resolvedOptions();
+    if (timeZone && ISRAEL_TIMEZONES.has(timeZone)) {
+      return 'he';
+    }
+    const lc = (locale || '').toLowerCase();
+    if (lc.startsWith('he') || lc.startsWith('iw')) {
+      return 'he';
+    }
+  } catch {
+    /* ignore */
+  }
+  return 'en';
+}
+
+function initialLang(platformId: object): Lang {
+  if (!isPlatformBrowser(platformId)) {
+    return 'en';
+  }
+  return readSavedLang() ?? detectDefaultLangFromLocale();
+}
 
 const DICT: Record<Lang, Record<string, string>> = {
   he: {
@@ -442,7 +500,9 @@ As part of how we build, we use AI tools (such as Cursor, Claude Code, Copilot, 
 
 @Injectable({ providedIn: 'root' })
 export class I18nService {
-  readonly lang = signal<Lang>('he');
+  private readonly platformId = inject(PLATFORM_ID);
+
+  readonly lang = signal<Lang>(initialLang(this.platformId));
 
   readonly isRtl = computed(() => this.lang() === 'he');
 
@@ -459,10 +519,15 @@ export class I18nService {
   }
 
   toggleLang(): void {
-    this.lang.update((v) => (v === 'he' ? 'en' : 'he'));
+    this.lang.update((v) => {
+      const next: Lang = v === 'he' ? 'en' : 'he';
+      persistLang(next);
+      return next;
+    });
   }
 
   setLang(lang: Lang): void {
     this.lang.set(lang);
+    persistLang(lang);
   }
 }

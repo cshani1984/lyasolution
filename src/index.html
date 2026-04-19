@@ -1,8 +1,36 @@
 <!doctype html>
-<html lang="he" dir="rtl">
+<html lang="en" dir="ltr">
   <head>
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('lya-lang');
+          if (saved === 'he' || saved === 'en') {
+            document.documentElement.lang = saved;
+            document.documentElement.dir = saved === 'he' ? 'rtl' : 'ltr';
+            return;
+          }
+        } catch (e) {}
+        try {
+          var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+          if (tz === 'Asia/Jerusalem' || tz === 'Asia/Tel_Aviv') {
+            document.documentElement.lang = 'he';
+            document.documentElement.dir = 'rtl';
+            return;
+          }
+          var loc = (Intl.DateTimeFormat().resolvedOptions().locale || '').toLowerCase();
+          if (loc.indexOf('he') === 0 || loc.indexOf('iw') === 0) {
+            document.documentElement.lang = 'he';
+            document.documentElement.dir = 'rtl';
+            return;
+          }
+        } catch (e) {}
+        document.documentElement.lang = 'en';
+        document.documentElement.dir = 'ltr';
+      })();
+    </script>
     <meta charset="utf-8" />
-    <title>LYA SOLUTION —בניית פתרונות דיגיטליים מתקדמים ומורכבים, בניית אתרים רספונסיבים, מערכות מורכבות ודשבורדים"</title>
+    <title>LYA SOLUTION —בניית פתרונות דיגיטליים מתקדמים ומורכבים, בניית אתרים רספונסיבים, מערכות מורכבות ודשבורדים</title>
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta
@@ -13,13 +41,13 @@
     <meta name="theme-color" content="#9c27b0" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="LYA SOLUTION" />
-    <meta property="og:title" content="LYA SOLUTION —בניית פתרונות דיגיטליים מתקדמים ומורכבים, בניית אתרים רספונסיבים, מערכות מורכבות ודשבורדים"" />
+    <meta property="og:title" content="LYA SOLUTION —בניית פתרונות דיגיטליים מתקדמים ומורכבים, בניית אתרים רספונסיבים, מערכות מורכבות ודשבורדים" />
     <meta
       property="og:description"
       content="LYA SOLUTION —בניית פתרונות דיגיטליים מתקדמים ומורכבים, בניית אתרים רספונסיבים, מערכות מורכבות ודשבורדים"
     />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="LYA SOLUTION —בניית פתרונות דיגיטליים מתקדמים ומורכבים, בניית אתרים רספונסיבים, מערכות מורכבות ודשבורדים"" />
+    <meta name="twitter:title" content="LYA SOLUTION —בניית פתרונות דיגיטליים מתקדמים ומורכבים, בניית אתרים רספונסיבים, מערכות מורכבות ודשבורדים" />
     <meta
       name="twitter:description"
       content="LYA SOLUTION —בניית פתרונות דיגיטליים מתקדמים ומורכבים, בניית אתרים רספונסיבים, מערכות מורכבות ודשבורדים"
