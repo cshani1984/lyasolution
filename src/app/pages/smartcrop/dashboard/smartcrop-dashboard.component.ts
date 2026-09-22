@@ -1,7 +1,7 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import type { CropData, SmartcropPhoto } from '../../../core/models/smartcrop.model';
+import type { CropSaveResult, SmartcropPhoto } from '../../../core/models/smartcrop.model';
 import { I18nService } from '../../../core/services/i18n.service';
 import { SmartcropAuthService } from '../../../core/services/smartcrop-auth.service';
 import { SmartcropPhotosService } from '../../../core/services/smartcrop-photos.service';
@@ -184,14 +184,23 @@ export class SmartcropDashboardComponent implements OnInit {
     this.toast.set(this.i18n.t('smartcrop.dash.simulated'));
   }
 
-  async saveCrop(cropData: CropData): Promise<void> {
+  async saveCrop(result: CropSaveResult): Promise<void> {
     const photo = this.editingPhoto();
     if (!photo) return;
     this.busy.set(true);
     if (this.api.isConfigured()) {
-      await this.api.processCrop({ photoId: photo.id, cropData });
+      await this.api.processCrop({
+        photoId: photo.id,
+        cropData: result.cropData,
+        sizeId: result.sizeId,
+      });
     } else {
-      await this.photosService.updatePhoto(photo.id, { crop_data: cropData });
+      await this.photosService.updatePhoto(photo.id, {
+        crop_data: result.cropData,
+        cropped_url: result.objectUrl ?? photo.cropped_url,
+        size_id: result.sizeId ?? photo.size_id,
+        target_size_name: result.sizeName ?? photo.target_size_name,
+      });
     }
     await this.photosService.loadPhotos();
     this.editingPhoto.set(null);

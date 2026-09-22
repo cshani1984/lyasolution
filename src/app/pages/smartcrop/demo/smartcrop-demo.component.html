@@ -61,6 +61,7 @@
   <app-smartcrop-crop-modal
     [open]="!!editingPhoto()"
     [photo]="editingPhoto()"
+    [sizes]="sizes"
     [aspectRatio]="editingAspect()"
     (closed)="editingPhoto.set(null)"
     (saved)="saveCrop($event)"

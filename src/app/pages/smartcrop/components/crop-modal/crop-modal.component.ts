@@ -1,6 +1,5 @@
 import {
   Component,
-  ElementRef,
   EventEmitter,
   HostListener,
   Input,
@@ -8,81 +7,154 @@ import {
   Output,
   SimpleChanges,
   ViewChild,
+  computed,
   inject,
   signal,
 } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
-import type { CropData, SmartcropPhoto } from '../../../../core/models/smartcrop.model';
+import { FormsModule } from '@angular/forms';
+import {
+  ImageCropperComponent,
+  type ImageCroppedEvent,
+  type ImageTransform,
+  type CropperPosition,
+} from 'ngx-image-cropper';
+import type {
+  CropData,
+  CropSaveResult,
+  PrintSize,
+  SmartcropPhoto,
+} from '../../../../core/models/smartcrop.model';
 import { I18nService } from '../../../../core/services/i18n.service';
 
 @Component({
   selector: 'app-smartcrop-crop-modal',
   standalone: true,
-  imports: [DecimalPipe],
+  imports: [DecimalPipe, FormsModule, ImageCropperComponent],
   templateUrl: './crop-modal.component.html',
   styleUrl: './crop-modal.component.scss',
 })
 export class SmartcropCropModalComponent implements OnChanges {
   readonly i18n = inject(I18nService);
 
+  @ViewChild(ImageCropperComponent) cropperCmp?: ImageCropperComponent;
+
   @Input() photo: SmartcropPhoto | null = null;
+  @Input() sizes: PrintSize[] = [];
+  /** Fallback when sizes list is empty. */
   @Input() aspectRatio = 2 / 3;
   @Input() open = false;
 
   @Output() readonly closed = new EventEmitter<void>();
-  @Output() readonly saved = new EventEmitter<CropData>();
+  @Output() readonly saved = new EventEmitter<CropSaveResult>();
   @Output() readonly resetAi = new EventEmitter<void>();
 
-  @ViewChild('stage') stageRef?: ElementRef<HTMLDivElement>;
+  readonly selectedSizeId = signal<string>('');
+  readonly transform = signal<ImageTransform>({ scale: 1, rotate: 0 });
+  readonly ready = signal(false);
+  readonly loadFailed = signal(false);
+  readonly cropperPos = signal<CropperPosition | undefined>(undefined);
 
-  readonly zoom = signal(1);
-  readonly offsetX = signal(0);
-  readonly offsetY = signal(0);
-  readonly dragging = signal(false);
+  /** When false, do not restore previous crop_data (e.g. after size change). */
+  private restoreExistingCrop = true;
 
-  private dragStartX = 0;
-  private dragStartY = 0;
-  private originX = 0;
-  private originY = 0;
-  private naturalW = 0;
-  private naturalH = 0;
+  private lastCrop: ImageCroppedEvent | null = null;
+  cropperKey = 0;
+
+  readonly activeSize = computed(() => {
+    const id = this.selectedSizeId();
+    return this.sizes.find((s) => s.id === id) ?? this.sizes[0] ?? null;
+  });
+
+  readonly activeAspect = computed(() => {
+    const size = this.activeSize();
+    if (size) return Number(size.aspect_ratio) || this.aspectRatio;
+    return this.aspectRatio;
+  });
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['photo'] || changes['open']) {
-      this.zoom.set(this.photo?.crop_data?.zoom ?? 1);
-      this.offsetX.set(0);
-      this.offsetY.set(0);
+    if (changes['photo'] || changes['open'] || changes['sizes']) {
+      if (this.open && this.photo) {
+        this.syncSizeFromPhoto();
+        this.resetCropperState(true);
+      }
     }
   }
 
-  onImageLoad(event: Event): void {
-    const img = event.target as HTMLImageElement;
-    this.naturalW = img.naturalWidth;
-    this.naturalH = img.naturalHeight;
+  private syncSizeFromPhoto(): void {
+    const photo = this.photo;
+    if (!photo || !this.sizes.length) {
+      this.selectedSizeId.set('');
+      return;
+    }
+    const match =
+      this.sizes.find((s) => s.id === photo.size_id) ??
+      this.sizes.find((s) => s.name === photo.target_size_name) ??
+      this.sizes.find((s) => s.is_default) ??
+      this.sizes[0];
+    this.selectedSizeId.set(match.id);
   }
 
-  onPointerDown(event: PointerEvent): void {
-    this.dragging.set(true);
-    this.dragStartX = event.clientX;
-    this.dragStartY = event.clientY;
-    this.originX = this.offsetX();
-    this.originY = this.offsetY();
-    (event.target as HTMLElement).setPointerCapture?.(event.pointerId);
+  private resetCropperState(restoreCrop: boolean): void {
+    this.restoreExistingCrop = restoreCrop;
+    this.lastCrop = null;
+    this.ready.set(false);
+    this.loadFailed.set(false);
+    this.cropperPos.set(undefined);
+    this.transform.set({
+      scale: restoreCrop ? (this.photo?.crop_data?.zoom ?? 1) : 1,
+      rotate: restoreCrop ? (this.photo?.crop_data?.rotation ?? 0) : 0,
+    });
+    this.cropperKey += 1;
   }
 
-  onPointerMove(event: PointerEvent): void {
-    if (!this.dragging()) return;
-    this.offsetX.set(this.originX + (event.clientX - this.dragStartX));
-    this.offsetY.set(this.originY + (event.clientY - this.dragStartY));
+  onSizeChange(sizeId: string): void {
+    if (!sizeId || sizeId === this.selectedSizeId()) return;
+    this.selectedSizeId.set(sizeId);
+    // New aspect ratio — rebuild cropper; don't keep old box.
+    this.resetCropperState(false);
   }
 
-  onPointerUp(): void {
-    this.dragging.set(false);
+  onImageCropped(event: ImageCroppedEvent): void {
+    this.lastCrop = event;
+  }
+
+  onCropperReady(): void {
+    this.ready.set(true);
+    requestAnimationFrame(() => {
+      this.cropperCmp?.onResize();
+      if (!this.restoreExistingCrop) return;
+      const existing = this.photo?.crop_data;
+      if (existing && existing.width > 0 && existing.height > 0) {
+        this.cropperPos.set({
+          x1: existing.x,
+          y1: existing.y,
+          x2: existing.x + existing.width,
+          y2: existing.y + existing.height,
+        });
+      }
+    });
+  }
+
+  onTransformChange(t: ImageTransform): void {
+    this.transform.set(t);
+  }
+
+  onLoadFailed(): void {
+    this.loadFailed.set(true);
   }
 
   onZoomInput(event: Event): void {
-    const v = Number((event.target as HTMLInputElement).value);
-    this.zoom.set(v);
+    const scale = Number((event.target as HTMLInputElement).value);
+    this.transform.update((t) => ({ ...t, scale }));
+  }
+
+  rotateLeft(): void {
+    this.transform.update((t) => ({ ...t, rotate: ((t.rotate ?? 0) - 90) % 360 }));
+  }
+
+  rotateRight(): void {
+    this.transform.update((t) => ({ ...t, rotate: ((t.rotate ?? 0) + 90) % 360 }));
   }
 
   @HostListener('document:keydown.escape')
@@ -90,39 +162,51 @@ export class SmartcropCropModalComponent implements OnChanges {
     if (this.open) this.closed.emit();
   }
 
-  save(): void {
-    const stage = this.stageRef?.nativeElement;
-    if (!stage || !this.photo || !this.naturalW || !this.naturalH) {
+  async save(): Promise<void> {
+    let event = this.lastCrop;
+    if (this.cropperCmp) {
+      try {
+        const cropped = await this.cropperCmp.crop('blob');
+        if (cropped) event = cropped;
+      } catch {
+        // fall back to last auto-crop event
+      }
+    }
+    if (!event?.imagePosition) {
       this.closed.emit();
       return;
     }
 
-    const stageW = stage.clientWidth;
-    const stageH = stage.clientHeight;
-    const z = this.zoom();
-
-    // Displayed image covers the stage (object-fit cover) then scaled by zoom
-    const coverScale = Math.max(stageW / this.naturalW, stageH / this.naturalH) * z;
-    const dispW = this.naturalW * coverScale;
-    const dispH = this.naturalH * coverScale;
-    const imgLeft = (stageW - dispW) / 2 + this.offsetX();
-    const imgTop = (stageH - dispH) / 2 + this.offsetY();
-
-    // Crop frame is full stage with aspect CSS — stage itself is aspect-locked
-    const cropX = Math.max(0, Math.min(this.naturalW, (-imgLeft) / coverScale));
-    const cropY = Math.max(0, Math.min(this.naturalH, (-imgTop) / coverScale));
-    const cropW = Math.min(this.naturalW - cropX, stageW / coverScale);
-    const cropH = Math.min(this.naturalH - cropY, stageH / coverScale);
+    const { x1, y1, x2, y2 } = event.imagePosition;
+    const width = Math.max(1, Math.round(x2 - x1));
+    const height = Math.max(1, Math.round(y2 - y1));
+    const x = Math.round(x1);
+    const y = Math.round(y1);
+    const t = this.transform();
+    const size = this.activeSize();
 
     const cropData: CropData = {
-      x: Math.round(cropX),
-      y: Math.round(cropY),
-      width: Math.round(cropW),
-      height: Math.round(cropH),
-      zoom: z,
-      focalPoint: { x: cropX + cropW / 2, y: cropY + cropH * 0.4 },
+      x,
+      y,
+      width,
+      height,
+      zoom: t.scale ?? 1,
+      rotation: t.rotate ?? 0,
+      focalPoint: { x: x + width / 2, y: y + height * 0.4 },
       isManuallyEdited: true,
     };
-    this.saved.emit(cropData);
+
+    let objectUrl = event.objectUrl ?? undefined;
+    if (!objectUrl && event.blob) {
+      objectUrl = URL.createObjectURL(event.blob);
+    }
+
+    this.saved.emit({
+      cropData,
+      objectUrl,
+      blob: event.blob ?? undefined,
+      sizeId: size?.id,
+      sizeName: size?.name,
+    });
   }
 }

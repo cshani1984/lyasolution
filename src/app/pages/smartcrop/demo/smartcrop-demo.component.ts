@@ -1,7 +1,7 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import type { CropData, SmartcropPhoto } from '../../../core/models/smartcrop.model';
+import type { CropSaveResult, SmartcropPhoto } from '../../../core/models/smartcrop.model';
 import {
   DEMO_PRINT_SIZES,
   applyClientCrop,
@@ -119,16 +119,25 @@ export class SmartcropDemoComponent implements OnInit {
     if (value) void this.changeSize(photo.id, value);
   }
 
-  async saveCrop(cropData: CropData): Promise<void> {
+  async saveCrop(result: CropSaveResult): Promise<void> {
     const photo = this.editingPhoto();
     if (!photo) return;
     const list = this.filteredPhotos();
     const idx = list.findIndex((p) => p.id === photo.id);
     this.busy.set(true);
     try {
-      const { blobUrl, cropData: saved } = await applyClientCrop(photo.original_url, cropData);
-      this.blobUrls.add(blobUrl);
-      this.patchPhoto(photo.id, { cropped_url: blobUrl, crop_data: saved });
+      let objectUrl = result.objectUrl;
+      if (!objectUrl) {
+        const applied = await applyClientCrop(photo.original_url, result.cropData);
+        objectUrl = applied.blobUrl;
+      }
+      this.blobUrls.add(objectUrl);
+      this.patchPhoto(photo.id, {
+        cropped_url: objectUrl,
+        crop_data: result.cropData,
+        size_id: result.sizeId ?? photo.size_id,
+        target_size_name: result.sizeName ?? photo.target_size_name,
+      });
       this.toast.set(this.i18n.t('smartcrop.demo.cropSaved'));
       const next = idx >= 0 ? list[idx + 1] : undefined;
       if (next) {

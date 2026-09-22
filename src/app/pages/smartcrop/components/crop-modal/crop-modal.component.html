@@ -4,39 +4,74 @@
     <div class="sc-modal__panel">
       <header class="sc-modal__head">
         <h2>{{ i18n.t('smartcrop.crop.title') }}</h2>
-        <p class="sc-modal__ratio">{{ i18n.t('smartcrop.crop.ratio') }} {{ aspectRatio | number: '1.2-2' }}</p>
+        <div class="sc-modal__meta">
+          @if (sizes.length) {
+            <label class="sc-modal__size">
+              <span>{{ i18n.t('smartcrop.crop.printSize') }}</span>
+              <select
+                [ngModel]="selectedSizeId()"
+                (ngModelChange)="onSizeChange($event)"
+              >
+                @for (s of sizes; track s.id) {
+                  <option [value]="s.id">{{ s.name }} ({{ s.width_cm }}×{{ s.height_cm }} cm)</option>
+                }
+              </select>
+            </label>
+          }
+          <p class="sc-modal__ratio">
+            {{ i18n.t('smartcrop.crop.ratio') }} {{ activeAspect() | number: '1.2-2' }}
+          </p>
+        </div>
         <button type="button" class="sc-modal__close" (click)="closed.emit()" [attr.aria-label]="i18n.t('smartcrop.crop.close')">×</button>
       </header>
 
-      <div
-        class="sc-modal__stage"
-        #stage
-        [style.aspect-ratio]="aspectRatio"
-        (pointerdown)="onPointerDown($event)"
-        (pointermove)="onPointerMove($event)"
-        (pointerup)="onPointerUp()"
-        (pointercancel)="onPointerUp()"
-      >
-        <img
-          class="sc-modal__img"
-          [src]="photo.original_url"
-          alt=""
-          draggable="false"
-          [style.transform]="'translate(' + offsetX() + 'px,' + offsetY() + 'px) scale(' + zoom() + ')'"
-          (load)="onImageLoad($event)"
-        />
-        <div class="sc-modal__frame" aria-hidden="true"></div>
+      <div class="sc-modal__stage">
+        @if (loadFailed()) {
+          <p class="sc-modal__error">{{ i18n.t('smartcrop.crop.loadFailed') }}</p>
+        } @else {
+          @for (k of [cropperKey]; track k) {
+            <image-cropper
+              [imageURL]="photo.original_url"
+              [maintainAspectRatio]="true"
+              [aspectRatio]="activeAspect()"
+              [resetCropOnAspectRatioChange]="true"
+              [transform]="transform()"
+              [cropper]="cropperPos()"
+              [allowMoveImage]="true"
+              format="jpeg"
+              output="blob"
+              [imageQuality]="92"
+              alignImage="center"
+              backgroundColor="#111"
+              (imageCropped)="onImageCropped($event)"
+              (transformChange)="onTransformChange($event)"
+              (cropperReady)="onCropperReady()"
+              (loadImageFailed)="onLoadFailed()"
+            />
+          }
+        }
       </div>
 
       <div class="sc-modal__controls">
         <label>
           {{ i18n.t('smartcrop.crop.zoom') }}
-          <input type="range" min="1" max="3" step="0.01" [value]="zoom()" (input)="onZoomInput($event)" />
+          <input
+            type="range"
+            min="1"
+            max="3"
+            step="0.01"
+            [value]="transform().scale ?? 1"
+            (input)="onZoomInput($event)"
+          />
         </label>
+        <div class="sc-modal__rotate">
+          <button type="button" class="btn btn--ghost" (click)="rotateLeft()" [attr.aria-label]="i18n.t('smartcrop.crop.rotateLeft')">↺</button>
+          <button type="button" class="btn btn--ghost" (click)="rotateRight()" [attr.aria-label]="i18n.t('smartcrop.crop.rotateRight')">↻</button>
+        </div>
         <button type="button" class="btn btn--ghost" (click)="resetAi.emit()">
           {{ i18n.t('smartcrop.crop.resetAi') }}
         </button>
-        <button type="button" class="btn btn--primary" (click)="save()">
+        <button type="button" class="btn btn--primary" (click)="save()" [disabled]="!ready() && !loadFailed()">
           {{ i18n.t('smartcrop.crop.save') }}
         </button>
       </div>

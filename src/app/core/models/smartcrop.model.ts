@@ -28,6 +28,16 @@ export interface CropData {
   isManuallyEdited: boolean;
 }
 
+/** Result from the ngx-image-cropper modal. */
+export interface CropSaveResult {
+  cropData: CropData;
+  /** Browser object URL for the cropped JPEG (demo / local preview). */
+  objectUrl?: string;
+  blob?: Blob;
+  sizeId?: string;
+  sizeName?: string;
+}
+
 export interface SmartcropProfile {
   id: string;
   email: string | null;
