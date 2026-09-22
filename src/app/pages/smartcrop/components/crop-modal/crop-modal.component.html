@@ -1,0 +1,45 @@
+@if (open && photo) {
+  <div class="sc-modal" role="dialog" aria-modal="true">
+    <div class="sc-modal__backdrop" (click)="closed.emit()"></div>
+    <div class="sc-modal__panel">
+      <header class="sc-modal__head">
+        <h2>{{ i18n.t('smartcrop.crop.title') }}</h2>
+        <p class="sc-modal__ratio">{{ i18n.t('smartcrop.crop.ratio') }} {{ aspectRatio | number: '1.2-2' }}</p>
+        <button type="button" class="sc-modal__close" (click)="closed.emit()" [attr.aria-label]="i18n.t('smartcrop.crop.close')">×</button>
+      </header>
+
+      <div
+        class="sc-modal__stage"
+        #stage
+        [style.aspect-ratio]="aspectRatio"
+        (pointerdown)="onPointerDown($event)"
+        (pointermove)="onPointerMove($event)"
+        (pointerup)="onPointerUp()"
+        (pointercancel)="onPointerUp()"
+      >
+        <img
+          class="sc-modal__img"
+          [src]="photo.original_url"
+          alt=""
+          draggable="false"
+          [style.transform]="'translate(' + offsetX() + 'px,' + offsetY() + 'px) scale(' + zoom() + ')'"
+          (load)="onImageLoad($event)"
+        />
+        <div class="sc-modal__frame" aria-hidden="true"></div>
+      </div>
+
+      <div class="sc-modal__controls">
+        <label>
+          {{ i18n.t('smartcrop.crop.zoom') }}
+          <input type="range" min="1" max="3" step="0.01" [value]="zoom()" (input)="onZoomInput($event)" />
+        </label>
+        <button type="button" class="btn btn--ghost" (click)="resetAi.emit()">
+          {{ i18n.t('smartcrop.crop.resetAi') }}
+        </button>
+        <button type="button" class="btn btn--primary" (click)="save()">
+          {{ i18n.t('smartcrop.crop.save') }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

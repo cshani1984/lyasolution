@@ -1,0 +1,20 @@
+<div class="enhance-field">
+  <div class="enhance-field__toolbar">
+    <button
+      type="button"
+      class="enhance-field__ai"
+      [disabled]="enhancing() || !value().trim()"
+      (click)="enhance()"
+    >
+      <span aria-hidden="true">✨</span>
+      {{ enhancing() ? i18n.t('cv.edit.enhancing') : i18n.t('cv.edit.enhanceAi') }}
+    </button>
+  </div>
+  <textarea
+    class="enhance-field__input"
+    [rows]="rows()"
+    [placeholder]="placeholder()"
+    [ngModel]="value()"
+    (ngModelChange)="valueChange.emit($event)"
+  ></textarea>
+</div>

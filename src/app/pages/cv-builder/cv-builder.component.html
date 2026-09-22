@@ -1,0 +1,70 @@
+<section class="page-hero dot-grid">
+  <div class="container page-hero__inner">
+    <h1>{{ i18n.t('cv.hero.title') }}</h1>
+    <p class="lede">{{ i18n.t('cv.hero.subtitle') }}</p>
+  </div>
+</section>
+
+<section class="section section--paths">
+  <div class="container">
+    <div class="cv-paths">
+      @for (i of paths; track i) {
+        <article class="card card-hover cv-path" appRevealOnScroll>
+          @if (i === 2) {
+            <span class="cv-path__badge">{{ i18n.t('cv.path.2.badge') }}</span>
+          }
+          <div class="cv-path__icon" aria-hidden="true">
+            @switch (i) {
+              @case (1) {
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                  <polyline points="10 9 9 9 8 9" />
+                </svg>
+              }
+              @case (2) {
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z" />
+                  <path d="M5 19l1.5-1.5" />
+                  <path d="M19 19l-1.5-1.5" />
+                  <path d="M12 21v-2" />
+                </svg>
+              }
+              @case (3) {
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <circle cx="12" cy="12" r="6" />
+                  <circle cx="12" cy="12" r="2" />
+                </svg>
+              }
+            }
+          </div>
+          <h2>{{ i18n.t('cv.path.' + i + '.title') }}</h2>
+          <p>{{ i18n.t('cv.path.' + i + '.body') }}</p>
+          <a
+            class="btn btn--primary cv-path__cta"
+            routerLink="/cv/builder"
+            [queryParams]="i === 2 ? { mode: 'upload' } : { mode: 'scratch' }"
+          >
+            {{ i18n.t('cv.path.' + i + '.cta') }}
+          </a>
+        </article>
+      }
+    </div>
+  </div>
+</section>
+
+<section class="section section--cta">
+  <div class="container">
+    <div class="cta-banner card-hover" appRevealOnScroll>
+      <div class="cta-banner__bg" aria-hidden="true"></div>
+      <div class="cta-banner__inner">
+        <h2>{{ i18n.t('cv.cta.title') }}</h2>
+        <p>{{ i18n.t('cv.cta.sub') }}</p>
+        <a routerLink="/contact" class="btn btn--primary btn--lg">{{ i18n.t('cv.cta.button') }}</a>
+      </div>
+    </div>
+  </div>
+</section>

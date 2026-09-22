@@ -1,0 +1,13 @@
+<div class="sc-grid">
+  @for (photo of photos; track photo.id) {
+    <app-smartcrop-photo-card
+      [photo]="photo"
+      [selected]="selectedIds.has(photo.id)"
+      [showOriginal]="originalPreviewIds.has(photo.id)"
+      (toggleSelect)="toggleSelect.emit(photo.id)"
+      (edit)="edit.emit(photo)"
+      (remove)="remove.emit(photo)"
+      (togglePreview)="togglePreview.emit(photo.id)"
+    />
+  }
+</div>

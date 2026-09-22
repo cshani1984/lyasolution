@@ -32,7 +32,8 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
-COPY server.mjs email.mjs ./
+COPY server.mjs email.mjs cv-openai.mjs ./
+COPY lib ./lib
 
 EXPOSE 3840
 CMD ["npm", "start"]

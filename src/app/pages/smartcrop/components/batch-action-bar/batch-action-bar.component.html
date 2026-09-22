@@ -1,0 +1,23 @@
+@if (count > 0) {
+  <div class="sc-batch" role="toolbar">
+    <p class="sc-batch__count">{{ i18n.t('smartcrop.batch.selected').replace('{n}', '' + count) }}</p>
+    <label class="sc-batch__size">
+      <span>{{ i18n.t('smartcrop.batch.changeSize') }}</span>
+      <select (change)="onSizeChange($event)">
+        <option value="">{{ i18n.t('smartcrop.batch.pickSize') }}</option>
+        @for (s of sizes; track s.id) {
+          <option [value]="s.id">{{ s.name }}</option>
+        }
+      </select>
+    </label>
+    <button type="button" class="btn btn--primary" (click)="approve.emit()">
+      {{ i18n.t('smartcrop.batch.approve') }}
+    </button>
+    <button type="button" class="btn btn--ghost" (click)="remove.emit()">
+      {{ i18n.t('smartcrop.batch.delete') }}
+    </button>
+    <button type="button" class="btn btn--ghost" (click)="clear.emit()">
+      {{ i18n.t('smartcrop.batch.clear') }}
+    </button>
+  </div>
+}

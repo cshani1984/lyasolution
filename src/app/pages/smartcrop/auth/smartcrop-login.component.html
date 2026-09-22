@@ -1,0 +1,50 @@
+<section class="sc-login container">
+  <a routerLink="/smartcrop" class="sc-login__back">← {{ i18n.t('smartcrop.login.back') }}</a>
+
+  <div class="sc-login__card">
+    <div class="sc-login__brand-row">
+      <img class="sc-login__logo" src="/smartcrop-logo.png" alt="" width="52" height="52" />
+      <p class="sc-login__brand">SmartCrop</p>
+    </div>
+    <h1>{{ i18n.t('smartcrop.login.title') }}</h1>
+    <p class="lede">{{ i18n.t('smartcrop.login.subtitle') }}</p>
+
+    @if (!supabase.isConfigured()) {
+      <p class="sc-login__error">{{ i18n.t('smartcrop.login.noSupabase') }}</p>
+    } @else {
+      <button type="button" class="btn btn--primary sc-login__google" (click)="google()" [disabled]="busy()">
+        {{ i18n.t('smartcrop.login.google') }}
+      </button>
+
+      <div class="sc-login__divider"><span>{{ i18n.t('smartcrop.login.or') }}</span></div>
+
+      @if (!otpSent()) {
+        <label>
+          {{ i18n.t('smartcrop.phone.label') }}
+          <input type="tel" [(ngModel)]="phone" [placeholder]="i18n.t('smartcrop.phone.placeholder')" />
+        </label>
+        <button type="button" class="btn btn--ghost" (click)="sendOtp()" [disabled]="busy()">
+          {{ i18n.t('smartcrop.login.sendOtp') }}
+        </button>
+      } @else {
+        <label>
+          {{ i18n.t('smartcrop.login.otp') }}
+          <input type="text" inputmode="numeric" [(ngModel)]="otp" autocomplete="one-time-code" />
+        </label>
+        <button type="button" class="btn btn--primary" (click)="verifyOtp()" [disabled]="busy()">
+          {{ i18n.t('smartcrop.login.verify') }}
+        </button>
+      }
+
+      @if (error()) {
+        <p class="sc-login__error">{{ error() }}</p>
+      }
+
+      @if (auth.isSignedIn()) {
+        <button type="button" class="btn btn--primary" (click)="continueIfSession()">
+          {{ i18n.t('smartcrop.login.continue') }}
+        </button>
+      }
+    }
+  </div>
+</section>

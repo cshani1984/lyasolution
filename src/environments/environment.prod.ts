@@ -5,4 +5,8 @@ export const environment = {
   supabaseAnonKey: '',
   whatsappNotifyApiUrl: '',
   whatsappNotifyApiKey: '',
+  cvAiApiUrl: '',
+  cvAiApiKey: '',
+  smartcropApiUrl: '',
+  smartcropApiKey: '',
 };

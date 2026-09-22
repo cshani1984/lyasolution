@@ -1,0 +1,120 @@
+.sc-dash {
+  padding-block: 1.5rem 3.5rem;
+  min-height: 70dvh;
+  background:
+    radial-gradient(900px 420px at 10% -10%, rgba(0, 188, 212, 0.12), transparent 60%),
+    radial-gradient(700px 380px at 100% 0%, rgba(156, 39, 176, 0.08), transparent 55%),
+    linear-gradient(180deg, #fff 0%, #f7fafc 100%);
+}
+
+.sc-dash__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-block-end: 1.25rem;
+}
+
+.sc-dash__brand-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sc-dash__logo {
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 0.65rem;
+  object-fit: cover;
+}
+
+.sc-dash__brand {
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-accent-dark);
+}
+
+.sc-dash__header h1 {
+  margin: 0.15rem 0 0;
+  font-size: clamp(1.35rem, 3vw, 1.85rem);
+}
+
+.sc-dash__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.sc-dash__badge {
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: rgba(0, 131, 143, 0.1);
+  color: var(--color-accent-dark);
+}
+
+.sc-dash__user {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.9rem;
+}
+
+.sc-dash__user img {
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.sc-dash__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-block-end: 1.1rem;
+}
+
+.sc-dash__toolbar input,
+.sc-dash__toolbar select {
+  font: inherit;
+  padding: 0.55rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid rgba(55, 71, 79, 0.16);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.sc-dash__upload {
+  cursor: pointer;
+}
+
+.sc-dash__toast {
+  margin: 0 0 0.85rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  background: #e6f7ef;
+  color: #067a4a;
+  font-size: 0.9rem;
+}
+
+.sc-dash__empty {
+  padding: 2.5rem 1rem;
+  text-align: center;
+  border: 1px dashed rgba(55, 71, 79, 0.2);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}

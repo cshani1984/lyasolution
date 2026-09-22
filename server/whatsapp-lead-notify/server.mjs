@@ -24,6 +24,9 @@ import {
   sendClientConfirmationEmail,
   sendOwnerLeadNotificationEmail,
 } from './email.mjs';
+import { enhanceCvText, isOpenAiConfigured } from './cv-openai.mjs';
+import { registerSmartcropRoutes } from './lib/smartcropRoutes.mjs';
+import { isSupabaseAdminConfigured } from './lib/supabaseAdmin.mjs';
 
 const log = (msg, ...args) => console.log(`[lead-notify ${new Date().toISOString()}]`, msg, ...args);
 const logErr = (msg, ...args) => console.error(`[lead-notify ${new Date().toISOString()}]`, msg, ...args);
@@ -41,7 +44,8 @@ const corsOptions =
 const app = express();
 app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS ?? '1') || 1);
 app.use(cors(corsOptions));
-app.use(express.json({ limit: '32kb' }));
+/** 12mb allows demo WhatsApp webhook with media_base64 */
+app.use(express.json({ limit: '12mb' }));
 
 const NOTIFY_MAX_PER_IP = Math.max(1, Number(process.env.NOTIFY_MAX_PER_IP) || 30);
 const NOTIFY_WINDOW_MS = Math.max(60_000, Number(process.env.NOTIFY_WINDOW_MS) || 15 * 60 * 1000);
@@ -62,6 +66,9 @@ const LEAD_FIELD_MAX = {
   email: 254,
   message: 8000,
 };
+
+const CV_ENHANCE_MAX_TEXT = 12_000;
+const CV_ENHANCE_FIELDS = new Set(['headline', 'summary', 'experience', 'education']);
 
 function apiKeyMatches(provided) {
   if (!API_KEY) return false;
@@ -100,8 +107,65 @@ app.get('/health', (_req, res) => {
     whatsappReady: clientReady,
     whatsappQrAvailable: false,
     gmailConfigured: isGmailConfigured(),
+    openAiConfigured: isOpenAiConfigured(),
+    supabaseAdminConfigured: isSupabaseAdminConfigured(),
     apiKeyRequired: IS_PRODUCTION || Boolean(API_KEY),
   });
+});
+
+registerSmartcropRoutes(app, {
+  checkApiKey,
+  rateLimiter: notifyRateLimiter,
+  log,
+  logErr,
+});
+
+app.post('/api/cv/enhance', notifyRateLimiter, async (req, res) => {
+  log('HTTP POST /api/cv/enhance', { ip: req.ip ?? '' });
+  if (!checkApiKey(req, res)) return;
+
+  if (!isOpenAiConfigured()) {
+    res.status(503).json({ ok: false, error: 'OPENAI_API_KEY not configured on server' });
+    return;
+  }
+
+  const { text, field, lang, desiredRole } = req.body ?? {};
+  if (typeof text !== 'string' || typeof field !== 'string') {
+    res.status(400).json({ ok: false, error: 'Invalid body' });
+    return;
+  }
+
+  const trimmed = text.trim();
+  if (!trimmed) {
+    res.status(400).json({ ok: false, error: 'Empty text' });
+    return;
+  }
+  if (trimmed.length > CV_ENHANCE_MAX_TEXT) {
+    res.status(400).json({ ok: false, error: 'Text too long' });
+    return;
+  }
+  if (!CV_ENHANCE_FIELDS.has(field)) {
+    res.status(400).json({ ok: false, error: 'Invalid field' });
+    return;
+  }
+
+  const langNorm = lang === 'he' ? 'he' : 'en';
+  const role = typeof desiredRole === 'string' ? desiredRole.trim().slice(0, 120) : '';
+
+  try {
+    const improved = await enhanceCvText({
+      text: trimmed,
+      field,
+      lang: langNorm,
+      desiredRole: role,
+    });
+    log('cv/enhance: OK', { field, lang: langNorm, len: improved.length });
+    res.json({ ok: true, text: improved });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    logErr('cv/enhance: FAIL', msg);
+    res.status(502).json({ ok: false, error: msg });
+  }
 });
 
 app.post('/api/notify-lead', notifyRateLimiter, async (req, res) => {
@@ -201,7 +265,15 @@ app.post('/api/notify-lead', notifyRateLimiter, async (req, res) => {
 
 app.listen(PORT, () => {
   log(`listening on http://0.0.0.0:${PORT}`);
-  log('POST /api/notify-lead â€” body: { firstName, lastName, phone, email, message }');
+  log('POST /api/notify-lead — body: { firstName, lastName, phone, email, message }');
+  log('POST /api/cv/enhance — body: { text, field, lang, desiredRole? }');
+  log('POST /api/whatsapp/webhook — SmartCrop demo ingestion');
+  log('POST /api/crop/process — SmartCrop re-crop');
+  log('POST /api/photos/batch-update — SmartCrop batch');
+  if (isOpenAiConfigured()) log('OpenAI: configured for CV enhance');
+  else log('OpenAI: OPENAI_API_KEY not set (CV enhance unavailable)');
+  if (isSupabaseAdminConfigured()) log('Supabase admin: configured for SmartCrop');
+  else log('Supabase admin: SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY not set');
   log('WhatsApp runtime disabled (email-only mode).');
   if (IS_PRODUCTION) {
     if (!API_KEY) {

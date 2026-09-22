@@ -1,0 +1,552 @@
+<div class="cv-builder">
+  <div class="cv-builder__top container">
+    <a routerLink="/cv" class="cv-builder__back">{{ i18n.t('cv.edit.back') }}</a>
+    <p class="cv-builder__saved">{{ i18n.t('cv.edit.saved') }}</p>
+  </div>
+
+  <div class="cv-builder__grid container">
+    <!-- Timeline -->
+    <aside class="cv-builder__timeline card" aria-label="Steps">
+      <ol class="timeline">
+        @for (step of store.steps(); track step) {
+          <li class="timeline__item" [class.is-active]="isStepActive(step)" [class.is-done]="isStepDone(step)">
+            <button type="button" class="timeline__btn" (click)="store.goToStep(step)">
+              <span class="timeline__dot" aria-hidden="true"></span>
+              <span class="timeline__label">{{ stepLabel(step) }}</span>
+            </button>
+          </li>
+        }
+      </ol>
+    </aside>
+
+    <!-- Form -->
+    <section class="cv-builder__form card">
+      @switch (store.currentStep()) {
+        @case ('upload') {
+          <h2>{{ i18n.t('cv.edit.upload.title') }}</h2>
+          <p class="cv-builder__hint">{{ i18n.t('cv.edit.upload.sub') }}</p>
+          <div
+            class="upload-zone"
+            [class.is-drag]="uploadDrag()"
+            (dragover)="$event.preventDefault(); uploadDrag.set(true)"
+            (dragleave)="uploadDrag.set(false)"
+            (drop)="onDrop($event)"
+          >
+            <p>{{ i18n.t('cv.edit.upload.drop') }}</p>
+            <p class="upload-zone__meta">{{ i18n.t('cv.edit.upload.formats') }}</p>
+            <label class="btn btn--primary">
+              {{ i18n.t('cv.edit.upload.choose') }}
+              <input type="file" accept=".pdf,.doc,.docx" hidden (change)="onFileSelected($event)" />
+            </label>
+          </div>
+          @if (store.parsing()) {
+            <p class="cv-builder__status">{{ i18n.t('cv.edit.upload.parsing') }}</p>
+          }
+          @if (store.parseError()) {
+            <p class="cv-builder__error" role="alert">{{ store.parseError() }}</p>
+          }
+        }
+
+        @case ('personal') {
+          <h2>{{ i18n.t('cv.edit.personal.title') }}</h2>
+          <div class="form-grid">
+            <label>
+              <span>{{ i18n.t('cv.edit.personal.firstName') }}</span>
+              <input
+                type="text"
+                [ngModel]="store.resume().personal.firstName"
+                (ngModelChange)="store.updatePersonal({ firstName: $event })"
+              />
+            </label>
+            <label>
+              <span>{{ i18n.t('cv.edit.personal.lastName') }}</span>
+              <input
+                type="text"
+                [ngModel]="store.resume().personal.lastName"
+                (ngModelChange)="store.updatePersonal({ lastName: $event })"
+              />
+            </label>
+            <label class="form-grid__full">
+              <span>{{ i18n.t('cv.edit.personal.role') }}</span>
+              <input
+                type="text"
+                [ngModel]="store.resume().personal.desiredRole"
+                (ngModelChange)="store.updatePersonal({ desiredRole: $event }); refreshSuggestions()"
+              />
+            </label>
+            <div class="form-grid__full">
+              <span class="field-label">{{ i18n.t('cv.edit.personal.headline') }}</span>
+              <p class="cv-builder__hint">{{ i18n.t('cv.edit.personal.headlineHint') }}</p>
+              <app-cv-enhance-field
+                field="headline"
+                [rows]="4"
+                [value]="store.resume().personal.headline"
+                [placeholder]="i18n.t('cv.edit.personal.headlinePh')"
+                (valueChange)="store.updatePersonal({ headline: $event })"
+              />
+            </div>
+          </div>
+        }
+
+        @case ('contact') {
+          <h2>{{ i18n.t('cv.edit.contact.title') }}</h2>
+          <div class="form-grid">
+            <label>
+              <span>{{ i18n.t('cv.edit.contact.email') }}</span>
+              <input
+                type="email"
+                [ngModel]="store.resume().contact.email"
+                (ngModelChange)="store.updateContact({ email: $event })"
+              />
+            </label>
+            <label>
+              <span>{{ i18n.t('cv.edit.contact.phone') }}</span>
+              <input
+                type="tel"
+                [ngModel]="store.resume().contact.phone"
+                (ngModelChange)="store.updateContact({ phone: $event })"
+              />
+            </label>
+            <label>
+              <span>{{ i18n.t('cv.edit.contact.country') }}</span>
+              <input
+                type="text"
+                [ngModel]="store.resume().contact.country"
+                (ngModelChange)="store.updateContact({ country: $event })"
+              />
+            </label>
+            <label>
+              <span>{{ i18n.t('cv.edit.contact.city') }}</span>
+              <input
+                type="text"
+                [ngModel]="store.resume().contact.city"
+                (ngModelChange)="store.updateContact({ city: $event })"
+              />
+            </label>
+            <label class="form-grid__full">
+              <span>{{ i18n.t('cv.edit.contact.address') }}</span>
+              <input
+                type="text"
+                [ngModel]="store.resume().contact.address"
+                (ngModelChange)="store.updateContact({ address: $event })"
+              />
+            </label>
+            <label>
+              <span>{{ i18n.t('cv.edit.contact.zip') }}</span>
+              <input
+                type="text"
+                [ngModel]="store.resume().contact.zip"
+                (ngModelChange)="store.updateContact({ zip: $event })"
+              />
+            </label>
+          </div>
+        }
+
+        @case ('experience') {
+          <div class="section-head-row">
+            <h2>{{ i18n.t('cv.edit.experience.title') }}</h2>
+            <button type="button" class="btn btn--ghost btn--sm" (click)="store.addExperience()">
+              {{ i18n.t('cv.edit.add') }}
+            </button>
+          </div>
+          @for (exp of store.resume().experiences; track exp.id) {
+            <article class="repeat-block">
+              <div class="repeat-block__head">
+                <strong>{{ i18n.t('cv.edit.experience.item') }}</strong>
+                @if (store.resume().experiences.length > 1) {
+                  <button type="button" class="link-btn" (click)="store.removeExperience(exp.id)">
+                    {{ i18n.t('cv.edit.remove') }}
+                  </button>
+                }
+              </div>
+              <div class="form-grid">
+                <label>
+                  <span>{{ i18n.t('cv.edit.experience.jobTitle') }}</span>
+                  <input
+                    type="text"
+                    [ngModel]="exp.jobTitle"
+                    (ngModelChange)="store.updateExperience(exp.id, { jobTitle: $event })"
+                  />
+                </label>
+                <label>
+                  <span>{{ i18n.t('cv.edit.experience.company') }}</span>
+                  <input
+                    type="text"
+                    [ngModel]="exp.company"
+                    (ngModelChange)="store.updateExperience(exp.id, { company: $event })"
+                  />
+                </label>
+                <label>
+                  <span>{{ i18n.t('cv.edit.experience.start') }}</span>
+                  <input
+                    type="month"
+                    [ngModel]="exp.startDate"
+                    (ngModelChange)="store.updateExperience(exp.id, { startDate: $event })"
+                  />
+                </label>
+                <div class="end-date-field">
+                  <label>
+                    <span>{{ i18n.t('cv.edit.experience.end') }}</span>
+                    <input
+                      type="month"
+                      [ngModel]="exp.endDate"
+                      [disabled]="exp.currentJob"
+                      (ngModelChange)="store.updateExperience(exp.id, { endDate: $event })"
+                    />
+                  </label>
+                  <label class="checkbox-field">
+                    <input
+                      type="checkbox"
+                      [ngModel]="exp.currentJob"
+                      (ngModelChange)="setExperienceCurrent(exp.id, $event)"
+                    />
+                    <span>{{ i18n.t('cv.edit.experience.current') }}</span>
+                  </label>
+                </div>
+                <label class="form-grid__full">
+                  <span>{{ i18n.t('cv.edit.experience.location') }}</span>
+                  <input
+                    type="text"
+                    [ngModel]="exp.location"
+                    (ngModelChange)="store.updateExperience(exp.id, { location: $event })"
+                  />
+                </label>
+                <div class="form-grid__full">
+                  <span class="field-label">{{ i18n.t('cv.edit.experience.desc') }}</span>
+                  <app-cv-enhance-field
+                    field="experience"
+                    [rows]="6"
+                    [value]="exp.description"
+                    [placeholder]="i18n.t('cv.edit.experience.descPh')"
+                    (valueChange)="store.updateExperience(exp.id, { description: $event })"
+                  />
+                </div>
+              </div>
+            </article>
+          }
+        }
+
+        @case ('skills') {
+          <h2>{{ i18n.t('cv.edit.skills.title') }}</h2>
+          <p class="cv-builder__hint">{{ i18n.t('cv.edit.skills.sub') }}</p>
+          <div class="skills-suggest">
+            <div class="skills-suggest__head">
+              <span>✨ {{ i18n.t('cv.edit.skills.aiFor') }} {{ store.resume().personal.desiredRole || '—' }}</span>
+              <button type="button" class="link-btn" (click)="refreshSuggestions()">
+                {{ i18n.t('cv.edit.skills.refresh') }}
+              </button>
+            </div>
+            <div class="skills-chips">
+              @for (skill of store.suggestedSkills(); track skill) {
+                <button
+                  type="button"
+                  class="skill-chip"
+                  [class.is-selected]="store.resume().skills.includes(skill)"
+                  (click)="store.toggleSkill(skill)"
+                >
+                  {{ skill }}
+                </button>
+              }
+            </div>
+          </div>
+          <div class="skills-added">
+            @for (skill of store.resume().skills; track skill) {
+              <div class="skill-row">
+                <span>{{ skill }}</span>
+                <button type="button" class="link-btn" (click)="store.removeSkill(skill)">
+                  {{ i18n.t('cv.edit.remove') }}
+                </button>
+              </div>
+            }
+          </div>
+          <div class="skills-add">
+            <input
+              type="text"
+              [placeholder]="i18n.t('cv.edit.skills.addPh')"
+              [ngModel]="newSkill()"
+              (ngModelChange)="newSkill.set($event)"
+              (keyup.enter)="addSkillFromInput()"
+            />
+            <button type="button" class="btn btn--ghost btn--sm" (click)="addSkillFromInput()">
+              {{ i18n.t('cv.edit.skills.add') }}
+            </button>
+          </div>
+        }
+
+        @case ('education') {
+          <div class="section-head-row">
+            <h2>{{ i18n.t('cv.edit.education.title') }}</h2>
+            <button type="button" class="btn btn--ghost btn--sm" (click)="store.addEducation()">
+              {{ i18n.t('cv.edit.add') }}
+            </button>
+          </div>
+          @for (edu of store.resume().education; track edu.id) {
+            <article class="repeat-block">
+              <div class="repeat-block__head">
+                <strong>{{ i18n.t('cv.edit.education.item') }}</strong>
+                @if (store.resume().education.length > 1) {
+                  <button type="button" class="link-btn" (click)="store.removeEducation(edu.id)">
+                    {{ i18n.t('cv.edit.remove') }}
+                  </button>
+                }
+              </div>
+              <div class="form-grid">
+                <label>
+                  <span>{{ i18n.t('cv.edit.education.institution') }}</span>
+                  <input
+                    type="text"
+                    [ngModel]="edu.institution"
+                    (ngModelChange)="store.updateEducation(edu.id, { institution: $event })"
+                  />
+                </label>
+                <label>
+                  <span>{{ i18n.t('cv.edit.education.degree') }}</span>
+                  <input
+                    type="text"
+                    [ngModel]="edu.degree"
+                    (ngModelChange)="store.updateEducation(edu.id, { degree: $event })"
+                  />
+                </label>
+                <label>
+                  <span>{{ i18n.t('cv.edit.education.years') }}</span>
+                  <input
+                    type="text"
+                    [ngModel]="edu.yearsText"
+                    (ngModelChange)="store.updateEducation(edu.id, { yearsText: $event })"
+                  />
+                </label>
+                <label>
+                  <span>{{ i18n.t('cv.edit.education.start') }}</span>
+                  <input
+                    type="month"
+                    [ngModel]="edu.startDate"
+                    (ngModelChange)="store.updateEducation(edu.id, { startDate: $event })"
+                  />
+                </label>
+                <label>
+                  <span>{{ i18n.t('cv.edit.education.end') }}</span>
+                  <input
+                    type="month"
+                    [ngModel]="edu.endDate"
+                    (ngModelChange)="store.updateEducation(edu.id, { endDate: $event })"
+                  />
+                </label>
+                <div class="form-grid__full">
+                  <span class="field-label">{{ i18n.t('cv.edit.education.desc') }}</span>
+                  <app-cv-enhance-field
+                    field="education"
+                    [rows]="4"
+                    [value]="edu.description"
+                    [placeholder]="i18n.t('cv.edit.education.descPh')"
+                    (valueChange)="store.updateEducation(edu.id, { description: $event })"
+                  />
+                </div>
+              </div>
+            </article>
+          }
+        }
+
+        @case ('summary') {
+          <h2>{{ i18n.t('cv.edit.summary.title') }}</h2>
+          <p class="cv-builder__hint">{{ i18n.t('cv.edit.summary.sub') }}</p>
+          <div class="entry-toggle">
+            <button
+              type="button"
+              class="entry-toggle__btn"
+              [class.is-active]="summaryMode() === 'text'"
+              (click)="summaryMode.set('text'); stopVoice()"
+            >
+              <svg class="entry-toggle__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="2" y="4" width="20" height="16" rx="2" />
+                <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10" />
+              </svg>
+              {{ i18n.t('cv.edit.summary.text') }}
+            </button>
+            <button
+              type="button"
+              class="entry-toggle__btn"
+              [class.is-active]="summaryMode() === 'voice'"
+              (click)="toggleVoice()"
+            >
+              <svg class="entry-toggle__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                <line x1="12" y1="19" x2="12" y2="22" />
+              </svg>
+              @if (listening()) {
+                {{ i18n.t('cv.edit.summary.stopVoice') }}
+                <span class="entry-toggle__live">{{ i18n.t('cv.edit.summary.listening') }}</span>
+              } @else {
+                {{ i18n.t('cv.edit.summary.voice') }}
+              }
+            </button>
+          </div>
+          <app-cv-enhance-field
+            field="summary"
+            [rows]="8"
+            [value]="store.resume().summary"
+            [placeholder]="i18n.t('cv.edit.summary.ph')"
+            (valueChange)="store.setSummary($event)"
+          />
+        }
+
+        @case ('extra') {
+          <h2>{{ i18n.t('cv.edit.extra.title') }}</h2>
+          <p class="cv-builder__hint">{{ i18n.t('cv.edit.extra.sub') }}</p>
+          <div class="extra-types" role="group" [attr.aria-label]="i18n.t('cv.edit.extra.choose')">
+            @for (kind of extraSectionKinds; track kind) {
+              <button type="button" class="extra-type-chip" (click)="addExtraSection(kind)">
+                <span class="extra-type-chip__plus" aria-hidden="true">+</span>
+                {{ i18n.t('cv.edit.extra.kind.' + kind) }}
+              </button>
+            }
+          </div>
+          @for (sec of store.resume().customSections; track sec.id) {
+            <article class="repeat-block">
+              <div class="repeat-block__head">
+                <input
+                  class="repeat-block__title-input"
+                  type="text"
+                  [placeholder]="i18n.t('cv.edit.extra.sectionTitle')"
+                  [ngModel]="sec.title"
+                  (ngModelChange)="store.updateCustomSection(sec.id, { title: $event })"
+                />
+                <button type="button" class="link-btn" (click)="store.removeCustomSection(sec.id)">
+                  {{ i18n.t('cv.edit.remove') }}
+                </button>
+              </div>
+              <textarea
+                rows="4"
+                [placeholder]="sectionPlaceholder(sec)"
+                [ngModel]="sec.body"
+                (ngModelChange)="store.updateCustomSection(sec.id, { body: $event })"
+              ></textarea>
+            </article>
+          }
+          @if (store.resume().customSections.length === 0) {
+            <p class="cv-builder__hint">{{ i18n.t('cv.edit.extra.empty') }}</p>
+          }
+        }
+      }
+
+      <div class="cv-builder__nav">
+        <button type="button" class="btn btn--ghost" [disabled]="store.stepIndex() === 0" (click)="store.prevStep()">
+          {{ i18n.t('cv.edit.prev') }}
+        </button>
+        <button
+          type="button"
+          class="btn btn--primary"
+          [disabled]="store.stepIndex() >= store.steps().length - 1"
+          (click)="store.nextStep()"
+        >
+          {{ i18n.t('cv.edit.next') }}
+        </button>
+      </div>
+    </section>
+
+    <!-- Preview -->
+    <aside class="cv-builder__preview card" aria-label="Preview">
+      <p class="cv-preview__label">{{ i18n.t('cv.edit.preview') }}</p>
+      <div class="cv-preview">
+        <header class="cv-preview__header">
+          <h3>
+            {{ store.resume().personal.firstName }}
+            {{ store.resume().personal.lastName }}
+          </h3>
+          @if (store.resume().personal.desiredRole) {
+            <p class="cv-preview__role">{{ store.resume().personal.desiredRole }}</p>
+          }
+          @if (store.resume().personal.headline) {
+            <p class="cv-preview__headline">{{ store.resume().personal.headline }}</p>
+          }
+        </header>
+
+        @if (store.resume().contact.email || store.resume().contact.phone) {
+          <section class="cv-preview__block">
+            <h4>{{ i18n.t('cv.edit.previewContact') }}</h4>
+            <p>
+              @if (store.resume().contact.email) {
+                <span>{{ store.resume().contact.email }}</span>
+              }
+              @if (store.resume().contact.phone) {
+                <span>{{ store.resume().contact.phone }}</span>
+              }
+            </p>
+            <p>
+              {{ store.resume().contact.address }}
+              {{ store.resume().contact.city }}
+              {{ store.resume().contact.country }}
+              {{ store.resume().contact.zip }}
+            </p>
+          </section>
+        }
+
+        @if (store.resume().summary) {
+          <section class="cv-preview__block">
+            <h4>{{ i18n.t('cv.edit.previewSummary') }}</h4>
+            <p class="cv-preview__text">{{ store.resume().summary }}</p>
+          </section>
+        }
+
+        @if (store.resume().skills.length) {
+          <section class="cv-preview__block">
+            <h4>{{ i18n.t('cv.edit.previewSkills') }}</h4>
+            <p class="cv-preview__tags">
+              @for (s of store.resume().skills; track s) {
+                <span>{{ s }}</span>
+              }
+            </p>
+          </section>
+        }
+
+        @if (hasExperiencePreview()) {
+          <section class="cv-preview__block">
+            <h4>{{ i18n.t('cv.edit.previewExperience') }}</h4>
+            @for (exp of store.resume().experiences; track exp.id) {
+              @if (exp.jobTitle || exp.company) {
+                <div class="cv-preview__item">
+                  <strong>{{ exp.jobTitle }}</strong>
+                  <span>{{ exp.company }}</span>
+                  <small>
+                    {{ formatMonth(exp.startDate) }} – {{ formatExperienceEnd(exp) }}
+                    {{ exp.location }}
+                  </small>
+                  @if (exp.description) {
+                    <p class="cv-preview__text">{{ exp.description }}</p>
+                  }
+                </div>
+              }
+            }
+          </section>
+        }
+
+        @if (hasEducationPreview()) {
+          <section class="cv-preview__block">
+            <h4>{{ i18n.t('cv.edit.previewEducation') }}</h4>
+            @for (edu of store.resume().education; track edu.id) {
+              @if (edu.institution || edu.degree) {
+                <div class="cv-preview__item">
+                  <strong>{{ edu.degree }}</strong>
+                  <span>{{ edu.institution }}</span>
+                  <small>{{ edu.yearsText }}</small>
+                  @if (edu.description) {
+                    <p class="cv-preview__text">{{ edu.description }}</p>
+                  }
+                </div>
+              }
+            }
+          </section>
+        }
+
+        @for (sec of store.resume().customSections; track sec.id) {
+          @if (sec.title || sec.body) {
+            <section class="cv-preview__block">
+              <h4>{{ sec.title }}</h4>
+              <p class="cv-preview__text">{{ sec.body }}</p>
+            </section>
+          }
+        }
+      </div>
+    </aside>
+  </div>
+</div>

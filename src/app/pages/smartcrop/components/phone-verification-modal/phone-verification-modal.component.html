@@ -1,0 +1,29 @@
+@if (open) {
+  <div class="sc-phone" role="dialog" aria-modal="true">
+    <div class="sc-phone__backdrop" (click)="closed.emit()"></div>
+    <div class="sc-phone__panel">
+      <h2>{{ i18n.t('smartcrop.phone.title') }}</h2>
+      <p>{{ i18n.t('smartcrop.phone.body') }}</p>
+      <label>
+        {{ i18n.t('smartcrop.phone.label') }}
+        <input
+          type="tel"
+          [(ngModel)]="phone"
+          [placeholder]="i18n.t('smartcrop.phone.placeholder')"
+          autocomplete="tel"
+        />
+      </label>
+      @if (error()) {
+        <p class="sc-phone__error">{{ error() }}</p>
+      }
+      <div class="sc-phone__actions">
+        <button type="button" class="btn btn--ghost" (click)="closed.emit()" [disabled]="busy()">
+          {{ i18n.t('smartcrop.phone.later') }}
+        </button>
+        <button type="button" class="btn btn--primary" (click)="submit()" [disabled]="busy()">
+          {{ i18n.t('smartcrop.phone.save') }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

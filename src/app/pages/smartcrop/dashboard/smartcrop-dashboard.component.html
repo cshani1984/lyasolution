@@ -1,0 +1,104 @@
+<section class="sc-dash">
+  <div class="container sc-dash__inner">
+    <header class="sc-dash__header">
+      <div>
+        <div class="sc-dash__brand-row">
+          <img class="sc-dash__logo" src="/smartcrop-logo.png" alt="" width="40" height="40" />
+          <p class="sc-dash__brand">SmartCrop</p>
+        </div>
+        <h1>{{ i18n.t('smartcrop.dash.title') }}</h1>
+      </div>
+      <div class="sc-dash__meta">
+        <span class="sc-dash__badge">{{ orderBadge() }}</span>
+        @if (auth.profile(); as profile) {
+          <div class="sc-dash__user">
+            @if (profile.avatar_url) {
+              <img [src]="profile.avatar_url" alt="" width="36" height="36" />
+            }
+            <span>{{ profile.full_name || profile.email || profile.phone }}</span>
+          </div>
+        }
+        <button type="button" class="btn btn--ghost" (click)="signOut()">{{ i18n.t('smartcrop.dash.signOut') }}</button>
+      </div>
+    </header>
+
+    <div class="sc-dash__toolbar">
+      <label>
+        <span class="visually-hidden">{{ i18n.t('smartcrop.dash.search') }}</span>
+        <input
+          type="search"
+          [placeholder]="i18n.t('smartcrop.dash.search')"
+          [ngModel]="search()"
+          (ngModelChange)="search.set($event)"
+        />
+      </label>
+      <select [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event)">
+        <option value="all">{{ i18n.t('smartcrop.dash.filterAll') }}</option>
+        <option value="pending">pending</option>
+        <option value="approved">approved</option>
+        <option value="printed">printed</option>
+      </select>
+      <select [ngModel]="sizeFilter()" (ngModelChange)="sizeFilter.set($event)">
+        <option value="all">{{ i18n.t('smartcrop.dash.sizeAll') }}</option>
+        @for (s of photosService.sizes(); track s.id) {
+          <option [value]="s.name">{{ s.name }}</option>
+        }
+      </select>
+      <button type="button" class="btn btn--ghost" (click)="selectAll()">{{ i18n.t('smartcrop.dash.selectAll') }}</button>
+      <label class="btn btn--ghost sc-dash__upload">
+        {{ i18n.t('smartcrop.dash.simulate') }}
+        <input type="file" accept="image/*" hidden (change)="onSimulateFile($event)" />
+      </label>
+      <button type="button" class="btn btn--primary" (click)="approveAll()" [disabled]="busy()">
+        {{ i18n.t('smartcrop.dash.approveAll') }}
+      </button>
+    </div>
+
+    @if (toast()) {
+      <p class="sc-dash__toast">{{ toast() }}</p>
+    }
+
+    @if (photosService.loading()) {
+      <p>{{ i18n.t('smartcrop.dash.loading') }}</p>
+    } @else if (!filteredPhotos().length) {
+      <div class="sc-dash__empty">
+        <p>{{ i18n.t('smartcrop.dash.empty') }}</p>
+        <a routerLink="/smartcrop" class="btn btn--ghost">{{ i18n.t('smartcrop.dash.backLanding') }}</a>
+      </div>
+    } @else {
+      <app-smartcrop-photo-grid
+        [photos]="filteredPhotos()"
+        [selectedIds]="selectedIds()"
+        [originalPreviewIds]="originalPreviewIds()"
+        (toggleSelect)="toggleSelect($event)"
+        (edit)="editingPhoto.set($event)"
+        (remove)="deleteOne($event)"
+        (togglePreview)="togglePreview($event)"
+      />
+    }
+
+    <app-smartcrop-batch-action-bar
+      [count]="selectedIds().size"
+      [sizes]="photosService.sizes()"
+      (changeSize)="batchChangeSize($event)"
+      (approve)="batchApprove()"
+      (remove)="batchDelete()"
+      (clear)="clearSelection()"
+    />
+  </div>
+
+  <app-smartcrop-crop-modal
+    [open]="!!editingPhoto()"
+    [photo]="editingPhoto()"
+    [aspectRatio]="editingAspect()"
+    (closed)="editingPhoto.set(null)"
+    (saved)="saveCrop($event)"
+    (resetAi)="resetAiCrop()"
+  />
+
+  <app-smartcrop-phone-verification-modal
+    [open]="showPhoneModal()"
+    (closed)="showPhoneModal.set(false)"
+    (verified)="onPhoneVerified()"
+  />
+</section>

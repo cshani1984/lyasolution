@@ -1,0 +1,149 @@
+.page-hero {
+  padding: clamp(3rem, 8vw, 5rem) 0 2rem;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.page-hero__inner {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.page-hero h1 {
+  margin: 0 0 1rem;
+  font-size: clamp(1.85rem, 3.5vw, 2.75rem);
+  max-width: 20ch;
+  line-height: 1.2;
+}
+
+.lede {
+  margin: 0;
+  max-width: 44rem;
+  font-size: clamp(1rem, 2vw, 1.08rem);
+  line-height: 1.75;
+  color: var(--color-muted);
+}
+
+.section {
+  padding: clamp(2rem, 5vw, 4rem) 0;
+}
+
+.section--paths {
+  padding-top: 0;
+}
+
+.section--cta {
+  padding-top: 0;
+  padding-bottom: clamp(3rem, 7vw, 5rem);
+}
+
+.cv-paths {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.5rem;
+  width: 100%;
+}
+
+@media (max-width: 960px) {
+  .cv-paths {
+    grid-template-columns: 1fr;
+    max-width: 28rem;
+    margin-inline: auto;
+  }
+}
+
+.cv-path {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: clamp(1.5rem, 3vw, 2rem);
+  min-height: 100%;
+}
+
+.cv-path__badge {
+  position: absolute;
+  inset-inline-start: 1rem;
+  inset-block-start: 1rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #fff;
+  background: linear-gradient(135deg, var(--color-primary), #7b1fa2);
+  box-shadow: 0 4px 12px rgba(156, 39, 176, 0.25);
+}
+
+.cv-path__icon {
+  width: 3.25rem;
+  height: 3.25rem;
+  margin-bottom: 1.15rem;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: linear-gradient(145deg, #2f8ea9 0%, #4f72cc 52%, #7c3ff2 100%);
+  box-shadow: 0 6px 16px rgba(79, 114, 204, 0.28);
+}
+
+.cv-path__icon svg {
+  width: 1.55rem;
+  height: 1.55rem;
+}
+
+.cv-path h2 {
+  margin: 0 0 0.75rem;
+  font-size: clamp(1.1rem, 2vw, 1.25rem);
+}
+
+.cv-path p {
+  margin: 0 0 1.5rem;
+  flex: 1;
+  color: var(--color-muted);
+  line-height: 1.7;
+  font-size: 0.98rem;
+}
+
+.cv-path__cta {
+  width: 100%;
+  max-width: 14rem;
+}
+
+.cta-banner {
+  position: relative;
+  border-radius: calc(var(--radius) + 4px);
+  overflow: hidden;
+  padding: clamp(2rem, 5vw, 3.5rem);
+  text-align: center;
+  box-shadow: var(--shadow-hover);
+}
+
+.cta-banner__bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 95% 85% at 0% 0%, #e8f4f8 0%, rgba(232, 244, 248, 0.55) 32%, transparent 58%),
+    radial-gradient(ellipse 95% 85% at 100% 100%, #f4e8f8 0%, rgba(244, 232, 248, 0.55) 32%, transparent 58%),
+    #ffffff;
+}
+
+.cta-banner__inner {
+  position: relative;
+  max-width: 40rem;
+  margin: 0 auto;
+}
+
+.cta-banner h2 {
+  margin: 0 0 0.75rem;
+  font-size: clamp(1.45rem, 3vw, 2rem);
+}
+
+.cta-banner p {
+  margin: 0 0 1.5rem;
+  color: var(--color-muted);
+  line-height: 1.65;
+}

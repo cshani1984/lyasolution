@@ -1,0 +1,106 @@
+.sc-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.sc-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.sc-modal__panel {
+  position: relative;
+  z-index: 1;
+  width: min(560px, 100%);
+  max-height: min(92dvh, 900px);
+  overflow: auto;
+  border-radius: 18px;
+  background: #fff;
+  border: 1px solid rgba(55, 71, 79, 0.12);
+  box-shadow: var(--shadow-hover);
+  padding: 1rem 1.1rem 1.15rem;
+}
+
+.sc-modal__head {
+  display: grid;
+  gap: 0.15rem;
+  margin-block-end: 0.85rem;
+  padding-inline-end: 2rem;
+}
+
+.sc-modal__head h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.sc-modal__ratio {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+.sc-modal__close {
+  position: absolute;
+  inset-block-start: 0.65rem;
+  inset-inline-end: 0.75rem;
+  border: 0;
+  background: transparent;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--color-muted);
+}
+
+.sc-modal__stage {
+  position: relative;
+  width: 100%;
+  max-height: 55dvh;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #111;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}
+
+.sc-modal__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform-origin: center center;
+  pointer-events: none;
+}
+
+.sc-modal__frame {
+  position: absolute;
+  inset: 0;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  box-shadow: inset 0 0 0 999px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+}
+
+.sc-modal__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  margin-block-start: 0.9rem;
+}
+
+.sc-modal__controls label {
+  flex: 1 1 160px;
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.88rem;
+}
+
+.sc-modal__controls input[type='range'] {
+  width: 100%;
+}

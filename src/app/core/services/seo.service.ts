@@ -7,10 +7,26 @@ import { DOCUMENT } from '@angular/common';
 import { resolveSiteOrigin } from '../config/site-origin';
 import { I18nService } from './i18n.service';
 
-type SeoPageId = 'home' | 'about' | 'projects' | 'services' | 'contact';
+type SeoPageId =
+  | 'home'
+  | 'about'
+  | 'projects'
+  | 'services'
+  | 'cv'
+  | 'cvBuilder'
+  | 'contact'
+  | 'smartcrop'
+  | 'smartcropLogin'
+  | 'smartcropDash';
 
 const PATH_TO_PAGE: { prefix: string; id: SeoPageId }[] = [
   { prefix: '/contact', id: 'contact' },
+  { prefix: '/smartcrop/dashboard', id: 'smartcropDash' },
+  { prefix: '/smartcrop/login', id: 'smartcropLogin' },
+  { prefix: '/smartcrop/demo', id: 'smartcrop' },
+  { prefix: '/smartcrop', id: 'smartcrop' },
+  { prefix: '/cv/builder', id: 'cvBuilder' },
+  { prefix: '/cv', id: 'cv' },
   { prefix: '/services', id: 'services' },
   { prefix: '/projects', id: 'projects' },
   { prefix: '/about', id: 'about' },

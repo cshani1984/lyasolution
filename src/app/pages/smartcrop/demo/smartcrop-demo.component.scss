@@ -1,0 +1,111 @@
+.sc-demo {
+  padding-block: 1.5rem 3.5rem;
+  min-height: 70dvh;
+  background:
+    radial-gradient(900px 420px at 10% -10%, rgba(0, 188, 212, 0.12), transparent 60%),
+    linear-gradient(180deg, #fff 0%, #f7fafc 100%);
+}
+
+.sc-demo__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-block-end: 1.25rem;
+}
+
+.sc-demo__brand-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-block-end: 0.15rem;
+}
+
+.sc-demo__logo {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.7rem;
+  object-fit: cover;
+}
+
+.sc-demo__brand {
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-accent-dark);
+}
+
+.sc-demo__header h1 {
+  margin: 0.2rem 0 0.35rem;
+  font-size: clamp(1.35rem, 3vw, 1.85rem);
+}
+
+.sc-demo__header .lede {
+  margin: 0;
+  max-width: 36rem;
+}
+
+.sc-demo__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.85rem;
+  margin-block-end: 1.1rem;
+}
+
+.sc-demo__toolbar label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.9rem;
+}
+
+.sc-demo__toolbar select,
+.sc-demo__size select {
+  font: inherit;
+  padding: 0.45rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid rgba(55, 71, 79, 0.16);
+  background: #fff;
+}
+
+.sc-demo__hint {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.88rem;
+}
+
+.sc-demo__toast {
+  margin: 0 0 0.85rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  background: #e6f7ef;
+  color: #067a4a;
+  font-size: 0.9rem;
+}
+
+.sc-demo__gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1.15rem;
+}
+
+.sc-demo__item {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.sc-demo__size {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  color: var(--color-muted);
+}
+
+/* Override nested grid from photo-grid if reused — we use cards directly */
+.sc-demo__item app-smartcrop-photo-card {
+  display: block;
+}

@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { MainLayoutComponent } from './layout/main-layout/main-layout.component';
+import { smartcropAuthGuard } from './core/guards/smartcrop-auth.guard';
 
 export const routes: Routes = [
   {
@@ -21,6 +22,37 @@ export const routes: Routes = [
       {
         path: 'services',
         loadComponent: () => import('./pages/services/services.component').then((m) => m.ServicesComponent),
+      },
+      {
+        path: 'cv',
+        loadComponent: () => import('./pages/cv-builder/cv-builder.component').then((m) => m.CvBuilderComponent),
+      },
+      {
+        path: 'cv/builder',
+        loadComponent: () =>
+          import('./pages/cv-builder/edit/cv-builder-edit.component').then((m) => m.CvBuilderEditComponent),
+      },
+      {
+        path: 'smartcrop',
+        loadComponent: () => import('./pages/smartcrop/smartcrop.component').then((m) => m.SmartcropComponent),
+      },
+      {
+        path: 'smartcrop/demo',
+        loadComponent: () =>
+          import('./pages/smartcrop/demo/smartcrop-demo.component').then((m) => m.SmartcropDemoComponent),
+      },
+      {
+        path: 'smartcrop/login',
+        loadComponent: () =>
+          import('./pages/smartcrop/auth/smartcrop-login.component').then((m) => m.SmartcropLoginComponent),
+      },
+      {
+        path: 'smartcrop/dashboard',
+        canActivate: [smartcropAuthGuard],
+        loadComponent: () =>
+          import('./pages/smartcrop/dashboard/smartcrop-dashboard.component').then(
+            (m) => m.SmartcropDashboardComponent,
+          ),
       },
       {
         path: 'contact',

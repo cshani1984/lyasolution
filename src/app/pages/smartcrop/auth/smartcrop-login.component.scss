@@ -1,0 +1,90 @@
+.sc-login {
+  padding-block: 2.5rem 4rem;
+}
+
+.sc-login__back {
+  display: inline-block;
+  margin-block-end: 1.25rem;
+  color: var(--color-muted);
+  text-decoration: none;
+}
+
+.sc-login__card {
+  max-width: 440px;
+  margin-inline: auto;
+  padding: 1.5rem;
+  border-radius: 20px;
+  border: 1px solid rgba(55, 71, 79, 0.12);
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  display: grid;
+  gap: 0.85rem;
+}
+
+.sc-login__brand-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.sc-login__logo {
+  width: 2.85rem;
+  height: 2.85rem;
+  border-radius: 0.8rem;
+  object-fit: cover;
+}
+
+.sc-login__brand {
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-accent-dark);
+}
+
+.sc-login__card h1 {
+  margin: 0;
+  font-size: clamp(1.4rem, 3vw, 1.85rem);
+}
+
+.sc-login__card .lede {
+  margin: 0;
+}
+
+.sc-login__google {
+  width: 100%;
+}
+
+.sc-login__divider {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+.sc-login__divider::before,
+.sc-login__divider::after {
+  content: '';
+  height: 1px;
+  background: rgba(55, 71, 79, 0.15);
+}
+
+.sc-login__card label {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+}
+
+.sc-login__card input {
+  font: inherit;
+  padding: 0.7rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid rgba(55, 71, 79, 0.2);
+}
+
+.sc-login__error {
+  margin: 0;
+  color: #b71c1c;
+  font-size: 0.9rem;
+}

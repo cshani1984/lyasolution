@@ -1,0 +1,62 @@
+.sc-phone {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.sc-phone__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.sc-phone__panel {
+  position: relative;
+  z-index: 1;
+  width: min(420px, 100%);
+  border-radius: 18px;
+  background: #fff;
+  border: 1px solid rgba(55, 71, 79, 0.12);
+  box-shadow: var(--shadow-hover);
+  padding: 1.25rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.sc-phone__panel h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.sc-phone__panel p {
+  margin: 0;
+  color: var(--color-muted);
+}
+
+.sc-phone__panel label {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+}
+
+.sc-phone__panel input {
+  font: inherit;
+  padding: 0.7rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid rgba(55, 71, 79, 0.2);
+}
+
+.sc-phone__error {
+  color: #b71c1c !important;
+  font-size: 0.88rem;
+}
+
+.sc-phone__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-block-start: 0.35rem;
+}

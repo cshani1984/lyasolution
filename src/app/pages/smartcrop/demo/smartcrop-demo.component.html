@@ -1,0 +1,69 @@
+<section class="sc-demo">
+  <div class="container sc-demo__inner">
+    <header class="sc-demo__header">
+      <div>
+        <div class="sc-demo__brand-row">
+          <img class="sc-demo__logo" src="/smartcrop-logo.png" alt="" width="44" height="44" />
+          <p class="sc-demo__brand">SmartCrop · Demo</p>
+        </div>
+        <h1>{{ i18n.t('smartcrop.demo.title') }}</h1>
+        <p class="lede">{{ i18n.t('smartcrop.demo.subtitle') }}</p>
+      </div>
+      <a routerLink="/smartcrop" class="btn btn--ghost">{{ i18n.t('smartcrop.demo.back') }}</a>
+    </header>
+
+    <div class="sc-demo__toolbar">
+      <label>
+        {{ i18n.t('smartcrop.dash.sizeAll') }}
+        <select [ngModel]="sizeFilter()" (ngModelChange)="sizeFilter.set($event)">
+          <option value="all">{{ i18n.t('smartcrop.dash.sizeAll') }}</option>
+          @for (s of sizes; track s.id) {
+            <option [value]="s.name">{{ s.name }} ({{ s.width_cm }}×{{ s.height_cm }} cm)</option>
+          }
+        </select>
+      </label>
+      <p class="sc-demo__hint">{{ i18n.t('smartcrop.demo.hint') }}</p>
+    </div>
+
+    @if (toast()) {
+      <p class="sc-demo__toast">{{ toast() }}</p>
+    }
+
+    @if (busy() && !photos().length) {
+      <p>{{ i18n.t('smartcrop.dash.loading') }}</p>
+    } @else {
+      <div class="sc-demo__gallery">
+        @for (photo of filteredPhotos(); track photo.id) {
+          <div class="sc-demo__item">
+            <app-smartcrop-photo-card
+              [photo]="photo"
+              [selected]="selectedIds().has(photo.id)"
+              [showOriginal]="originalPreviewIds().has(photo.id)"
+              (toggleSelect)="toggleSelect(photo.id)"
+              (edit)="openEdit(photo)"
+              (remove)="remove(photo)"
+              (togglePreview)="togglePreview(photo.id)"
+            />
+            <label class="sc-demo__size">
+              <span>{{ i18n.t('smartcrop.batch.changeSize') }}</span>
+              <select [ngModel]="photo.target_size_name" (change)="onCardSizeChange(photo, $event)">
+                @for (s of sizes; track s.id) {
+                  <option [value]="s.name">{{ s.name }}</option>
+                }
+              </select>
+            </label>
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <app-smartcrop-crop-modal
+    [open]="!!editingPhoto()"
+    [photo]="editingPhoto()"
+    [aspectRatio]="editingAspect()"
+    (closed)="editingPhoto.set(null)"
+    (saved)="saveCrop($event)"
+    (resetAi)="resetAiCrop()"
+  />
+</section>

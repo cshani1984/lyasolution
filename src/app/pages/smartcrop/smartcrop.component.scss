@@ -1,0 +1,234 @@
+.page-hero {
+  padding: clamp(3rem, 8vw, 5rem) 0 0;
+}
+
+.page-hero__inner {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.page-hero h1 {
+  margin: 0 0 1rem;
+  font-size: clamp(1.85rem, 3.5vw, 2.6rem);
+  max-width: 22ch;
+  line-height: 1.2;
+}
+
+.lede {
+  margin: 0;
+  max-width: 44rem;
+  font-size: clamp(1rem, 2vw, 1.08rem);
+  line-height: 1.75;
+  color: var(--color-muted);
+}
+
+.section {
+  padding: clamp(2rem, 5vw, 3.5rem) 0;
+}
+
+.sc-hero {
+  background:
+    radial-gradient(800px 360px at 0% 0%, rgba(0, 188, 212, 0.14), transparent 55%),
+    radial-gradient(700px 320px at 100% 20%, rgba(47, 142, 169, 0.12), transparent 50%),
+    linear-gradient(180deg, #ffffff 0%, #f4f8fa 100%);
+  padding-block-end: 3.5rem;
+}
+
+.sc-hero__brand-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+  margin-block-end: 0.35rem;
+}
+
+.sc-hero__logo {
+  width: clamp(4.25rem, 10vw, 5.5rem);
+  height: auto;
+  border-radius: 1.15rem;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.18);
+}
+
+.sc-hero__brand {
+  margin: 0;
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--color-accent-dark);
+}
+
+.sc-hero__cta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.65rem;
+  margin-block-start: 1.35rem;
+}
+
+.sc-section {
+  padding-block-start: 2.5rem;
+}
+
+.sc-features {
+  display: grid;
+  gap: 1.5rem;
+  justify-content: center;
+  max-width: 1080px;
+  margin-inline: auto;
+}
+
+@media (min-width: 800px) {
+  .sc-features {
+    grid-template-columns: repeat(3, minmax(240px, 1fr));
+  }
+}
+
+.sc-feature {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 1.75rem 1.5rem 1.6rem;
+  border-radius: 16px;
+  min-height: 100%;
+}
+
+.sc-feature__icon {
+  --tile: 4rem;
+  width: var(--tile);
+  height: var(--tile);
+  margin-bottom: 1rem;
+  border-radius: 1.125rem;
+  background: #e9ecef;
+  display: grid;
+  place-items: center;
+  color: var(--color-accent-dark);
+  flex-shrink: 0;
+}
+
+.sc-feature__icon svg {
+  width: 1.65rem;
+  height: 1.65rem;
+}
+
+.sc-feature__icon[data-i='1'] {
+  background: linear-gradient(145deg, #e0f7fa, #e8f5e9);
+  color: #00897b;
+}
+
+.sc-feature__icon[data-i='2'] {
+  background: linear-gradient(145deg, #e3f2fd, #e8eaf6);
+  color: #1565c0;
+}
+
+.sc-feature__icon[data-i='3'] {
+  background: linear-gradient(145deg, #f3e5f5, #eceff1);
+  color: #7b1fa2;
+}
+
+.sc-feature h2 {
+  margin: 0 0 0.55rem;
+  font-size: 1.2rem;
+}
+
+.sc-feature p {
+  margin: 0;
+  color: var(--color-muted);
+  line-height: 1.6;
+  font-size: 0.98rem;
+  max-width: 22rem;
+}
+
+.sc-preview-section {
+  padding-block: 1rem 3.5rem;
+}
+
+.sc-preview-head {
+  text-align: center;
+  max-width: 36rem;
+  margin-inline: auto;
+  margin-block-end: 1.75rem;
+}
+
+.sc-preview-head h2 {
+  margin: 0 0 0.45rem;
+  font-size: clamp(1.35rem, 3vw, 1.75rem);
+}
+
+.sc-preview-head p {
+  margin: 0;
+  color: var(--color-muted);
+  line-height: 1.55;
+}
+
+.sc-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1.25rem;
+  max-width: 980px;
+  margin-inline: auto;
+}
+
+.sc-preview-card {
+  margin: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.sc-preview-card__frame {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #eceff1;
+  border: 1px solid rgba(55, 71, 79, 0.1);
+  box-shadow: var(--shadow-soft);
+}
+
+.sc-preview-card__frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.35s ease;
+}
+
+.sc-preview-card:hover .sc-preview-card__frame img {
+  transform: scale(1.04);
+}
+
+.sc-preview-card__badge {
+  position: absolute;
+  inset-block-end: 0.55rem;
+  inset-inline-end: 0.55rem;
+  padding: 0.22rem 0.5rem;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: rgba(15, 23, 42, 0.78);
+  color: #fff;
+}
+
+.sc-preview-card figcaption {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+}
+
+.sc-preview-card figcaption strong {
+  font-weight: 600;
+}
+
+.sc-preview-card figcaption span {
+  color: var(--color-muted);
+  font-size: 0.8rem;
+}
+
+.sc-preview-cta {
+  display: flex;
+  justify-content: center;
+  margin-block-start: 2rem;
+}

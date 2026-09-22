@@ -1,0 +1,86 @@
+<section class="page-hero sc-hero">
+  <div class="container page-hero__inner">
+    <div class="sc-hero__brand-row">
+      <img class="sc-hero__logo" src="/smartcrop-logo.png" alt="SmartCrop" width="72" height="72" />
+      <p class="sc-hero__brand">SmartCrop</p>
+    </div>
+    <h1>{{ i18n.t('smartcrop.hero.title') }}</h1>
+    <p class="lede">{{ i18n.t('smartcrop.hero.subtitle') }}</p>
+    <div class="sc-hero__cta">
+      <a class="btn btn--primary" routerLink="/smartcrop/demo">{{ i18n.t('smartcrop.hero.demo') }}</a>
+      @if (auth.isSignedIn()) {
+        <a class="btn btn--ghost" routerLink="/smartcrop/dashboard">{{ i18n.t('smartcrop.hero.openDash') }}</a>
+      } @else {
+        <a class="btn btn--ghost" routerLink="/smartcrop/login">{{ i18n.t('smartcrop.hero.cta') }}</a>
+      }
+      <a class="btn btn--ghost" routerLink="/contact">{{ i18n.t('smartcrop.hero.contact') }}</a>
+    </div>
+  </div>
+</section>
+
+<section class="section sc-section">
+  <div class="container">
+    <div class="sc-features">
+      @for (i of features; track i) {
+        <article class="card card-hover sc-feature" appRevealOnScroll>
+          <div class="sc-feature__icon" [attr.data-i]="i" aria-hidden="true">
+            @switch (i) {
+              @case (1) {
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5z" />
+                </svg>
+              }
+              @case (2) {
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M6 2v4H2" />
+                  <path d="M18 2v4h4" />
+                  <path d="M6 22v-4H2" />
+                  <path d="M18 22v-4h4" />
+                  <rect x="6" y="6" width="12" height="12" rx="1" />
+                </svg>
+              }
+              @case (3) {
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="3" width="7" height="7" rx="1" />
+                  <rect x="3" y="14" width="7" height="7" rx="1" />
+                  <rect x="14" y="14" width="7" height="7" rx="1" />
+                </svg>
+              }
+            }
+          </div>
+          <h2>{{ i18n.t('smartcrop.feature.' + i + '.title') }}</h2>
+          <p>{{ i18n.t('smartcrop.feature.' + i + '.body') }}</p>
+        </article>
+      }
+    </div>
+  </div>
+</section>
+
+<section class="section sc-preview-section">
+  <div class="container">
+    <div class="sc-preview-head" appRevealOnScroll>
+      <h2>{{ i18n.t('smartcrop.preview.title') }}</h2>
+      <p>{{ i18n.t('smartcrop.preview.subtitle') }}</p>
+    </div>
+
+    <div class="sc-preview-grid" appRevealOnScroll>
+      @for (shot of previewShots; track shot.src) {
+        <figure class="sc-preview-card">
+          <div class="sc-preview-card__frame" [style.aspect-ratio]="shot.aspect">
+            <img [src]="shot.src" [alt]="i18n.t(shot.altKey)" loading="lazy" decoding="async" />
+            <span class="sc-preview-card__badge">{{ shot.size }}</span>
+          </div>
+          <figcaption>
+            <strong>{{ i18n.t(shot.titleKey) }}</strong>
+            <span>{{ shot.size }} cm</span>
+          </figcaption>
+        </figure>
+      }
+    </div>
+
+    <div class="sc-preview-cta" appRevealOnScroll>
+      <a class="btn btn--primary btn--lg" routerLink="/smartcrop/demo">{{ i18n.t('smartcrop.preview.cta') }}</a>
+    </div>
+  </div>
+</section>
