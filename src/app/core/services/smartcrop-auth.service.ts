@@ -3,6 +3,15 @@ import type { Session, User } from '@supabase/supabase-js';
 import { SupabaseClientService } from './supabase-client.service';
 import type { SmartcropProfile } from '../models/smartcrop.model';
 
+/** Live site always lands on www — OAuth PKCE breaks if apex ≠ www. */
+export function smartcropAuthOrigin(): string {
+  if (typeof window === 'undefined') return '';
+  const { protocol, hostname, port } = window.location;
+  const host = hostname === 'lya-solution.com' ? 'www.lya-solution.com' : hostname;
+  const portPart = port && port !== '80' && port !== '443' ? `:${port}` : '';
+  return `${protocol}//${host}${portPart}`;
+}
+
 @Injectable({ providedIn: 'root' })
 export class SmartcropAuthService {
   private readonly supabase = inject(SupabaseClientService);
@@ -11,6 +20,7 @@ export class SmartcropAuthService {
   readonly user = signal<User | null>(null);
   readonly profile = signal<SmartcropProfile | null>(null);
   readonly loading = signal(true);
+  readonly authError = signal<string | null>(null);
   readonly needsPhone = computed(() => {
     const p = this.profile();
     return Boolean(this.user()) && Boolean(p) && !p?.phone;
@@ -59,14 +69,67 @@ export class SmartcropAuthService {
       }
     });
 
-    // getSession() waits for client init (PKCE code exchange from URL when present)
+    await this.exchangeOAuthCodeIfPresent();
+
     const { data } = await client.auth.getSession();
     this.session.set(data.session);
     this.user.set(data.session?.user ?? null);
-    if (data.session?.user) {
-      await this.ensureProfile(data.session.user);
-    }
     this.markReady();
+    if (data.session?.user) {
+      void this.ensureProfile(data.session.user);
+    }
+  }
+
+  /**
+   * Explicit PKCE exchange. Safe if detectSessionInUrl already consumed the code
+   * (second call just logs and continues).
+   */
+  async exchangeOAuthCodeIfPresent(): Promise<{ error: string | null }> {
+    if (typeof window === 'undefined' || !this.supabase.isConfigured()) {
+      return { error: null };
+    }
+    const params = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const oauthError =
+      params.get('error_description') ||
+      params.get('error') ||
+      hashParams.get('error_description') ||
+      hashParams.get('error');
+    if (oauthError) {
+      this.authError.set(oauthError);
+      return { error: oauthError };
+    }
+
+    const code = params.get('code');
+    if (!code) return { error: null };
+
+    const client = this.supabase.requireClient();
+    const { data, error } = await client.auth.exchangeCodeForSession(code);
+    if (error) {
+      // Already exchanged by detectSessionInUrl — treat as soft failure if session exists
+      const existing = await client.auth.getSession();
+      if (existing.data.session) {
+        this.stripOAuthParamsFromUrl();
+        return { error: null };
+      }
+      this.authError.set(error.message);
+      return { error: error.message };
+    }
+    this.session.set(data.session);
+    this.user.set(data.session?.user ?? null);
+    this.stripOAuthParamsFromUrl();
+    return { error: null };
+  }
+
+  private stripOAuthParamsFromUrl(): void {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has('code') && !url.searchParams.has('state')) return;
+    url.searchParams.delete('code');
+    url.searchParams.delete('state');
+    url.searchParams.delete('error');
+    url.searchParams.delete('error_description');
+    window.history.replaceState({}, document.title, url.pathname + url.search + url.hash);
   }
 
   async loadProfile(userId: string): Promise<SmartcropProfile | null> {
@@ -81,7 +144,6 @@ export class SmartcropAuthService {
     return profile;
   }
 
-  /** Create profile row if the signup trigger did not run. */
   async ensureProfile(user: User): Promise<SmartcropProfile | null> {
     const existing = await this.loadProfile(user.id);
     if (existing) return existing;
@@ -107,6 +169,7 @@ export class SmartcropAuthService {
     if (!this.supabase.isConfigured()) {
       return { error: new Error('Supabase is not configured') };
     }
+    this.authError.set(null);
     const client = this.supabase.requireClient();
     const { error } = await client.auth.signInWithOAuth({
       provider: 'google',

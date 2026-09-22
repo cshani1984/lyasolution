@@ -13,7 +13,8 @@ export class SupabaseClientService {
         auth: {
           persistSession: true,
           autoRefreshToken: true,
-          detectSessionInUrl: true,
+          // We exchange ?code= explicitly so apex→www redirects don't race PKCE.
+          detectSessionInUrl: false,
           flowType: 'pkce',
         },
       });

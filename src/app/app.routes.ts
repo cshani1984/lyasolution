@@ -47,6 +47,13 @@ export const routes: Routes = [
           import('./pages/smartcrop/auth/smartcrop-login.component').then((m) => m.SmartcropLoginComponent),
       },
       {
+        path: 'smartcrop/auth/callback',
+        loadComponent: () =>
+          import('./pages/smartcrop/auth/smartcrop-auth-callback.component').then(
+            (m) => m.SmartcropAuthCallbackComponent,
+          ),
+      },
+      {
         path: 'smartcrop/dashboard',
         canActivate: [smartcropAuthGuard],
         loadComponent: () =>

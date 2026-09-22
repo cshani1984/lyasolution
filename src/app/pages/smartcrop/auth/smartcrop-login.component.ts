@@ -1,8 +1,11 @@
 import { Component, OnInit, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { I18nService } from '../../../core/services/i18n.service';
-import { SmartcropAuthService } from '../../../core/services/smartcrop-auth.service';
+import {
+  SmartcropAuthService,
+  smartcropAuthOrigin,
+} from '../../../core/services/smartcrop-auth.service';
 import { SupabaseClientService } from '../../../core/services/supabase-client.service';
 
 @Component({
@@ -17,6 +20,7 @@ export class SmartcropLoginComponent implements OnInit {
   readonly auth = inject(SmartcropAuthService);
   readonly supabase = inject(SupabaseClientService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   phone = '';
   otp = '';
@@ -25,27 +29,40 @@ export class SmartcropLoginComponent implements OnInit {
   readonly error = signal<string | null>(null);
 
   constructor() {
-    // After Google OAuth returns, session may arrive slightly after first paint.
     effect(() => {
       if (this.auth.loading()) return;
       if (this.auth.isSignedIn()) {
-        void this.router.navigateByUrl('/smartcrop/dashboard');
+        void this.router.navigateByUrl('/smartcrop/dashboard', { replaceUrl: true });
       }
     });
   }
 
   async ngOnInit(): Promise<void> {
+    const qError = this.route.snapshot.queryParamMap.get('error');
+    if (qError) this.error.set(qError);
+
+    // PKCE must start on www (canonical host). Bounce apex → www before Google.
+    if (this.route.snapshot.queryParamMap.get('startGoogle') === '1') {
+      await this.google();
+      return;
+    }
+
+    await this.auth.exchangeOAuthCodeIfPresent();
     await this.auth.waitUntilReady();
     if (this.auth.isSignedIn()) {
-      await this.router.navigateByUrl('/smartcrop/dashboard');
+      await this.router.navigateByUrl('/smartcrop/dashboard', { replaceUrl: true });
     }
   }
 
   async google(): Promise<void> {
+    if (typeof window !== 'undefined' && window.location.hostname === 'lya-solution.com') {
+      window.location.replace('https://www.lya-solution.com/smartcrop/login?startGoogle=1');
+      return;
+    }
+
     this.busy.set(true);
     this.error.set(null);
-    // Land on dashboard so a successful OAuth session opens the portal immediately.
-    const redirectTo = `${window.location.origin}/smartcrop/dashboard`;
+    const redirectTo = `${smartcropAuthOrigin()}/smartcrop/auth/callback`;
     const { error } = await this.auth.signInWithGoogle(redirectTo);
     this.busy.set(false);
     if (error) this.error.set(error.message);
