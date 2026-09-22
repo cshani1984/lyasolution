@@ -16,33 +16,57 @@ export class SmartcropAuthService {
     return Boolean(this.user()) && Boolean(p) && !p?.phone;
   });
 
+  private readyResolve: (() => void) | null = null;
+  private readonly readyPromise = new Promise<void>((resolve) => {
+    this.readyResolve = resolve;
+  });
+
   constructor() {
     void this.init();
   }
 
+  /** Resolves after session (incl. OAuth ?code= exchange) is applied. */
+  async waitUntilReady(timeoutMs = 12_000): Promise<void> {
+    if (!this.loading()) return;
+    await Promise.race([
+      this.readyPromise,
+      new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
+    ]);
+  }
+
+  private markReady(): void {
+    if (this.loading()) {
+      this.loading.set(false);
+      this.readyResolve?.();
+      this.readyResolve = null;
+    }
+  }
+
   private async init(): Promise<void> {
     if (!this.supabase.isConfigured()) {
-      this.loading.set(false);
+      this.markReady();
       return;
     }
     const client = this.supabase.requireClient();
-    const { data } = await client.auth.getSession();
-    this.session.set(data.session);
-    this.user.set(data.session?.user ?? null);
-    if (data.session?.user) {
-      await this.loadProfile(data.session.user.id);
-    }
-    this.loading.set(false);
 
     client.auth.onAuthStateChange((_event, session) => {
       this.session.set(session);
       this.user.set(session?.user ?? null);
       if (session?.user) {
-        void this.loadProfile(session.user.id);
+        void this.ensureProfile(session.user);
       } else {
         this.profile.set(null);
       }
     });
+
+    // getSession() waits for client init (PKCE code exchange from URL when present)
+    const { data } = await client.auth.getSession();
+    this.session.set(data.session);
+    this.user.set(data.session?.user ?? null);
+    if (data.session?.user) {
+      await this.ensureProfile(data.session.user);
+    }
+    this.markReady();
   }
 
   async loadProfile(userId: string): Promise<SmartcropProfile | null> {
@@ -57,6 +81,28 @@ export class SmartcropAuthService {
     return profile;
   }
 
+  /** Create profile row if the signup trigger did not run. */
+  async ensureProfile(user: User): Promise<SmartcropProfile | null> {
+    const existing = await this.loadProfile(user.id);
+    if (existing) return existing;
+
+    const meta = user.user_metadata ?? {};
+    const row = {
+      id: user.id,
+      email: user.email ?? null,
+      full_name: (meta['full_name'] as string) || (meta['name'] as string) || null,
+      avatar_url: (meta['avatar_url'] as string) || (meta['picture'] as string) || null,
+    };
+
+    const client = this.supabase.requireClient();
+    const { error } = await client.from('profiles').upsert(row, { onConflict: 'id' });
+    if (error) {
+      console.warn('[SmartcropAuth] ensureProfile', error.message);
+      return null;
+    }
+    return this.loadProfile(user.id);
+  }
+
   async signInWithGoogle(redirectTo: string): Promise<{ error: Error | null }> {
     if (!this.supabase.isConfigured()) {
       return { error: new Error('Supabase is not configured') };
@@ -64,7 +110,10 @@ export class SmartcropAuthService {
     const client = this.supabase.requireClient();
     const { error } = await client.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo },
+      options: {
+        redirectTo,
+        queryParams: { prompt: 'select_account' },
+      },
     });
     return { error: error ? new Error(error.message) : null };
   }
@@ -92,6 +141,7 @@ export class SmartcropAuthService {
     if (!user) {
       return { error: new Error('Not signed in') };
     }
+    await this.ensureProfile(user);
     const client = this.supabase.requireClient();
     const { error } = await client.from('profiles').update({ phone }).eq('id', user.id);
     if (error) {

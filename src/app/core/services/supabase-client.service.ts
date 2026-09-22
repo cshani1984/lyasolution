@@ -14,6 +14,7 @@ export class SupabaseClientService {
           persistSession: true,
           autoRefreshToken: true,
           detectSessionInUrl: true,
+          flowType: 'pkce',
         },
       });
     } else {

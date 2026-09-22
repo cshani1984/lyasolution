@@ -6,9 +6,12 @@ export const smartcropAuthGuard: CanActivateFn = async () => {
   const auth = inject(SmartcropAuthService);
   const router = inject(Router);
 
-  for (let i = 0; i < 40 && auth.loading(); i++) {
-    await new Promise((r) => setTimeout(r, 50));
-  }
+  // OAuth returns here with ?code= — wait for PKCE exchange before deciding.
+  const hasOAuthParams =
+    typeof window !== 'undefined' &&
+    (window.location.search.includes('code=') || window.location.hash.includes('access_token'));
+
+  await auth.waitUntilReady(hasOAuthParams ? 15_000 : 12_000);
 
   if (auth.isSignedIn()) {
     return true;

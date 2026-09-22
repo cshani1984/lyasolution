@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { I18nService } from '../../../core/services/i18n.service';
@@ -24,10 +24,18 @@ export class SmartcropLoginComponent implements OnInit {
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);
 
+  constructor() {
+    // After Google OAuth returns, session may arrive slightly after first paint.
+    effect(() => {
+      if (this.auth.loading()) return;
+      if (this.auth.isSignedIn()) {
+        void this.router.navigateByUrl('/smartcrop/dashboard');
+      }
+    });
+  }
+
   async ngOnInit(): Promise<void> {
-    for (let i = 0; i < 40 && this.auth.loading(); i++) {
-      await new Promise((r) => setTimeout(r, 50));
-    }
+    await this.auth.waitUntilReady();
     if (this.auth.isSignedIn()) {
       await this.router.navigateByUrl('/smartcrop/dashboard');
     }
@@ -36,7 +44,8 @@ export class SmartcropLoginComponent implements OnInit {
   async google(): Promise<void> {
     this.busy.set(true);
     this.error.set(null);
-    const redirectTo = `${window.location.origin}/smartcrop/login`;
+    // Land on dashboard so a successful OAuth session opens the portal immediately.
+    const redirectTo = `${window.location.origin}/smartcrop/dashboard`;
     const { error } = await this.auth.signInWithGoogle(redirectTo);
     this.busy.set(false);
     if (error) this.error.set(error.message);
