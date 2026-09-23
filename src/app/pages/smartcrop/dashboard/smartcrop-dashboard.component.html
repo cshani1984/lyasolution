@@ -73,7 +73,7 @@
         @for (s of photosService.sizes(); track s.id) {
           <button
             type="button"
-            [class.is-selected]="activePhoto()?.size_id === s.id || activePhoto()?.target_size_name === s.name"
+            [class.is-selected]="isSizeSelected(s)"
             (click)="selectSize(s.id)"
             [disabled]="!activePhoto()"
           >
@@ -115,7 +115,7 @@
         <button
           type="button"
           class="sc-studio__thumb"
-          [class.is-active]="activePhoto()?.id === photo.id"
+          [class.is-active]="isActiveThumb(photo)"
           (click)="selectPhoto(photo)"
         >
           <img [src]="photo.cropped_url || photo.original_url" [alt]="photo.target_size_name" />

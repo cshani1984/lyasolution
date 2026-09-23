@@ -235,6 +235,16 @@ export class SmartcropDashboardComponent implements OnInit {
     return 'is-warn';
   }
 
+  isSizeSelected(size: { id: string; name: string }): boolean {
+    const photo = this.activePhoto();
+    if (!photo) return false;
+    return photo.size_id === size.id || photo.target_size_name === size.name;
+  }
+
+  isActiveThumb(photo: SmartcropPhoto): boolean {
+    return this.activePhoto()?.id === photo.id;
+  }
+
   private fileToBase64(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
