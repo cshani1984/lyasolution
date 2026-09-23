@@ -33,9 +33,9 @@ export class SmartcropAuthCallbackComponent implements OnInit {
     }
 
     const err = this.auth.authError() || this.i18n.t('smartcrop.login.oauthFailed');
-    await this.router.navigate(['/smartcrop/login'], {
+    await this.router.navigate(['/smartcrop'], {
       replaceUrl: true,
-      queryParams: { error: err },
+      queryParams: { login: '1', error: err },
     });
   }
 }

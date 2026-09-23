@@ -1,27 +1,18 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import type { CropSaveResult, SmartcropPhoto } from '../../../core/models/smartcrop.model';
 import { I18nService } from '../../../core/services/i18n.service';
 import { SmartcropAuthService } from '../../../core/services/smartcrop-auth.service';
 import { SmartcropPhotosService } from '../../../core/services/smartcrop-photos.service';
 import { SmartcropApiService } from '../../../core/services/smartcrop-api.service';
-import { SmartcropPhotoGridComponent } from '../components/photo-grid/photo-grid.component';
-import { SmartcropBatchActionBarComponent } from '../components/batch-action-bar/batch-action-bar.component';
 import { SmartcropCropModalComponent } from '../components/crop-modal/crop-modal.component';
 import { SmartcropPhoneVerificationModalComponent } from '../components/phone-verification-modal/phone-verification-modal.component';
 
 @Component({
   selector: 'app-smartcrop-dashboard',
   standalone: true,
-  imports: [
-    FormsModule,
-    RouterLink,
-    SmartcropPhotoGridComponent,
-    SmartcropBatchActionBarComponent,
-    SmartcropCropModalComponent,
-    SmartcropPhoneVerificationModalComponent,
-  ],
+  imports: [FormsModule, SmartcropCropModalComponent, SmartcropPhoneVerificationModalComponent],
   templateUrl: './smartcrop-dashboard.component.html',
   styleUrl: './smartcrop-dashboard.component.scss',
 })
@@ -32,80 +23,96 @@ export class SmartcropDashboardComponent implements OnInit {
   readonly api = inject(SmartcropApiService);
   private readonly router = inject(Router);
 
-  readonly selectedIds = signal(new Set<string>());
-  readonly originalPreviewIds = signal(new Set<string>());
-  readonly statusFilter = signal<'all' | 'pending' | 'approved' | 'printed'>('all');
-  readonly sizeFilter = signal('all');
-  readonly search = signal('');
-  readonly editingPhoto = signal<SmartcropPhoto | null>(null);
+  readonly activeId = signal<string | null>(null);
+  readonly showOriginal = signal(false);
+  readonly cropOpen = signal(false);
   readonly showPhoneModal = signal(false);
   readonly busy = signal(false);
   readonly toast = signal<string | null>(null);
 
-  readonly filteredPhotos = computed(() => {
-    const q = this.search().trim().toLowerCase();
-    const status = this.statusFilter();
-    const size = this.sizeFilter();
-    return this.photosService.photos().filter((p) => {
-      if (status !== 'all' && p.status !== status) return false;
-      if (size !== 'all' && p.target_size_name !== size) return false;
-      if (q && !`${p.target_size_name} ${p.sender_phone} ${p.status}`.toLowerCase().includes(q)) {
-        return false;
-      }
-      return true;
-    });
+  readonly photos = computed(() => this.photosService.photos());
+
+  readonly activePhoto = computed(() => {
+    const id = this.activeId();
+    const list = this.photos();
+    return list.find((p) => p.id === id) ?? list[0] ?? null;
   });
 
-  readonly orderBadge = computed(() => {
-    const orders = this.photosService.orders();
-    if (!orders.length) return this.i18n.t('smartcrop.dash.statusNone');
-    return orders[0].status;
-  });
-
-  readonly editingAspect = computed(() => {
-    const photo = this.editingPhoto();
+  readonly activeAspect = computed(() => {
+    const photo = this.activePhoto();
     if (!photo) return 2 / 3;
     const size = this.photosService.sizes().find((s) => s.id === photo.size_id || s.name === photo.target_size_name);
     return size ? Number(size.aspect_ratio) : 2 / 3;
   });
 
+  readonly pendingCount = computed(() => this.photos().filter((p) => p.status === 'pending').length);
+  readonly approvedCount = computed(() => this.photos().filter((p) => p.status === 'approved').length);
+
+  readonly previewUrl = computed(() => {
+    const p = this.activePhoto();
+    if (!p) return null;
+    if (this.showOriginal()) return p.original_url;
+    return p.cropped_url || p.original_url;
+  });
+
+  readonly userLabel = computed(() => {
+    const p = this.auth.profile();
+    return p?.full_name || p?.email || p?.phone || 'Studio';
+  });
+
+  readonly userInitials = computed(() => {
+    const label = this.userLabel();
+    const parts = label.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return label.slice(0, 2).toUpperCase();
+  });
+
   async ngOnInit(): Promise<void> {
     await this.photosService.refreshAll();
-    if (this.auth.needsPhone()) {
-      this.showPhoneModal.set(true);
+    const first = this.photos()[0];
+    if (first) this.activeId.set(first.id);
+    if (this.auth.needsPhone()) this.showPhoneModal.set(true);
+  }
+
+  selectPhoto(photo: SmartcropPhoto): void {
+    this.activeId.set(photo.id);
+    this.showOriginal.set(false);
+  }
+
+  toggleOriginal(): void {
+    this.showOriginal.update((v) => !v);
+  }
+
+  selectSize(sizeId: string): void {
+    const photo = this.activePhoto();
+    const size = this.photosService.sizes().find((s) => s.id === sizeId);
+    if (!photo || !size) return;
+    void this.photosService.updatePhoto(photo.id, {
+      size_id: size.id,
+      target_size_name: size.name,
+    });
+  }
+
+  openCrop(): void {
+    if (this.activePhoto()) this.cropOpen.set(true);
+  }
+
+  async approveActive(): Promise<void> {
+    const photo = this.activePhoto();
+    if (!photo) return;
+    this.busy.set(true);
+    if (this.api.isConfigured()) {
+      await this.api.batchUpdate({ photoIds: [photo.id], status: 'approved' });
+    } else {
+      await this.photosService.approvePhotos([photo.id]);
     }
-  }
-
-  toggleSelect(id: string): void {
-    const next = new Set(this.selectedIds());
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    this.selectedIds.set(next);
-  }
-
-  selectAll(): void {
-    this.selectedIds.set(new Set(this.filteredPhotos().map((p) => p.id)));
-  }
-
-  clearSelection(): void {
-    this.selectedIds.set(new Set());
-  }
-
-  togglePreview(id: string): void {
-    const next = new Set(this.originalPreviewIds());
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    this.originalPreviewIds.set(next);
-  }
-
-  async deleteOne(photo: SmartcropPhoto): Promise<void> {
-    if (!confirm(this.i18n.t('smartcrop.dash.confirmDelete'))) return;
-    await this.photosService.deletePhoto(photo.id);
-    this.clearSelection();
+    await this.photosService.loadPhotos();
+    this.busy.set(false);
+    this.toast.set(this.i18n.t('smartcrop.dash.approved'));
   }
 
   async approveAll(): Promise<void> {
-    const ids = this.filteredPhotos()
+    const ids = this.photos()
       .filter((p) => p.status === 'pending')
       .map((p) => p.id);
     if (!ids.length) return;
@@ -118,36 +125,6 @@ export class SmartcropDashboardComponent implements OnInit {
     await this.photosService.loadPhotos();
     this.busy.set(false);
     this.toast.set(this.i18n.t('smartcrop.dash.approved'));
-  }
-
-  async batchApprove(): Promise<void> {
-    const ids = [...this.selectedIds()];
-    this.busy.set(true);
-    if (this.api.isConfigured()) {
-      await this.api.batchUpdate({ photoIds: ids, status: 'approved' });
-    } else {
-      await this.photosService.approvePhotos(ids);
-    }
-    await this.photosService.loadPhotos();
-    this.clearSelection();
-    this.busy.set(false);
-  }
-
-  async batchDelete(): Promise<void> {
-    if (!confirm(this.i18n.t('smartcrop.dash.confirmDelete'))) return;
-    await this.photosService.deletePhotos([...this.selectedIds()]);
-    this.clearSelection();
-  }
-
-  async batchChangeSize(sizeId: string): Promise<void> {
-    const ids = [...this.selectedIds()];
-    this.busy.set(true);
-    if (this.api.isConfigured()) {
-      const res = await this.api.batchUpdate({ photoIds: ids, sizeId });
-      if (!res.ok) this.toast.set(res.error ?? 'Error');
-    }
-    await this.photosService.loadPhotos();
-    this.busy.set(false);
   }
 
   async onSimulateFile(event: Event): Promise<void> {
@@ -181,11 +158,13 @@ export class SmartcropDashboardComponent implements OnInit {
       return;
     }
     await this.photosService.refreshAll();
+    const newest = this.photos()[0];
+    if (newest) this.activeId.set(newest.id);
     this.toast.set(this.i18n.t('smartcrop.dash.simulated'));
   }
 
   async saveCrop(result: CropSaveResult): Promise<void> {
-    const photo = this.editingPhoto();
+    const photo = this.activePhoto();
     if (!photo) return;
     this.busy.set(true);
     if (this.api.isConfigured()) {
@@ -203,17 +182,17 @@ export class SmartcropDashboardComponent implements OnInit {
       });
     }
     await this.photosService.loadPhotos();
-    this.editingPhoto.set(null);
+    this.cropOpen.set(false);
     this.busy.set(false);
   }
 
   async resetAiCrop(): Promise<void> {
-    const photo = this.editingPhoto();
+    const photo = this.activePhoto();
     if (!photo || !this.api.isConfigured()) return;
     this.busy.set(true);
     await this.api.processCrop({ photoId: photo.id, resetToAi: true });
     await this.photosService.loadPhotos();
-    this.editingPhoto.set(null);
+    this.cropOpen.set(false);
     this.busy.set(false);
   }
 
@@ -222,8 +201,17 @@ export class SmartcropDashboardComponent implements OnInit {
     await this.router.navigateByUrl('/smartcrop');
   }
 
+  toggleLang(): void {
+    this.i18n.toggleLang();
+  }
+
   onPhoneVerified(): void {
     void this.photosService.refreshAll();
+  }
+
+  statusClass(status: string): string {
+    if (status === 'approved' || status === 'printed') return 'is-ok';
+    return 'is-warn';
   }
 
   private fileToBase64(file: File): Promise<string> {

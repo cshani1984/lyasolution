@@ -26,6 +26,12 @@ export class SmartcropAuthService {
     return Boolean(this.user()) && Boolean(p) && !p?.phone;
   });
 
+  /** New Google/OTP user without a studio name — show register step. */
+  readonly needsStudioRegister = computed(() => {
+    const p = this.profile();
+    return Boolean(this.user()) && Boolean(p) && !String(p?.full_name ?? '').trim();
+  });
+
   private readyResolve: (() => void) | null = null;
   private readonly readyPromise = new Promise<void>((resolve) => {
     this.readyResolve = resolve;
@@ -146,7 +152,10 @@ export class SmartcropAuthService {
 
   async ensureProfile(user: User): Promise<SmartcropProfile | null> {
     const existing = await this.loadProfile(user.id);
-    if (existing) return existing;
+    if (existing) {
+      await this.applyPendingStudioRegistration();
+      return this.profile();
+    }
 
     const meta = user.user_metadata ?? {};
     const row = {
@@ -162,7 +171,28 @@ export class SmartcropAuthService {
       console.warn('[SmartcropAuth] ensureProfile', error.message);
       return null;
     }
+    await this.applyPendingStudioRegistration();
     return this.loadProfile(user.id);
+  }
+
+  /** Studio name/phone saved before Google OAuth from the register form. */
+  stashPendingStudioRegistration(studioName: string, phone: string): void {
+    if (typeof sessionStorage === 'undefined') return;
+    sessionStorage.setItem('sc_studio_name', studioName.trim());
+    sessionStorage.setItem('sc_studio_phone', phone.trim());
+  }
+
+  private async applyPendingStudioRegistration(): Promise<void> {
+    if (typeof sessionStorage === 'undefined') return;
+    const name = sessionStorage.getItem('sc_studio_name');
+    const phone = sessionStorage.getItem('sc_studio_phone');
+    if (!name && !phone) return;
+    sessionStorage.removeItem('sc_studio_name');
+    sessionStorage.removeItem('sc_studio_phone');
+    await this.completeStudioRegistration({
+      studioName: name || this.profile()?.full_name || 'Studio',
+      phone: phone || undefined,
+    });
   }
 
   async signInWithGoogle(redirectTo: string): Promise<{ error: Error | null }> {
@@ -211,6 +241,31 @@ export class SmartcropAuthService {
       return { error: new Error(error.message) };
     }
     await this.linkPhotosByPhone(phone);
+    await this.loadProfile(user.id);
+    return { error: null };
+  }
+
+  async completeStudioRegistration(input: {
+    studioName: string;
+    phone?: string;
+  }): Promise<{ error: Error | null }> {
+    const user = this.user();
+    if (!user) {
+      return { error: new Error('Not signed in') };
+    }
+    await this.ensureProfile(user);
+    const patch: { full_name: string; phone?: string } = {
+      full_name: input.studioName.trim(),
+    };
+    const phone = input.phone?.trim();
+    if (phone) patch.phone = phone;
+
+    const client = this.supabase.requireClient();
+    const { error } = await client.from('profiles').update(patch).eq('id', user.id);
+    if (error) {
+      return { error: new Error(error.message) };
+    }
+    if (phone) await this.linkPhotosByPhone(phone);
     await this.loadProfile(user.id);
     return { error: null };
   }

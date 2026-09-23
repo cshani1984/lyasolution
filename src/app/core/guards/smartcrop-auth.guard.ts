@@ -20,5 +20,5 @@ export const smartcropAuthGuard: CanActivateFn = async () => {
   if (auth.isSignedIn()) {
     return true;
   }
-  return router.createUrlTree(['/smartcrop/login']);
+  return router.createUrlTree(['/smartcrop'], { queryParams: { login: '1' } });
 };

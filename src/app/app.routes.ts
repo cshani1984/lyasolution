@@ -1,8 +1,44 @@
 import { Routes } from '@angular/router';
 import { MainLayoutComponent } from './layout/main-layout/main-layout.component';
+import { SmartcropShellComponent } from './pages/smartcrop/smartcrop-shell.component';
 import { smartcropAuthGuard } from './core/guards/smartcrop-auth.guard';
 
 export const routes: Routes = [
+  {
+    path: 'smartcrop',
+    component: SmartcropShellComponent,
+    children: [
+      {
+        path: '',
+        loadComponent: () => import('./pages/smartcrop/smartcrop.component').then((m) => m.SmartcropComponent),
+      },
+      {
+        path: 'demo',
+        loadComponent: () =>
+          import('./pages/smartcrop/demo/smartcrop-demo.component').then((m) => m.SmartcropDemoComponent),
+      },
+      {
+        path: 'login',
+        redirectTo: '',
+        pathMatch: 'full',
+      },
+      {
+        path: 'auth/callback',
+        loadComponent: () =>
+          import('./pages/smartcrop/auth/smartcrop-auth-callback.component').then(
+            (m) => m.SmartcropAuthCallbackComponent,
+          ),
+      },
+      {
+        path: 'dashboard',
+        canActivate: [smartcropAuthGuard],
+        loadComponent: () =>
+          import('./pages/smartcrop/dashboard/smartcrop-dashboard.component').then(
+            (m) => m.SmartcropDashboardComponent,
+          ),
+      },
+    ],
+  },
   {
     path: '',
     component: MainLayoutComponent,
@@ -31,35 +67,6 @@ export const routes: Routes = [
         path: 'cv/builder',
         loadComponent: () =>
           import('./pages/cv-builder/edit/cv-builder-edit.component').then((m) => m.CvBuilderEditComponent),
-      },
-      {
-        path: 'smartcrop',
-        loadComponent: () => import('./pages/smartcrop/smartcrop.component').then((m) => m.SmartcropComponent),
-      },
-      {
-        path: 'smartcrop/demo',
-        loadComponent: () =>
-          import('./pages/smartcrop/demo/smartcrop-demo.component').then((m) => m.SmartcropDemoComponent),
-      },
-      {
-        path: 'smartcrop/login',
-        loadComponent: () =>
-          import('./pages/smartcrop/auth/smartcrop-login.component').then((m) => m.SmartcropLoginComponent),
-      },
-      {
-        path: 'smartcrop/auth/callback',
-        loadComponent: () =>
-          import('./pages/smartcrop/auth/smartcrop-auth-callback.component').then(
-            (m) => m.SmartcropAuthCallbackComponent,
-          ),
-      },
-      {
-        path: 'smartcrop/dashboard',
-        canActivate: [smartcropAuthGuard],
-        loadComponent: () =>
-          import('./pages/smartcrop/dashboard/smartcrop-dashboard.component').then(
-            (m) => m.SmartcropDashboardComponent,
-          ),
       },
       {
         path: 'contact',
