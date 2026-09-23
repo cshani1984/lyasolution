@@ -1,3 +1,4 @@
+@if (c(); as t) {
 <div class="sc-lp">
   <header class="sc-lp__header">
     <div class="sc-lp__header-inner">
@@ -7,11 +8,11 @@
           <span>SmartCrop</span>
         </a>
         <nav class="sc-lp__nav" aria-label="SmartCrop">
-          <button type="button" (click)="scrollTo('features')">תכונות</button>
-          <button type="button" (click)="scrollTo('how')">איך זה עובד</button>
-          <button type="button" (click)="scrollTo('compare')">השוואת חיתוך AI</button>
-          <button type="button" (click)="scrollTo('testimonials')">המלצות</button>
-          <button type="button" (click)="scrollTo('faq')">שאלות נפוצות</button>
+          <button type="button" (click)="scrollTo('features')">{{ t.navFeatures }}</button>
+          <button type="button" (click)="scrollTo('how')">{{ t.navHow }}</button>
+          <button type="button" (click)="scrollTo('compare')">{{ t.navCompare }}</button>
+          <button type="button" (click)="scrollTo('testimonials')">{{ t.navTestimonials }}</button>
+          <button type="button" (click)="scrollTo('faq')">{{ t.navFaq }}</button>
         </nav>
       </div>
 
@@ -20,23 +21,23 @@
           <button type="button" [class.is-active]="i18n.lang() === 'he'" (click)="setLang('he')">עברית</button>
           <button type="button" [class.is-active]="i18n.lang() === 'en'" (click)="setLang('en')">English</button>
         </div>
-        <button type="button" class="sc-lp__btn-ghost" (click)="openLogin()">כניסה למערכת</button>
-        <button type="button" class="sc-lp__btn-primary" (click)="openRegister()">התחל 30 ימי ניסיון חינם</button>
-        <button type="button" class="sc-lp__avatar" (click)="openLogin()" aria-label="Account">
+        <button type="button" class="sc-lp__btn-ghost" (click)="openLogin()">{{ t.login }}</button>
+        <button type="button" class="sc-lp__btn-primary" (click)="openRegister()">{{ t.trialCta }}</button>
+        <button type="button" class="sc-lp__avatar" (click)="openLogin()" [attr.aria-label]="t.account">
           <span class="material-symbols-outlined" style="font-size:18px">person</span>
         </button>
-        <button type="button" class="sc-lp__menu-btn" (click)="toggleNav()" aria-label="Menu">
+        <button type="button" class="sc-lp__menu-btn" (click)="toggleNav()" [attr.aria-label]="t.menu">
           <span class="material-symbols-outlined">menu</span>
         </button>
       </div>
     </div>
     <div class="sc-lp__mobile-nav" [class.is-open]="navOpen()">
-      <button type="button" (click)="scrollTo('features')">תכונות</button>
-      <button type="button" (click)="scrollTo('how')">איך זה עובד</button>
-      <button type="button" (click)="scrollTo('compare')">השוואת חיתוך AI</button>
-      <button type="button" (click)="scrollTo('testimonials')">המלצות</button>
-      <button type="button" (click)="scrollTo('faq')">שאלות נפוצות</button>
-      <button type="button" (click)="openLogin()">כניסה למערכת</button>
+      <button type="button" (click)="scrollTo('features')">{{ t.navFeatures }}</button>
+      <button type="button" (click)="scrollTo('how')">{{ t.navHow }}</button>
+      <button type="button" (click)="scrollTo('compare')">{{ t.navCompare }}</button>
+      <button type="button" (click)="scrollTo('testimonials')">{{ t.navTestimonials }}</button>
+      <button type="button" (click)="scrollTo('faq')">{{ t.navFaq }}</button>
+      <button type="button" (click)="openLogin()">{{ t.login }}</button>
     </div>
   </header>
 
@@ -45,31 +46,28 @@
       <section class="sc-lp__wrap sc-lp__hero">
         <div class="sc-lp__hero-copy">
           <h1>
-            קבלת הזמנות הדפסה ישירות מוואטסאפ — עם חיתוך פוטו אוטומטי מבוסס
-            <span class="sc-lp__grad">AI שלעולם לא חותך ראשים</span>
+            {{ t.heroTitleBefore }}
+            <span class="sc-lp__grad">{{ t.heroTitleGrad }}</span>
           </h1>
-          <p class="sc-lp__lede">
-            SmartCrop קולטת תמונות ומידות מבוקשות (10x15, 13x18, A4) ישירות מצ'אט הוואטסאפ של הלקוח,
-            מזהה פנים ומרכזת את הפריים עם מרווח ביטחון עליון מושלם, ושולחת ישר למדפסת ברזולוציית 300 DPI.
-          </p>
+          <p class="sc-lp__lede">{{ t.heroLede }}</p>
           <div class="sc-lp__ctas">
             <button type="button" class="sc-lp__btn-primary sc-lp__btn-primary--lg" (click)="openRegister()">
-              <span>התחילו 30 ימי ניסיון חינם (ללא אשראי)</span>
-              <span class="material-symbols-outlined">arrow_back</span>
+              <span>{{ t.heroTrial }}</span>
+              <span class="material-symbols-outlined">{{ i18n.isRtl() ? 'arrow_back' : 'arrow_forward' }}</span>
             </button>
             <a class="sc-lp__btn-secondary" routerLink="/smartcrop/demo">
               <span class="material-symbols-outlined" style="color:var(--sc-primary)">play_circle</span>
-              <span>צפו בהדגמה חיה</span>
+              <span>{{ t.heroDemo }}</span>
             </a>
           </div>
           <div class="sc-lp__proof">
             <div class="sc-lp__proof-item">
               <span class="material-symbols-outlined">storefront</span>
-              <span>מעל 120 מעבדות פוטו בישראל</span>
+              <span>{{ t.proofLabs }}</span>
             </div>
             <div class="sc-lp__proof-item">
               <span class="material-symbols-outlined">chat</span>
-              <span>חיבור רשמי WhatsApp Cloud</span>
+              <span>{{ t.proofWhatsapp }}</span>
             </div>
           </div>
         </div>
@@ -78,12 +76,12 @@
           <div class="sc-lp__mock-bar">
             <div class="sc-lp__dots">
               <i></i><i></i><i></i>
-              <span class="sc-lp__mock-label">מעבדת הדפסה מקושרת // Hotfolder Minilab 01</span>
+              <span class="sc-lp__mock-label">{{ t.mockLabel }}</span>
             </div>
             <div class="sc-lp__ratio">
-              <span>יחס נכנס: 4:3</span>
+              <span>{{ t.ratioIn }}</span>
               <strong>→</strong>
-              <span>הדפסה מבוקשת: 10x15 (יחס 2:3)</span>
+              <span>{{ t.ratioOut }}</span>
             </div>
           </div>
 
@@ -91,20 +89,20 @@
             <div class="sc-lp__wa">
               <div class="sc-lp__wa-head">
                 <div class="sc-lp__wa-user">
-                  <div class="sc-lp__wa-avatar">דק</div>
+                  <div class="sc-lp__wa-avatar">{{ i18n.lang() === 'he' ? 'דק' : 'DK' }}</div>
                   <div>
-                    <h3>דני קליין (לקוח)</h3>
-                    <p>מחובר עכשיו דרך WhatsApp Business</p>
+                    <h3>{{ t.customerName }}</h3>
+                    <p>{{ t.customerStatus }}</p>
                   </div>
                 </div>
                 <span class="sc-lp__chip">
                   <span class="material-symbols-outlined" style="font-size:14px">auto_awesome</span>
-                  מפוענח
+                  {{ t.parsed }}
                 </span>
               </div>
 
               <div class="sc-lp__bubble">
-                <p>שלום, רוצה להדפיס את התמונה הזו ב-10x15 על נייר מבריק! אפשרי שיהיה מוכן לעוד שעתיים?</p>
+                <p>{{ t.chatMsg }}</p>
                 <div class="sc-lp__bubble-meta">
                   <span>14:32</span>
                   <span class="material-symbols-outlined" style="font-size:14px;color:var(--sc-primary)">done_all</span>
@@ -113,31 +111,31 @@
 
               <div class="sc-lp__bubble">
                 <div class="sc-lp__bubble-img">
-                  <img [src]="imgs.chat" alt="תמונה מלקוח" />
+                  <img [src]="imgs.chat" alt="" />
                   <span>IMG_4892.HEIC (4032x3024)</span>
                 </div>
                 <div class="sc-lp__order-row">
                   <span style="display:inline-flex;align-items:center;gap:0.35rem;color:var(--sc-primary)">
                     <span class="material-symbols-outlined" style="font-size:16px">receipt_long</span>
-                    10x15 • נייר גלוס • עותק 1
+                    {{ t.orderLine }}
                   </span>
                   <strong>₪4.50</strong>
                 </div>
               </div>
 
               <div class="sc-lp__bot">
-                <p>היי דני! זיהינו את הבקשה: 10x15 מבריק. התמונה נסרקה ב-AI Headroom Guard, הראשים שמורים והקובץ מוכן להדפסה!</p>
-                <span>14:32 • בוט SmartCrop</span>
+                <p>{{ t.botMsg }}</p>
+                <span>{{ t.botMeta }}</span>
               </div>
 
               <div class="sc-lp__wa-tags">
                 <span class="sc-lp__tag">
                   <span class="material-symbols-outlined" style="font-size:16px;color:var(--sc-secondary)">verified</span>
-                  DPI מקורי: 300
+                  {{ t.dpiTag }}
                 </span>
                 <span class="sc-lp__tag">
                   <span class="material-symbols-outlined" style="font-size:16px;color:var(--sc-primary)">sync_saved_locally</span>
-                  ניתוב Hotfolder מאושר
+                  {{ t.hotfolderTag }}
                 </span>
               </div>
             </div>
@@ -145,10 +143,10 @@
             <div class="sc-lp__compare-panel">
               <div class="sc-lp__compare-head">
                 <div>
-                  <h3>מנוע חיתוך AI מול חיתוך מרכזי טיפש</h3>
-                  <p>הדמיית פלט להדפסת 10x15 מתוך תמונת סמארטפון 4:3</p>
+                  <h3>{{ t.compareTitle }}</h3>
+                  <p>{{ t.compareSub }}</p>
                 </div>
-                <span class="sc-lp__badge">זיהוי פנים 99.8%</span>
+                <span class="sc-lp__badge">{{ t.faceBadge }}</span>
               </div>
 
               <div class="sc-lp__dual">
@@ -156,41 +154,41 @@
                   <div class="sc-lp__crop-card__title is-bad">
                     <span style="display:inline-flex;align-items:center;gap:0.25rem">
                       <span class="material-symbols-outlined" style="font-size:16px">cancel</span>
-                      חיתוך מרכזי רגיל (עיוור)
+                      {{ t.badCropTitle }}
                     </span>
-                    <em style="font-style:normal;font-size:0.65rem;font-weight:700;background:color-mix(in srgb,var(--sc-error-container) 60%,transparent);padding:0.15rem 0.4rem;border-radius:0.25rem">פסולת דפוס</em>
+                    <em style="font-style:normal;font-size:0.65rem;font-weight:700;background:color-mix(in srgb,var(--sc-error-container) 60%,transparent);padding:0.15rem 0.4rem;border-radius:0.25rem">{{ t.badCropBadge }}</em>
                   </div>
                   <div class="sc-lp__frame is-bad">
-                    <img [src]="imgs.badCrop" alt="חיתוך גרוע" />
-                    <div class="sc-lp__warn"><span>חיתוך ראש קריטי: נחתך 18% מהפדחת</span></div>
+                    <img [src]="imgs.badCrop" alt="" />
+                    <div class="sc-lp__warn"><span>{{ t.badCropWarn }}</span></div>
                   </div>
-                  <p>חיתוך מרכז אוטומטי במעבדות קלאסיות חותך את ראש האב. תלונה מובטחת של הלקוח ובזבוז נייר.</p>
+                  <p>{{ t.badCropBody }}</p>
                 </article>
 
                 <article class="sc-lp__crop-card">
                   <div class="sc-lp__crop-card__title is-good">
                     <span style="display:inline-flex;align-items:center;gap:0.25rem">
                       <span class="material-symbols-outlined" style="font-size:16px;color:var(--sc-secondary)">check_circle</span>
-                      מנוע חיתוך SmartCrop AI
+                      {{ t.goodCropTitle }}
                     </span>
-                    <em style="font-style:normal;font-size:0.65rem;font-weight:700;background:color-mix(in srgb,var(--sc-primary-fixed) 70%,transparent);padding:0.15rem 0.4rem;border-radius:0.25rem;color:var(--sc-primary)">100% הדפסה מושלמת</em>
+                    <em style="font-style:normal;font-size:0.65rem;font-weight:700;background:color-mix(in srgb,var(--sc-primary-fixed) 70%,transparent);padding:0.15rem 0.4rem;border-radius:0.25rem;color:var(--sc-primary)">{{ t.goodCropBadge }}</em>
                   </div>
                   <div class="sc-lp__frame">
-                    <img [src]="imgs.goodCrop" alt="חיתוך חכם" />
+                    <img [src]="imgs.goodCrop" alt="" />
                     <div class="sc-lp__safe">
-                      <span>+15% מרווח ביטחון לשיער (Headroom)</span>
-                      <span style="color:var(--sc-on-variant);font-weight:600">מרכוז עין חכם</span>
+                      <span>{{ t.goodCropSafe }}</span>
+                      <span style="color:var(--sc-on-variant);font-weight:600">{{ t.goodCropEye }}</span>
                     </div>
                   </div>
-                  <p>זיהוי מדויק של קודקוד הראש, הפנים ומרכז הכובד. שומר על מרווח נשימה מקצועי ושולח ל-RIP.</p>
+                  <p>{{ t.goodCropBody }}</p>
                 </article>
               </div>
 
               <div class="sc-lp__telemetry">
-                <span><span class="material-symbols-outlined">memory</span>עיבוד AI: 142ms</span>
-                <span><span class="material-symbols-outlined">aspect_ratio</span>התאמה אוטומטית: 10.2x15.2 ס״מ</span>
+                <span><span class="material-symbols-outlined">memory</span>{{ t.telemetryAi }}</span>
+                <span><span class="material-symbols-outlined">aspect_ratio</span>{{ t.telemetryFit }}</span>
                 <span style="color:var(--sc-secondary);font-weight:600">
-                  <span class="material-symbols-outlined">verified</span>מוכן להדפסה מיידית
+                  <span class="material-symbols-outlined">verified</span>{{ t.telemetryReady }}
                 </span>
               </div>
             </div>
@@ -201,50 +199,38 @@
 
     <section class="sc-lp__section sc-lp__section--tint" id="features">
       <div class="sc-lp__wrap">
-        <span class="sc-lp__kicker">למה מעבדות צילום מפסידות זמן וכסף בכל יום?</span>
-        <h2>המעבר של הלקוחות לסמארטפונים הפך את הדפסת התמונות לסיוט תפעולי</h2>
-        <p class="sc-lp__section-lede">
-          סמארטפונים מצלמים ב-4:3 או 16:9, בעוד שניירות הצילום הסטנדרטיים הם 2:3.
-          התוצאה: עבודה ידנית איטית, הדפסות שהולכות לפח וויכוחים מיותרים עם לקוחות.
-        </p>
+        <span class="sc-lp__kicker">{{ t.problemKicker }}</span>
+        <h2>{{ t.problemTitle }}</h2>
+        <p class="sc-lp__section-lede">{{ t.problemLede }}</p>
 
         <div class="sc-lp__cards-3">
           <article class="sc-lp__card">
             <div class="sc-lp__icon sc-lp__icon--error"><span class="material-symbols-outlined">content_cut</span></div>
-            <h3>בעיית חיתוך הראשים הקלאסית</h3>
-            <p>
-              לקוחות שולחים תמונות מסמארטפון ומבקשים 10x15. תוכנת ההדפסה מבצעת חיתוך מרכזי עיוור וחותכת שיער, מצח או סנטר.
-              המעבדה נאלצת לזרוק נייר יקר ולהדפיס מחדש.
-            </p>
+            <h3>{{ t.card1Title }}</h3>
+            <p>{{ t.card1Body }}</p>
             <div class="sc-lp__statbox">
-              <div><span>הדפסות פסולות בחודש:</span><strong class="is-error">~12% מההזמנות</strong></div>
-              <div><span>זמן התעסקות בפוטושופ:</span><strong>2.5 שעות/יום</strong></div>
+              <div><span>{{ t.card1Stat1 }}</span><strong class="is-error">{{ t.card1Stat1Val }}</strong></div>
+              <div><span>{{ t.card1Stat2 }}</span><strong>{{ t.card1Stat2Val }}</strong></div>
             </div>
           </article>
 
           <article class="sc-lp__card">
             <div class="sc-lp__icon sc-lp__icon--primary"><span class="material-symbols-outlined">face</span></div>
-            <h3>פתרון AI Headroom Guard בלעדי</h3>
-            <p>
-              מנוע הראייה הממוחשבת של SmartCrop מזהה תווי פנים, עיניים וקווי שיער.
-              הוא מזיז את תיבת החיתוך כך שתמיד יישמר מרווח נשימה של לפחות 15% מעל הראש הגבוה ביותר.
-            </p>
+            <h3>{{ t.card2Title }}</h3>
+            <p>{{ t.card2Body }}</p>
             <div class="sc-lp__statbox is-primary">
-              <div><span>הצלחת מרכוז ראש:</span><strong>99.7% דיוק</strong></div>
-              <div><span>תמיכה בתמונות קבוצתיות:</span><strong>עד 32 פרצופים</strong></div>
+              <div><span>{{ t.card2Stat1 }}</span><strong>{{ t.card2Stat1Val }}</strong></div>
+              <div><span>{{ t.card2Stat2 }}</span><strong>{{ t.card2Stat2Val }}</strong></div>
             </div>
           </article>
 
           <article class="sc-lp__card">
             <div class="sc-lp__icon sc-lp__icon--muted"><span class="material-symbols-outlined">mark_chat_read</span></div>
-            <h3>אישורי הדפסה אוטונומיים בווטסאפ</h3>
-            <p>
-              אין צורך באפליקציות. לקוח שולח תמונות לצ'אט המעבדה, מקבל תצוגה מקדימה מדויקת ומאשר בקליק.
-              ברגע האישור — הקובץ נזרק לתיקיית ההדפסה של המינילאב.
-            </p>
+            <h3>{{ t.card3Title }}</h3>
+            <p>{{ t.card3Body }}</p>
             <div class="sc-lp__statbox">
-              <div><span>חיסכון זמן למעבדה:</span><strong style="color:var(--sc-secondary)">85% צמצום מענה</strong></div>
-              <div><span>שביעות רצון לקוח:</span><strong>4.9 / 5.0</strong></div>
+              <div><span>{{ t.card3Stat1 }}</span><strong style="color:var(--sc-secondary)">{{ t.card3Stat1Val }}</strong></div>
+              <div><span>{{ t.card3Stat2 }}</span><strong>{{ t.card3Stat2Val }}</strong></div>
             </div>
           </article>
         </div>
@@ -254,9 +240,9 @@
     <section class="sc-lp__section" id="how">
       <div class="sc-lp__wrap">
         <div class="sc-lp__center">
-          <span class="sc-lp__kicker">איך זה עובד בפועל</span>
-          <h2>משליחת התמונה בוואטסאפ ועד ליציאה מהמינילאב ב-3 שלבים</h2>
-          <p class="sc-lp__section-lede">הטמעה מלאה תוך 15 דקות. המערכת פועלת כענן לצד תוכנת ההדפסה הקיימת שלכם.</p>
+          <span class="sc-lp__kicker">{{ t.howKicker }}</span>
+          <h2>{{ t.howTitle }}</h2>
+          <p class="sc-lp__section-lede">{{ t.howLede }}</p>
         </div>
 
         <div class="sc-lp__steps">
@@ -264,47 +250,47 @@
             <div class="sc-lp__step-body">
               <div class="sc-lp__step-top">
                 <span class="sc-lp__step-num">1</span>
-                <span class="sc-lp__step-label">קליטת פקודה</span>
+                <span class="sc-lp__step-label">{{ t.step1Label }}</span>
               </div>
-              <h3>הלקוח שולח תמונות לוואטסאפ</h3>
-              <p>הבוט מזהה מידות מבוקשות בכל שפה ובכל ניסוח: "10 על 15", "גלויה", "A4", "הגדלה 20x30".</p>
+              <h3>{{ t.step1Title }}</h3>
+              <p>{{ t.step1Body }}</p>
               <div class="sc-lp__step-box">
-                <div><span class="material-symbols-outlined" style="color:var(--sc-secondary);font-size:18px">chat_bubble</span>"היי, תדפיסו 5 עותקים ב-13x18 מט"</div>
-                <div><span class="material-symbols-outlined" style="color:var(--sc-primary);font-size:18px">task_alt</span>פוענח: 5X | 130x180mm | נייר Lustre</div>
+                <div><span class="material-symbols-outlined" style="color:var(--sc-secondary);font-size:18px">chat_bubble</span>{{ t.step1Chat }}</div>
+                <div><span class="material-symbols-outlined" style="color:var(--sc-primary);font-size:18px">task_alt</span>{{ t.step1Parsed }}</div>
               </div>
             </div>
-            <div class="sc-lp__step-foot">אוטומציה מלאה // 0 שניות המתנה</div>
+            <div class="sc-lp__step-foot">{{ t.step1Foot }}</div>
           </article>
 
           <article class="sc-lp__step">
             <div class="sc-lp__step-body">
               <div class="sc-lp__step-top">
                 <span class="sc-lp__step-num">2</span>
-                <span class="sc-lp__step-label">ניתוח AI</span>
+                <span class="sc-lp__step-label">{{ t.step2Label }}</span>
               </div>
-              <h3>ניתוח תווי פנים וחיתוך חכם</h3>
-              <p>SmartCrop סורקת את הפיקסלים, מזהה את כל האנשים בפריים, בונה תיבת ביטחון עליונה ומחשבת חיתוך אופטימלי ב-300 DPI.</p>
+              <h3>{{ t.step2Title }}</h3>
+              <p>{{ t.step2Body }}</p>
               <div class="sc-lp__step-box">
-                <div style="justify-content:space-between"><span>דיוק מפת עומק:</span><strong style="color:var(--sc-primary)">Sub-pixel 0.05%</strong></div>
-                <div style="justify-content:space-between"><span>הגדלת רזולוציה חכמה:</span><strong style="color:var(--sc-secondary)">Super-Resolution</strong></div>
+                <div style="justify-content:space-between"><span>{{ t.step2Depth }}</span><strong style="color:var(--sc-primary)">{{ t.step2DepthVal }}</strong></div>
+                <div style="justify-content:space-between"><span>{{ t.step2Sr }}</span><strong style="color:var(--sc-secondary)">{{ t.step2SrVal }}</strong></div>
               </div>
             </div>
-            <div class="sc-lp__step-foot">ללא איבוד איכות // שמירת ICC Color Profile</div>
+            <div class="sc-lp__step-foot">{{ t.step2Foot }}</div>
           </article>
 
           <article class="sc-lp__step">
             <div class="sc-lp__step-body">
               <div class="sc-lp__step-top">
                 <span class="sc-lp__step-num">3</span>
-                <span class="sc-lp__step-label">פלט והדפסה</span>
+                <span class="sc-lp__step-label">{{ t.step3Label }}</span>
               </div>
-              <h3>התמונה מוכנה להדפסה</h3>
-              <p>התמונות מוכנות להדפסה במעבדה לפי לקוח.</p>
+              <h3>{{ t.step3Title }}</h3>
+              <p>{{ t.step3Body }}</p>
               <div class="sc-lp__step-box">
-                <div><span class="material-symbols-outlined" style="color:var(--sc-primary);font-size:18px">folder_open</span>C:\Hotfolder\Dani_Klein_10x15\</div>
+                <div><span class="material-symbols-outlined" style="color:var(--sc-primary);font-size:18px">folder_open</span>{{ t.step3Path }}</div>
               </div>
             </div>
-            <div class="sc-lp__step-foot">מוכן להדפסה</div>
+            <div class="sc-lp__step-foot">{{ t.step3Foot }}</div>
           </article>
         </div>
       </div>
@@ -317,52 +303,49 @@
             <div>
               <span class="sc-lp__chip" style="margin-bottom:1rem">
                 <span class="material-symbols-outlined" style="font-size:16px">visibility</span>
-                בדיקת מעבדה: פורטרט משפחתי
+                {{ t.compareKicker }}
               </span>
-              <h2>איך בינה מלאכותית מונעת תלונות לקוחות?</h2>
-              <p class="sc-lp__section-lede">
-                בתמונה משפחתית טיפוסית שצולמה בסמארטפון, הראשים ממוקמים בחלק העליון.
-                כאשר מרחיבים להתאמה לפורמט 10x15, חיתוך מרכזי מגלח בדיוק את ראשי ההורים.
-              </p>
+              <h2>{{ t.compareH2 }}</h2>
+              <p class="sc-lp__section-lede">{{ t.compareLede }}</p>
               <div class="sc-lp__list">
                 <div class="sc-lp__list-item">
                   <div class="sc-lp__list-ico is-bad"><span class="material-symbols-outlined" style="font-size:16px">close</span></div>
                   <div>
-                    <h4>חיתוך מרכזי ישן (Standard RIP)</h4>
-                    <p>מתעלם מהפנים, חותך 5–8 ס״מ מעל הראש ומשאיר חולצות ורגליים מיותרות.</p>
+                    <h4>{{ t.oldCropTitle }}</h4>
+                    <p>{{ t.oldCropBody }}</p>
                   </div>
                 </div>
                 <div class="sc-lp__list-item">
                   <div class="sc-lp__list-ico is-good"><span class="material-symbols-outlined" style="font-size:16px">check</span></div>
                   <div>
-                    <h4>SmartCrop Smart Guard</h4>
-                    <p>מזהה את הפנים הגבוהות ביותר, מגדיר תקרת בטיחות אוטומטית וחותך אך ורק מהחלק התחתון.</p>
+                    <h4>{{ t.smartGuardTitle }}</h4>
+                    <p>{{ t.smartGuardBody }}</p>
                   </div>
                 </div>
               </div>
               <button type="button" class="sc-lp__btn-primary" (click)="openRegister()">
-                <span>בדקו את התמונות שלכם בחינם</span>
-                <span class="material-symbols-outlined">chevron_left</span>
+                <span>{{ t.tryFree }}</span>
+                <span class="material-symbols-outlined">{{ i18n.isRtl() ? 'chevron_left' : 'chevron_right' }}</span>
               </button>
             </div>
 
             <div class="sc-lp__map">
               <div class="sc-lp__map-head">
-                <span>הדמיית אזור הדפסה (10x15 ס״מ)</span>
-                <span style="font-size:0.7rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--sc-secondary)">Dynamic Saliency Map</span>
+                <span>{{ t.mapTitle }}</span>
+                <span style="font-size:0.7rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--sc-secondary)">{{ t.mapBadge }}</span>
               </div>
               <div class="sc-lp__map-stage">
-                <img [src]="imgs.family" alt="פורטרט משפחתי" />
+                <img [src]="imgs.family" alt="" />
                 <div class="sc-lp__map-zone">
-                  <span>אזור חיתוך SmartCrop AI (מושלם)</span>
-                  <em>כל בני המשפחה נשמרו במלואם בפריים 10x15</em>
+                  <span>{{ t.mapZone }}</span>
+                  <em>{{ t.mapFamily }}</em>
                 </div>
-                <div class="sc-lp__map-danger"><span>סכנת חיתוך בחיתוך מרכזי רגיל</span></div>
+                <div class="sc-lp__map-danger"><span>{{ t.mapDanger }}</span></div>
               </div>
               <div class="sc-lp__map-stats">
-                <div><small>רזולוציית יעד</small><strong>300 DPI</strong></div>
-                <div><small>שמירת שוליים</small><strong style="color:var(--sc-secondary)">3mm Bleed</strong></div>
-                <div><small>זמן רינדור</small><strong style="color:var(--sc-primary)">0.18 שניות</strong></div>
+                <div><small>{{ t.mapDpi }}</small><strong>{{ t.mapDpiVal }}</strong></div>
+                <div><small>{{ t.mapBleed }}</small><strong style="color:var(--sc-secondary)">{{ t.mapBleedVal }}</strong></div>
+                <div><small>{{ t.mapRender }}</small><strong style="color:var(--sc-primary)">{{ t.mapRenderVal }}</strong></div>
               </div>
             </div>
           </div>
@@ -373,11 +356,9 @@
     <section class="sc-lp__section" id="testimonials">
       <div class="sc-lp__wrap">
         <div class="sc-lp__center">
-          <span class="sc-lp__kicker">סיפורי הצלחה מהשטח</span>
-          <h2>מה אומרים מנהלי חנויות צילום בישראל?</h2>
-          <p class="sc-lp__section-lede">
-            מעבדות שחיברו את SmartCrop חוסכות בממוצע 3 שעות עבודה ידנית ביום ומבטלות כמעט לחלוטין את החזרות ההדפסה.
-          </p>
+          <span class="sc-lp__kicker">{{ t.testimonialsKicker }}</span>
+          <h2>{{ t.testimonialsTitle }}</h2>
+          <p class="sc-lp__section-lede">{{ t.testimonialsLede }}</p>
         </div>
 
         <div class="sc-lp__reviews">
@@ -387,15 +368,12 @@
                 <span class="material-symbols-outlined filled" style="font-size:20px">star</span>
               }
             </div>
-            <blockquote>
-              "SmartCrop חסך לנו לפחות 3 שעות עבודה ידנית בכל יום בחיתוך קבצים של לקוחות.
-              מאז שהתקנו — אפס תלונות על ראשים חתוכים ואפס נייר שנזרק לפח!"
-            </blockquote>
+            <blockquote>{{ t.review1 }}</blockquote>
             <div class="sc-lp__person">
               <img [src]="imgs.avi" alt="" />
               <div>
-                <strong>אבי כהן</strong>
-                <span>בעלים, "פוטו פריזמה תל אביב" (מעבדת Noritsu)</span>
+                <strong>{{ t.review1Name }}</strong>
+                <span>{{ t.review1Role }}</span>
               </div>
             </div>
           </article>
@@ -406,15 +384,12 @@
                 <span class="material-symbols-outlined filled" style="font-size:20px">star</span>
               }
             </div>
-            <blockquote>
-              "הלקוחות מתלהבים מהאישור בווטסאפ וההדפסות יוצאות ישר למינילאב.
-              העובדים שלי כבר לא צריכים לענות להודעות כמו 'איזה גודל לשלוח' — המערכת סוגרת את ההזמנה לבד."
-            </blockquote>
+            <blockquote>{{ t.review2 }}</blockquote>
             <div class="sc-lp__person">
               <img [src]="imgs.meirav" alt="" />
               <div>
-                <strong>מירב לוי</strong>
-                <span>מנהלת, "סטודיו ארט ירושלים" (מעבדת Fuji Frontier)</span>
+                <strong>{{ t.review2Name }}</strong>
+                <span>{{ t.review2Role }}</span>
               </div>
             </div>
           </article>
@@ -425,11 +400,11 @@
     <section class="sc-lp__section sc-lp__section--tint" id="faq">
       <div class="sc-lp__wrap sc-lp__faq">
         <div class="sc-lp__center">
-          <span class="sc-lp__kicker">שאלות ותשובות</span>
-          <h2>כל מה שחשוב לדעת לפני שמתחילים</h2>
+          <span class="sc-lp__kicker">{{ t.faqKicker }}</span>
+          <h2>{{ t.faqTitle }}</h2>
         </div>
         <div class="sc-lp__faq-list">
-          @for (item of faqs; track item.q; let i = $index) {
+          @for (item of t.faqs; track item.q; let i = $index) {
             <div class="sc-lp__faq-item" [class.is-open]="faqOpen() === i">
               <button type="button" (click)="toggleFaq(i)">
                 <span>{{ item.q }}</span>
@@ -450,26 +425,23 @@
           <div class="sc-lp__final-inner">
             <span class="sc-lp__chip" style="justify-self:center;background:color-mix(in srgb,#fff 15%,transparent);color:#fff">
               <span class="material-symbols-outlined" style="font-size:16px">timer</span>
-              התחלה מיידית ב-30 שניות
+              {{ t.finalChip }}
             </span>
-            <h2>מוכנים לחסוך 3 שעות עבודה ביום ולבטל הדפסות פסולות?</h2>
-            <p>
-              הצטרפו ל-120 מעבדות פוטו בישראל שכבר מקבלות הזמנות ישירות מוואטסאפ עם חיתוך בינה מלאכותית.
-              30 ימי התנסות מלאים ללא התחייבות.
-            </p>
+            <h2>{{ t.finalTitle }}</h2>
+            <p>{{ t.finalLede }}</p>
             <div class="sc-lp__ctas">
               <button type="button" class="sc-lp__btn-primary sc-lp__btn-primary--lg sc-lp__btn-primary--light" (click)="openRegister()">
-                <span>התחילו עכשיו בחינם</span>
-                <span class="material-symbols-outlined">arrow_back</span>
+                <span>{{ t.finalStart }}</span>
+                <span class="material-symbols-outlined">{{ i18n.isRtl() ? 'arrow_back' : 'arrow_forward' }}</span>
               </button>
               <a class="sc-lp__btn-secondary" style="background:color-mix(in srgb,var(--sc-primary-container) 80%,transparent);color:#fff" href="https://wa.me/" target="_blank" rel="noopener">
                 <span class="material-symbols-outlined">chat</span>
-                <span>שלחו לנו הודעה בוואטסאפ לתיאום הדגמה</span>
+                <span>{{ t.finalWhatsapp }}</span>
               </a>
             </div>
             <div class="sc-lp__final-notes">
-              <span><span class="material-symbols-outlined" style="font-size:16px">credit_card_off</span>ללא צורך בכרטיס אשראי</span>
-              <span><span class="material-symbols-outlined" style="font-size:16px">support_agent</span>ליווי ותמיכה בעברית</span>
+              <span><span class="material-symbols-outlined" style="font-size:16px">credit_card_off</span>{{ t.finalNoCard }}</span>
+              <span><span class="material-symbols-outlined" style="font-size:16px">support_agent</span>{{ t.finalSupport }}</span>
             </div>
           </div>
         </div>
@@ -485,32 +457,36 @@
             <img src="/smartcrop-logo.png" alt="SmartCrop" width="32" height="32" />
             <span>SmartCrop</span>
           </a>
-          <p>הפלטפורמה החכמה לחיתוך תמונות מבוסס בינה מלאכותית, עיבוד הדפסות וניתוב קבצים למעבדות צילום וחנויות פוטו.</p>
+          <p>{{ t.footerAbout }}</p>
         </div>
         <div>
-          <h4>מוצר ויכולות</h4>
+          <h4>{{ t.footerProduct }}</h4>
           <ul>
-            <li><button type="button" (click)="scrollTo('compare')">מנוע חיתוך אוטומטי AI</button></li>
-            <li><button type="button" (click)="scrollTo('features')">אינטגרציית WhatsApp לחנויות</button></li>
-            <li><button type="button" (click)="scrollTo('how')">תהליך הזמנה אוטומטי</button></li>
-            <li><a routerLink="/smartcrop/demo">גלריית הדגמה</a></li>
+            <li><button type="button" (click)="scrollTo('compare')">{{ t.footerAi }}</button></li>
+            <li><button type="button" (click)="scrollTo('features')">{{ t.footerWa }}</button></li>
+            <li><button type="button" (click)="scrollTo('how')">{{ t.footerFlow }}</button></li>
+            <li><a routerLink="/smartcrop/demo">{{ t.footerDemo }}</a></li>
           </ul>
         </div>
         <div>
-          <h4>תמיכה ומידע</h4>
+          <h4>{{ t.footerSupport }}</h4>
           <ul>
-            <li><button type="button" (click)="scrollTo('faq')">שאלות ותשובות</button></li>
-            <li><button type="button" (click)="scrollTo('testimonials')">סיפורי הצלחה ממעבדות</button></li>
-            <li><button type="button" (click)="openLogin()">כניסה למערכת</button></li>
+            <li><button type="button" (click)="scrollTo('faq')">{{ t.footerFaq }}</button></li>
+            <li><button type="button" (click)="scrollTo('testimonials')">{{ t.footerStories }}</button></li>
+            <li><button type="button" (click)="openLogin()">{{ t.login }}</button></li>
           </ul>
         </div>
       </div>
       <div class="sc-lp__footer-bottom">
-        <p>© 2026 כל הזכויות שמורות | LYA SOLUTION.</p>
+        <a routerLink="/" class="sc-lp__footer-lya" [attr.aria-label]="i18n.t('nav.home')">
+          <img src="/logo-lya-solution.png" alt="LYA SOLUTION" width="160" height="48" />
+        </a>
+        <p>{{ t.footerRights }}</p>
       </div>
     </div>
   </footer>
 </div>
+}
 
 <app-smartcrop-auth-modal
   [open]="loginOpen()"

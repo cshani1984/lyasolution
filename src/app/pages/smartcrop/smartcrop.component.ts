@@ -1,8 +1,9 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { I18nService } from '../../core/services/i18n.service';
 import { SmartcropAuthService } from '../../core/services/smartcrop-auth.service';
 import { SmartcropAuthModalComponent } from './auth/smartcrop-auth-modal.component';
+import { SC_LANDING } from './smartcrop-landing.copy';
 
 @Component({
   selector: 'app-smartcrop',
@@ -20,27 +21,10 @@ export class SmartcropComponent implements OnInit {
   readonly loginOpen = signal(false);
   readonly authTab = signal<'login' | 'register'>('login');
   readonly navOpen = signal(false);
-
   readonly faqOpen = signal<number | null>(0);
 
-  readonly faqs = [
-    {
-      q: 'איך SmartCrop מתחברת לוואטסאפ של החנות שלנו?',
-      a: 'החיבור מתבצע דרך ה-WhatsApp Business Cloud API הרשמי של Meta. אפשר להשתמש במספר הקיים של המעבדה או במספר ייעודי להזמנות. החיבור לוקח כ-5 דקות.',
-    },
-    {
-      q: 'מה קורה עם פרטיות התמונות של הלקוחות?',
-      a: 'התמונות מעובדות בסביבה מאובטחת ומועברות אליכם כקובץ מוכן להדפסה. לאחר העיבוד הן נמחקות משרתי העיבוד תוך 24 שעות בהתאם לתקני GDPR.',
-    },
-    {
-      q: 'האם המערכת דורשת התקנת תוכנה כבדה או ציוד מיוחד?',
-      a: 'לא. SmartCrop פועלת בענן. אתם והלקוחות עובדים ישירות בוואטסאפ, והקבצים החתוכים זמינים בדפדפן או מועברים אוטומטית למחשב המעבדה.',
-    },
-    {
-      q: 'מה קורה אם ה-AI לא בטוח בחיתוך של תמונה חריגה?',
-      a: 'כשרמת הוודאות יורדת מ-95%, התמונה מסומנת בדשבורד עם תגית "דרוש מבט מהיר", או נשלחת ללקוח עם תצוגה מקדימה לאישור בווטסאפ.',
-    },
-  ] as const;
+  /** Landing copy follows the active locale (he/en). */
+  readonly c = computed(() => SC_LANDING[this.i18n.lang()]);
 
   readonly imgs = {
     chat: '/assets/smartcrop-demo/portrait-family.jpg',
