@@ -3,11 +3,12 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { I18nService } from '../../core/services/i18n.service';
 import { SmartcropAuthService } from '../../core/services/smartcrop-auth.service';
 import { SmartcropAuthModalComponent } from './auth/smartcrop-auth-modal.component';
+import { FooterComponent } from '../../layout/footer/footer.component';
 
 @Component({
   selector: 'app-smartcrop',
   standalone: true,
-  imports: [RouterLink, SmartcropAuthModalComponent],
+  imports: [RouterLink, SmartcropAuthModalComponent, FooterComponent],
   templateUrl: './smartcrop.component.html',
   styleUrl: './smartcrop.component.scss',
 })

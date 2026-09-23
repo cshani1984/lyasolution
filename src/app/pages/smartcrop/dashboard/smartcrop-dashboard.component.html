@@ -1,10 +1,12 @@
 <div class="sc-studio">
   <header class="sc-studio__top">
     <div class="sc-studio__brand">
-      <img src="/smartcrop-logo.png" alt="" width="34" height="34" />
-      <strong>SmartCrop</strong>
-      <span class="sc-studio__pill sc-studio__pill--green">PRO</span>
-      <span class="sc-studio__pill sc-studio__pill--soft">{{ i18n.t('smartcrop.studio.whatsappOn') }}</span>
+      <a routerLink="/" class="sc-studio__logo-link" [attr.aria-label]="i18n.t('nav.home')">
+        <img src="/smartcrop-logo.png" alt="SmartCrop" width="34" height="34" />
+        <strong>SmartCrop</strong>
+      </a>
+      <span class="sc-studio__pill sc-studio__pill--green" [title]="i18n.t('smartcrop.studio.proHint')">PRO</span>
+      <span class="sc-studio__pill sc-studio__pill--soft" [title]="whatsappBadgeTitle()">{{ whatsappBadge() }}</span>
     </div>
 
     <div class="sc-studio__store">
@@ -124,10 +126,7 @@
     </div>
   </section>
 
-  <footer class="sc-studio__foot">
-    <span>SmartCrop Photo Studio</span>
-    <span>{{ i18n.t('smartcrop.studio.footerNote') }}</span>
-  </footer>
+  <app-footer />
 </div>
 
 <app-smartcrop-crop-modal

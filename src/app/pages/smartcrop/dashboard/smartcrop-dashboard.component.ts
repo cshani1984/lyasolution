@@ -1,5 +1,5 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import type { CropSaveResult, SmartcropPhoto } from '../../../core/models/smartcrop.model';
 import { I18nService } from '../../../core/services/i18n.service';
@@ -8,11 +8,12 @@ import { SmartcropPhotosService } from '../../../core/services/smartcrop-photos.
 import { SmartcropApiService } from '../../../core/services/smartcrop-api.service';
 import { SmartcropCropModalComponent } from '../components/crop-modal/crop-modal.component';
 import { SmartcropPhoneVerificationModalComponent } from '../components/phone-verification-modal/phone-verification-modal.component';
+import { FooterComponent } from '../../../layout/footer/footer.component';
 
 @Component({
   selector: 'app-smartcrop-dashboard',
   standalone: true,
-  imports: [FormsModule, SmartcropCropModalComponent, SmartcropPhoneVerificationModalComponent],
+  imports: [FormsModule, RouterLink, SmartcropCropModalComponent, SmartcropPhoneVerificationModalComponent, FooterComponent],
   templateUrl: './smartcrop-dashboard.component.html',
   styleUrl: './smartcrop-dashboard.component.scss',
 })
@@ -66,6 +67,18 @@ export class SmartcropDashboardComponent implements OnInit {
     if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
     return label.slice(0, 2).toUpperCase();
   });
+
+  readonly whatsappBadge = computed(() =>
+    this.api.isConfigured()
+      ? this.i18n.t('smartcrop.studio.whatsappOn')
+      : this.i18n.t('smartcrop.studio.whatsappDemo'),
+  );
+
+  readonly whatsappBadgeTitle = computed(() =>
+    this.api.isConfigured()
+      ? this.i18n.t('smartcrop.studio.whatsappOnHint')
+      : this.i18n.t('smartcrop.studio.whatsappDemoHint'),
+  );
 
   async ngOnInit(): Promise<void> {
     await this.photosService.refreshAll();
@@ -139,25 +152,33 @@ export class SmartcropDashboardComponent implements OnInit {
       this.toast.set(this.i18n.t('smartcrop.dash.needPhone'));
       return;
     }
-    if (!this.api.isConfigured()) {
-      this.toast.set(this.i18n.t('smartcrop.dash.noApi'));
-      return;
-    }
 
     this.busy.set(true);
-    const base64 = await this.fileToBase64(file);
-    const res = await this.api.simulateWhatsApp({
-      sender_phone: phone,
-      media_base64: base64,
-      caption_text: '10x15',
-      user_id: this.auth.user()?.id,
-    });
-    this.busy.set(false);
-    if (!res.ok) {
-      this.toast.set(res.error ?? 'Upload failed');
-      return;
+    this.toast.set(null);
+
+    if (this.api.isConfigured()) {
+      const base64 = await this.fileToBase64(file);
+      const res = await this.api.simulateWhatsApp({
+        sender_phone: phone,
+        media_base64: base64,
+        caption_text: '10x15',
+        user_id: this.auth.user()?.id,
+      });
+      this.busy.set(false);
+      if (!res.ok) {
+        this.toast.set(res.error ?? 'Upload failed');
+        return;
+      }
+      await this.photosService.refreshAll();
+    } else {
+      const res = await this.photosService.simulateFromFile(file, phone);
+      this.busy.set(false);
+      if (res.error) {
+        this.toast.set(res.error.message);
+        return;
+      }
     }
-    await this.photosService.refreshAll();
+
     const newest = this.photos()[0];
     if (newest) this.activeId.set(newest.id);
     this.toast.set(this.i18n.t('smartcrop.dash.simulated'));

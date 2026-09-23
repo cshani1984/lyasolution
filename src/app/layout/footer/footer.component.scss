@@ -18,6 +18,12 @@
   gap: 0.75rem;
 }
 
+.site-footer__logo-link {
+  display: inline-flex;
+  text-decoration: none;
+  color: inherit;
+}
+
 .site-footer__meta {
   display: flex;
   flex-direction: column;

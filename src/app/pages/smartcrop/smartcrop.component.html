@@ -1,10 +1,10 @@
 <div class="sc-land">
   <header class="sc-land__top">
-    <div class="sc-land__brand">
+    <a routerLink="/" class="sc-land__brand" [attr.aria-label]="i18n.t('nav.home')">
       <img src="/smartcrop-logo.png" alt="SmartCrop" width="40" height="40" />
       <span>SmartCrop</span>
-      <em class="sc-land__pro">PRO</em>
-    </div>
+      <em class="sc-land__pro" [title]="i18n.t('smartcrop.studio.proHint')">PRO</em>
+    </a>
     <div class="sc-land__top-actions">
       <button type="button" class="sc-land__lang" (click)="toggleLang()">
         {{ i18n.lang() === 'he' ? 'EN' : 'עב' }}
@@ -61,10 +61,7 @@
     }
   </section>
 
-  <footer class="sc-land__foot">
-    <span>SmartCrop Photo Studio</span>
-    <button type="button" class="sc-land__link" (click)="openRegister()">{{ i18n.t('smartcrop.auth.tabRegister') }}</button>
-  </footer>
+  <app-footer />
 </div>
 
 <app-smartcrop-auth-modal

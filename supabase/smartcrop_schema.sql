@@ -154,6 +154,10 @@ drop policy if exists "Users delete own photos" on public.photos;
 create policy "Users delete own photos" on public.photos
   for delete using (auth.uid() = user_id);
 
+drop policy if exists "Users insert own photos" on public.photos;
+create policy "Users insert own photos" on public.photos
+  for insert with check (auth.uid() = user_id);
+
 -- Storage bucket (idempotent)
 insert into storage.buckets (id, name, public)
 values ('photo-prints', 'photo-prints', true)
@@ -167,4 +171,12 @@ drop policy if exists "Auth users read own photo-prints" on storage.objects;
 create policy "Auth users read own photo-prints" on storage.objects
   for select to authenticated using (bucket_id = 'photo-prints');
 
--- Note: uploads use the service role from the Express server (bypasses RLS).
+drop policy if exists "Auth users upload photo-prints" on storage.objects;
+create policy "Auth users upload photo-prints" on storage.objects
+  for insert to authenticated with check (bucket_id = 'photo-prints');
+
+drop policy if exists "Auth users update photo-prints" on storage.objects;
+create policy "Auth users update photo-prints" on storage.objects
+  for update to authenticated using (bucket_id = 'photo-prints');
+
+-- Note: server uploads use the service role (bypasses RLS). Client simulation uses authenticated policies above.
