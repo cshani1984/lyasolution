@@ -304,7 +304,7 @@ export const SC_LANDING: Record<ScLandingLang, ScLandingCopy> = {
     footerSupport: 'תמיכה ומידע',
     footerFaq: 'שאלות ותשובות',
     footerStories: 'סיפורי הצלחה ממעבדות',
-    footerRights: '© 2026 כל הזכויות שמורות | LYA SOLUTION.',
+    footerRights: '© 2026 כל הזכויות שמורות | LYA SOLUTION',
   },
   en: {
     navFeatures: 'Features',
