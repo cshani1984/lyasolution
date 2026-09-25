@@ -4,11 +4,19 @@
       <h3>{{ i18n.t('smartcrop.compare.title') }}</h3>
       <p>{{ i18n.t('smartcrop.compare.sub') }} · {{ sizeLabel || photo.target_size_name }}</p>
     </div>
-    @if (metrics(); as m) {
-      <span class="sc-pcc__face" [class]="confidenceClass()">
-        {{ detectionLabel() }} {{ m.confidenceScore | number: '1.0-1' }}%
-      </span>
-    }
+    <div class="sc-pcc__head-badges">
+      @if (isPrintReady()) {
+        <span class="sc-pcc__ready">
+          <span class="material-symbols-outlined" style="font-size:16px">verified</span>
+          {{ i18n.t('smartcrop.compare.readyBadge') }}
+        </span>
+      }
+      @if (metrics(); as m) {
+        <span class="sc-pcc__face" [class]="confidenceClass()">
+          {{ detectionLabel() }} {{ m.confidenceScore | number: '1.0-0' }}%
+        </span>
+      }
+    </div>
   </header>
 
   @if (metrics(); as m) {
@@ -19,10 +27,15 @@
       <span class="sc-pcc__badge" [class.is-danger]="lossDanger()">
         ✂️ {{ m.cropLossPercentage | number: '1.0-0' }}% {{ i18n.t('smartcrop.metrics.croppedOut') }}
       </span>
-      <span class="sc-pcc__badge is-ratio">📐 {{ sizeLabel || photo.target_size_name }}</span>
       @if (m.correctionDelta; as d) {
         <span class="sc-pcc__badge">
           Δ {{ d.distancePercent | number: '1.0-1' }}% {{ i18n.t('smartcrop.metrics.correction') }}
+        </span>
+      }
+      <span class="sc-pcc__badge is-ratio">📐 {{ sizeLabel || photo.target_size_name }}</span>
+      @if (m.headPaddingApplied) {
+        <span class="sc-pcc__badge is-safe">
+          +{{ headroomPercent() }}% {{ i18n.t('smartcrop.metrics.headroom') }}
         </span>
       }
     </div>
@@ -52,12 +65,12 @@
           <span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;color:var(--sc-secondary,#006e1c)">check_circle</span>
           {{ i18n.t('smartcrop.compare.goodTitle') }}
         </span>
-        <em>{{ i18n.t('smartcrop.compare.goodBadge') }}</em>
+        <em>{{ isPrintReady() ? i18n.t('smartcrop.compare.readyBadge') : i18n.t('smartcrop.compare.goodBadge') }}</em>
       </div>
       <div class="sc-pcc__frame">
         <img [src]="photo.cropped_url || photo.original_url" [alt]="photo.target_size_name" />
         <div class="sc-pcc__safe">
-          <span>{{ i18n.t('smartcrop.compare.goodSafe') }}</span>
+          <span>{{ goodSafeText() }}</span>
           <span>{{ i18n.t('smartcrop.compare.goodEye') }}</span>
         </div>
       </div>
@@ -69,8 +82,13 @@
     <button type="button" class="sc-pcc__btn" (click)="edit.emit()">
       {{ i18n.t('smartcrop.studio.editCrop') }}
     </button>
-    <button type="button" class="sc-pcc__btn sc-pcc__btn--primary" (click)="resetAi.emit()">
+    <button type="button" class="sc-pcc__btn" (click)="resetAi.emit()">
       {{ i18n.t('smartcrop.crop.aiGenerate') }}
     </button>
+    @if (isPrintReady()) {
+      <button type="button" class="sc-pcc__btn sc-pcc__btn--primary" (click)="approve.emit()">
+        {{ i18n.t('smartcrop.studio.approvePrint') }}
+      </button>
+    }
   </footer>
 </div>

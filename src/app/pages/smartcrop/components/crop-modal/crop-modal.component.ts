@@ -57,6 +57,8 @@ export class SmartcropCropModalComponent implements OnChanges, OnDestroy {
   @Output() readonly resetAi = new EventEmitter<void>();
   /** Notes: Approve for printing without leaving the editor. */
   @Output() readonly approved = new EventEmitter<void>();
+  /** Notes: Print size changed in the editor — parent should update photo + aspect. */
+  @Output() readonly sizeChanged = new EventEmitter<{ sizeId: string; sizeName: string }>();
 
   readonly selectedSizeId = signal<string>('');
   readonly transform = signal<ImageTransform>({ scale: 1, rotate: 0 });
@@ -110,6 +112,11 @@ export class SmartcropCropModalComponent implements OnChanges, OnDestroy {
     if (size) return Number(size.aspect_ratio) || this.aspectRatio;
     return this.aspectRatio;
   });
+
+  /** Remount key includes size so aspect changes always recreate the cropper. */
+  readonly cropperTrackKey = computed(
+    () => `${this.cropperKey}-${this.selectedSizeId()}-${this.activeAspect().toFixed(4)}`,
+  );
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['open']) {
@@ -299,7 +306,16 @@ export class SmartcropCropModalComponent implements OnChanges, OnDestroy {
   onSizeChange(sizeId: string): void {
     if (!sizeId || sizeId === this.selectedSizeId()) return;
     this.selectedSizeId.set(sizeId);
+    const size = this.sizes.find((s) => s.id === sizeId);
+    if (size) {
+      this.sizeChanged.emit({ sizeId: size.id, sizeName: size.name });
+    }
+    // Remount cropper so ngx-image-cropper picks up the new aspect ratio.
     this.resetCropperState(false);
+    setTimeout(() => {
+      this.cropperCmp?.onResize();
+      void this.runAiGenerate();
+    }, 160);
   }
 
   onImageCropped(event: ImageCroppedEvent): void {

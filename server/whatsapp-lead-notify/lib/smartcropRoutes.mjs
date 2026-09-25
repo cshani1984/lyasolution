@@ -4,6 +4,7 @@
 import { randomUUID } from 'crypto';
 import multer from 'multer';
 import {
+  buildCustomerBotReply,
   buildHotfolderPath,
   normalizePhoneE164,
   parseWhatsAppOrder,
@@ -108,14 +109,29 @@ async function ingestSmartcropPhoto(input) {
   const fromPhone = normalizePhoneE164(String(input.senderPhone ?? ''));
   const shopPhone = normalizePhoneE164(String(input.shopPhone ?? ''));
 
-  // End-customer phone: caption wins (shop forward), else WhatsApp From
+  const isShopForward = Boolean(shopPhone && fromPhone && fromPhone === shopPhone);
+  const missingCustomerIdentity = !order.customerPhone && !order.customerName;
+
+  // End-customer phone: caption wins (shop forward), else WhatsApp From.
+  // Shop forward without name/phone → Admin folder under the shop account.
   let customerPhone = order.customerPhone || fromPhone;
-  if (shopPhone && fromPhone && fromPhone === shopPhone && order.customerPhone) {
+  let customerName = order.customerName;
+  if (isShopForward && missingCustomerIdentity) {
+    customerPhone = shopPhone || fromPhone || 'admin';
+    customerName = 'Admin';
+  } else if (isShopForward && order.customerPhone) {
     customerPhone = order.customerPhone;
   }
-  if (!customerPhone) {
-    throw Object.assign(new Error('customer phone required (sender or caption)'), { status: 400 });
+  if (!customerName && missingCustomerIdentity && !fromPhone) {
+    customerName = 'Admin';
+    customerPhone = shopPhone || 'admin';
   }
+
+  if (!customerPhone) {
+    customerPhone = shopPhone || 'admin';
+    customerName = customerName || 'Admin';
+  }
+  order.customerName = customerName;
   if (!input.media_url && !input.media_base64) {
     throw Object.assign(new Error('media_url or media_base64 required'), { status: 400 });
   }
@@ -345,20 +361,33 @@ export function registerSmartcropRoutes(app, ctx) {
               media_base64: media.media_base64,
               caption_text: parsed.caption_text,
             });
-            const conf =
-              typeof result.parseConfidence === 'number'
-                ? ` · דיוק פענוח ${Math.round(result.parseConfidence)}%`
-                : '';
-            reply = `קיבלנו! ${result.parsedSummary || result.sizeName}${conf}. נשמר ל־${result.hotfolderPath || 'תיקיית לקוח'} ✨`;
+            reply = buildCustomerBotReply({
+              customerName: result.customerName,
+              sizeName: result.sizeName,
+              paperType: result.paperType,
+              copies: result.copies,
+              metrics: result.metrics,
+            });
             log('Twilio WhatsApp ingested', {
               photoId: result.photoId,
               sizeName: result.sizeName,
               customerPhone: result.customerPhone,
+              customerName: result.customerName,
               hotfolderPath: result.hotfolderPath,
             });
           }
         } else if (parsed.Body) {
-          reply = 'קיבלנו את ההודעה. שלחו תמונה להדפסה עם גודל (למשל 10x15) ושם/טלפון הלקוח אם מעבירים הודעה.';
+          const preview = parseWhatsAppOrder(parsed.Body);
+          const paperHe =
+            preview.paperType === 'Gloss'
+              ? 'מבריק'
+              : preview.paperType === 'Matte'
+                ? 'מט'
+                : preview.paperType === 'Lustre'
+                  ? 'לאסטר'
+                  : '';
+          const req = paperHe ? `${preview.sizeName} ${paperHe}` : preview.sizeName;
+          reply = `קיבלנו את ההודעה — זיהינו: ${req}${preview.copies > 1 ? ` · ${preview.copies} עותקים` : ''}.\nשלחו גם את התמונה להדפסה (ואם מעבירים הודעה — שם + טלפון הלקוח; אחרת יישמר תחת Admin).`;
         }
 
         const preferRest = process.env.TWILIO_REPLY_MODE === 'rest';

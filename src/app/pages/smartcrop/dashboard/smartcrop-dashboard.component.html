@@ -124,6 +124,7 @@
                 [sizeLabel]="activeSizeLabel()"
                 (edit)="openCrop()"
                 (resetAi)="resetAiCrop()"
+                (approve)="approveActive()"
               />
             } @else {
               <div class="sc-studio__frame">
@@ -264,6 +265,7 @@
   (saved)="saveCrop($event)"
   (resetAi)="resetAiCrop()"
   (approved)="approveActive()"
+  (sizeChanged)="onModalSizeChanged($event)"
 />
 
 <app-smartcrop-phone-verification-modal

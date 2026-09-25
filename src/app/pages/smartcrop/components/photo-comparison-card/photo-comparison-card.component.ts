@@ -3,6 +3,7 @@ import {
   EventEmitter,
   Input,
   OnChanges,
+  OnDestroy,
   Output,
   SimpleChanges,
   inject,
@@ -13,6 +14,7 @@ import type { CropMetrics, SmartcropPhoto } from '../../../../core/models/smartc
 import { I18nService } from '../../../../core/services/i18n.service';
 import {
   CROP_LOSS_WARN_PERCENT,
+  HEAD_TOP_PADDING_RATIO,
   confidenceTone,
 } from '../../../../core/smartcrop/crop-engine.math';
 import { blindCenterCropFromUrl } from '../../../../core/smartcrop/crop-engine.client';
@@ -24,7 +26,7 @@ import { blindCenterCropFromUrl } from '../../../../core/smartcrop/crop-engine.c
   templateUrl: './photo-comparison-card.component.html',
   styleUrl: './photo-comparison-card.component.scss',
 })
-export class SmartcropPhotoComparisonCardComponent implements OnChanges {
+export class SmartcropPhotoComparisonCardComponent implements OnChanges, OnDestroy {
   readonly i18n = inject(I18nService);
   readonly cropLossWarn = CROP_LOSS_WARN_PERCENT;
 
@@ -35,6 +37,7 @@ export class SmartcropPhotoComparisonCardComponent implements OnChanges {
 
   @Output() readonly edit = new EventEmitter<void>();
   @Output() readonly resetAi = new EventEmitter<void>();
+  @Output() readonly approve = new EventEmitter<void>();
 
   readonly localBlindUrl = signal<string | null>(null);
   readonly blindBusy = signal(false);
@@ -47,6 +50,10 @@ export class SmartcropPhotoComparisonCardComponent implements OnChanges {
     }
   }
 
+  ngOnDestroy(): void {
+    this.revokeOwned();
+  }
+
   metrics(): CropMetrics | null {
     return this.photo?.crop_data?.metrics ?? null;
   }
@@ -57,10 +64,21 @@ export class SmartcropPhotoComparisonCardComponent implements OnChanges {
     return `is-${confidenceTone(m.confidenceScore)}`;
   }
 
+  /** High AI confidence + no truncation risk → shop can trust auto-print. */
+  isPrintReady(): boolean {
+    const m = this.metrics();
+    if (!m) return false;
+    return m.confidenceScore >= 90 && !m.hasTruncationRisk && m.cropLossPercentage <= CROP_LOSS_WARN_PERCENT;
+  }
+
   lossDanger(): boolean {
     const m = this.metrics();
     if (!m) return false;
     return m.hasTruncationRisk || m.cropLossPercentage > CROP_LOSS_WARN_PERCENT;
+  }
+
+  headroomPercent(): number {
+    return Math.round(HEAD_TOP_PADDING_RATIO * 100);
   }
 
   foreheadLossHint(): number {
@@ -77,6 +95,13 @@ export class SmartcropPhotoComparisonCardComponent implements OnChanges {
     const type = this.metrics()?.detectedType;
     if (!type) return '';
     return this.i18n.t(`smartcrop.metrics.type.${type}`);
+  }
+
+  goodSafeText(): string {
+    return this.i18n
+      .t('smartcrop.compare.goodSafe')
+      .replace('+15%', `+${this.headroomPercent()}%`)
+      .replace('15%', `${this.headroomPercent()}%`);
   }
 
   resolvedBlindUrl(): string {

@@ -167,6 +167,37 @@ export function parseWhatsAppOrder(caption) {
 }
 
 /**
+ * Notes: Customer-facing WhatsApp bot confirmation (HE), like studio mock.
+ * @param {{
+ *   customerName?: string | null,
+ *   sizeName: string,
+ *   paperType?: string | null,
+ *   copies?: number,
+ *   metrics?: { confidenceScore?: number } | null,
+ * }} result
+ */
+export function buildCustomerBotReply(result) {
+  const rawName = result.customerName && result.customerName !== 'Admin' ? String(result.customerName).trim() : '';
+  const first = rawName ? rawName.split(/\s+/)[0] : '';
+  const hi = first ? `היי ${first}!` : 'היי!';
+  const paperHe =
+    result.paperType === 'Gloss' || result.paperType === 'Glossy'
+      ? 'מבריק'
+      : result.paperType === 'Matte'
+        ? 'מט'
+        : result.paperType === 'Lustre'
+          ? 'לאסטר'
+          : '';
+  const req = paperHe ? `${result.sizeName} ${paperHe}` : result.sizeName;
+  let msg = `${hi} זיהינו את הבקשה: ${req}.\nהתמונה נסרקה ב-AI Headroom Guard,\nהראשים שמורים והקובץ מוכן להדפסה!`;
+  const conf = result.metrics?.confidenceScore;
+  if (typeof conf === 'number' && conf >= 90) {
+    msg += '\n✓ מוכן להדפסה';
+  }
+  return msg;
+}
+
+/**
  * Notes: Windows-style hotfolder segment: CustomerName_10x15
  * @param {string | null | undefined} customerName
  * @param {string} phone

@@ -215,7 +215,7 @@ export class SmartcropDashboardComponent implements OnInit {
   selectPhoto(photo: SmartcropPhoto): void {
     this.activeId.set(photo.id);
     this.showOriginal.set(false);
-    this.compareMode.set(false);
+    this.compareMode.set(true);
   }
 
   toggleSelect(photoId: string, event: Event): void {
@@ -245,6 +245,7 @@ export class SmartcropDashboardComponent implements OnInit {
     const size = this.photosService.sizes().find((s) => s.id === sizeId);
     if (!photo || !size) return;
     this.busy.set(true);
+    this.aiBusy.set(true);
     this.toast.set(this.i18n.t('smartcrop.studio.aiWorking'));
     if (this.api.isConfigured()) {
       await this.api.batchUpdate({ photoIds: [photo.id], sizeId: size.id });
@@ -253,8 +254,20 @@ export class SmartcropDashboardComponent implements OnInit {
       await this.photosService.recropPhotoWithAi(photo, size);
     }
     this.busy.set(false);
+    this.aiBusy.set(false);
     this.compareMode.set(true);
     this.toast.set(this.i18n.t('smartcrop.dash.simulated'));
+  }
+
+  /** Notes: Size changed inside crop editor — update photo metadata immediately. */
+  onModalSizeChanged(ev: { sizeId: string; sizeName: string }): void {
+    const photo = this.activePhoto();
+    if (!photo) return;
+    this.photosService.photos.update((list) =>
+      list.map((p) =>
+        p.id === photo.id ? { ...p, size_id: ev.sizeId, target_size_name: ev.sizeName } : p,
+      ),
+    );
   }
 
   openCrop(): void {

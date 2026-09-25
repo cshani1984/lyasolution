@@ -42,7 +42,7 @@
           <p class="sc-modal__error">{{ i18n.t('smartcrop.crop.loadFailed') }}</p>
         } @else {
           <div class="sc-modal__cropper-wrap">
-            @for (k of [cropperKey]; track k) {
+            @for (k of [cropperTrackKey()]; track k) {
               <image-cropper
                 [imageURL]="photo.original_url"
                 [maintainAspectRatio]="true"

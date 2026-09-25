@@ -27,6 +27,26 @@
   color: var(--sc-on-variant, #45464f);
 }
 
+.sc-pcc__head-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.sc-pcc__ready {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  background: #067a4a;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
 .sc-pcc__face {
   display: inline-flex;
   padding: 0.25rem 0.7rem;
@@ -35,6 +55,11 @@
   color: #fff;
   font-size: 0.75rem;
   font-weight: 600;
+}
+
+.sc-pcc__badge.is-safe {
+  color: #067a4a;
+  background: color-mix(in srgb, #067a4a 12%, #fff);
 }
 
 .sc-pcc__face.is-green {
