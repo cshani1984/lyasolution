@@ -1,14 +1,14 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import type { CropSaveResult, SmartcropPhoto } from '../../../core/models/smartcrop.model';
 import {
   DEMO_PRINT_SIZES,
   applyClientCrop,
-  autoCenterCrop,
   createDemoPhotos,
 } from '../../../core/data/smartcrop-demo.data';
 import { I18nService } from '../../../core/services/i18n.service';
+import { smartCropFromUrl, smartCropJpeg } from '../../../core/smartcrop/crop-engine.client';
 import { SmartcropPhotoCardComponent } from '../components/photo-card/photo-card.component';
 import { SmartcropCropModalComponent } from '../components/crop-modal/crop-modal.component';
 
@@ -19,7 +19,7 @@ import { SmartcropCropModalComponent } from '../components/crop-modal/crop-modal
   templateUrl: './smartcrop-demo.component.html',
   styleUrl: './smartcrop-demo.component.scss',
 })
-export class SmartcropDemoComponent implements OnInit {
+export class SmartcropDemoComponent implements OnInit, OnDestroy {
   readonly i18n = inject(I18nService);
   readonly sizes = DEMO_PRINT_SIZES;
 
@@ -29,10 +29,10 @@ export class SmartcropDemoComponent implements OnInit {
   readonly sizeFilter = signal('all');
   readonly editingPhoto = signal<SmartcropPhoto | null>(null);
   readonly busy = signal(false);
+  readonly aiBusy = signal(false);
   readonly toast = signal<string | null>(null);
   readonly editingIndex = signal(0);
 
-  /** Keep blob URLs to revoke later */
   private readonly blobUrls = new Set<string>();
 
   readonly filteredPhotos = computed(() => {
@@ -50,22 +50,71 @@ export class SmartcropDemoComponent implements OnInit {
   async ngOnInit(): Promise<void> {
     const list = createDemoPhotos();
     this.photos.set(list);
-    // Pre-apply AI-style center crop so gallery shows print frames
     this.busy.set(true);
+    this.aiBusy.set(true);
+    this.toast.set(this.i18n.t('smartcrop.studio.aiWorking'));
     const next: SmartcropPhoto[] = [];
     for (const photo of list) {
       const size = this.sizes.find((s) => s.name === photo.target_size_name) ?? this.sizes[0];
       try {
-        const crop = await autoCenterCrop(photo.original_url, Number(size.aspect_ratio));
-        const { blobUrl, cropData } = await applyClientCrop(photo.original_url, crop);
+        const cropped = await smartCropFromUrl(photo.original_url, Number(size.aspect_ratio));
+        const blobUrl = URL.createObjectURL(cropped.blob);
         this.blobUrls.add(blobUrl);
-        next.push({ ...photo, cropped_url: blobUrl, crop_data: cropData });
+        next.push({ ...photo, cropped_url: blobUrl, crop_data: cropped.cropData });
       } catch {
         next.push(photo);
       }
     }
     this.photos.set(next);
+    this.aiBusy.set(false);
     this.busy.set(false);
+    this.toast.set(null);
+  }
+
+  ngOnDestroy(): void {
+    for (const url of this.blobUrls) URL.revokeObjectURL(url);
+  }
+
+  async onUploadFile(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+
+    this.busy.set(true);
+    this.aiBusy.set(true);
+    this.toast.set(this.i18n.t('smartcrop.studio.aiWorking'));
+
+    const size = this.sizes.find((s) => s.is_default) ?? this.sizes[0];
+    try {
+      const originalUrl = URL.createObjectURL(file);
+      this.blobUrls.add(originalUrl);
+      const cropped = await smartCropJpeg(file, Number(size.aspect_ratio));
+      const croppedUrl = URL.createObjectURL(cropped.blob);
+      this.blobUrls.add(croppedUrl);
+
+      const photo: SmartcropPhoto = {
+        id: `upload-${crypto.randomUUID()}`,
+        order_id: 'demo-order',
+        user_id: 'demo-user',
+        sender_phone: '+972500000000',
+        original_url: originalUrl,
+        cropped_url: croppedUrl,
+        size_id: size.id,
+        target_size_name: size.name,
+        crop_data: cropped.cropData,
+        status: 'pending',
+        created_at: new Date().toISOString(),
+      };
+      this.photos.update((list) => [photo, ...list]);
+      this.openEdit(photo);
+      this.toast.set(this.i18n.t('smartcrop.dash.simulated'));
+    } catch (e) {
+      this.toast.set(e instanceof Error ? e.message : 'Upload failed');
+    } finally {
+      this.aiBusy.set(false);
+      this.busy.set(false);
+    }
   }
 
   toggleSelect(id: string): void {
@@ -98,18 +147,21 @@ export class SmartcropDemoComponent implements OnInit {
     const photo = this.photos().find((p) => p.id === photoId);
     if (!photo) return;
     this.busy.set(true);
+    this.aiBusy.set(true);
+    this.toast.set(this.i18n.t('smartcrop.studio.aiWorking'));
     try {
-      const crop = await autoCenterCrop(photo.original_url, Number(size.aspect_ratio));
-      const { blobUrl, cropData } = await applyClientCrop(photo.original_url, crop);
+      const cropped = await smartCropFromUrl(photo.original_url, Number(size.aspect_ratio));
+      const blobUrl = URL.createObjectURL(cropped.blob);
       this.blobUrls.add(blobUrl);
       this.patchPhoto(photoId, {
         size_id: size.id,
         target_size_name: size.name,
         cropped_url: blobUrl,
-        crop_data: cropData,
+        crop_data: cropped.cropData,
       });
       this.toast.set(this.i18n.t('smartcrop.demo.sizeChanged').replace('{size}', size.name));
     } finally {
+      this.aiBusy.set(false);
       this.busy.set(false);
     }
   }
@@ -155,16 +207,25 @@ export class SmartcropDemoComponent implements OnInit {
     const photo = this.editingPhoto();
     if (!photo) return;
     this.busy.set(true);
+    this.aiBusy.set(true);
+    this.toast.set(this.i18n.t('smartcrop.studio.aiWorking'));
     try {
-      const crop = await autoCenterCrop(photo.original_url, this.editingAspect());
-      const { blobUrl, cropData } = await applyClientCrop(photo.original_url, crop);
+      const cropped = await smartCropFromUrl(photo.original_url, this.editingAspect());
+      const blobUrl = URL.createObjectURL(cropped.blob);
       this.blobUrls.add(blobUrl);
-      this.patchPhoto(photo.id, { cropped_url: blobUrl, crop_data: cropData });
-      this.editingPhoto.set({ ...photo, cropped_url: blobUrl, crop_data: cropData });
-      this.toast.set(this.i18n.t('smartcrop.demo.resetAi'));
+      this.patchPhoto(photo.id, { cropped_url: blobUrl, crop_data: cropped.cropData });
+      this.editingPhoto.set({ ...photo, cropped_url: blobUrl, crop_data: cropped.cropData });
+      this.toast.set(this.i18n.t('smartcrop.crop.aiDone'));
     } finally {
+      this.aiBusy.set(false);
       this.busy.set(false);
     }
+  }
+
+  /** Notes: AI Generator from gallery card — face detect + auto-center without opening modal. */
+  async runAiOnCard(photo: SmartcropPhoto): Promise<void> {
+    this.editingPhoto.set(photo);
+    await this.resetAiCrop();
   }
 
   private patchPhoto(id: string, patch: Partial<SmartcropPhoto>): void {

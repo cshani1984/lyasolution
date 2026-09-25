@@ -58,7 +58,8 @@
             ],
             "scripts": [],
             "allowedCommonJsDependencies": [
-              "leaflet"
+              "leaflet",
+              "@mediapipe/tasks-vision"
             ]
           },
           "configurations": {

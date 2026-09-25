@@ -8,6 +8,7 @@ import type {
   SmartcropOrder,
   SmartcropPhoto,
 } from '../models/smartcrop.model';
+import { smartCropJpeg, smartCropFromUrl } from '../smartcrop/crop-engine.client';
 
 @Injectable({ providedIn: 'root' })
 export class SmartcropPhotosService {
@@ -21,14 +22,29 @@ export class SmartcropPhotosService {
   readonly error = signal<string | null>(null);
 
   async loadSizes(): Promise<void> {
-    if (!this.supabase.isConfigured()) return;
+    if (!this.supabase.isConfigured()) {
+      this.seedFallbackSizes();
+      return;
+    }
     const client = this.supabase.requireClient();
     const { data, error } = await client.from('print_sizes').select('*').order('name');
-    if (error) {
-      this.error.set(error.message);
+    if (error || !data?.length) {
+      this.seedFallbackSizes();
+      if (error) this.error.set(error.message);
       return;
     }
     this.sizes.set((data as PrintSize[]) ?? []);
+  }
+
+  /** Notes: Local print sizes when Supabase seeds are missing. */
+  private seedFallbackSizes(): void {
+    if (this.sizes().length) return;
+    this.sizes.set([
+      { id: 'local-10x15', name: '10x15', width_cm: 10, height_cm: 15, aspect_ratio: 0.6667, is_default: true },
+      { id: 'local-13x18', name: '13x18', width_cm: 13, height_cm: 18, aspect_ratio: 0.7222, is_default: false },
+      { id: 'local-20x30', name: '20x30', width_cm: 20, height_cm: 30, aspect_ratio: 0.6667, is_default: false },
+      { id: 'local-a4', name: 'A4', width_cm: 21, height_cm: 29.7, aspect_ratio: 0.7071, is_default: false },
+    ]);
   }
 
   async loadPhotos(): Promise<void> {
@@ -125,8 +141,8 @@ export class SmartcropPhotosService {
   }
 
   /**
-   * Client-side WhatsApp simulation (when Express API is not configured).
-   * Tries Supabase storage + photos insert; falls back to in-session preview URLs.
+   * Client-side WhatsApp simulation — always runs MediaPipe / saliency AI crop.
+   * Tries Supabase persist; falls back to in-session blob URLs.
    */
   async simulateFromFile(
     file: File,
@@ -134,8 +150,13 @@ export class SmartcropPhotosService {
   ): Promise<{ error: Error | null; photoId?: string }> {
     const user = this.auth.user();
     if (!user) return { error: new Error('Not signed in') };
-    if (!phone) return { error: new Error('Phone required') };
 
+    const senderPhone =
+      phone?.trim() ||
+      this.auth.profile()?.phone?.trim() ||
+      `+9725${user.id.replace(/\D/g, '').slice(0, 8).padEnd(8, '0')}`;
+
+    if (!this.sizes().length) this.seedFallbackSizes();
     const size = this.sizes().find((s) => s.is_default) ?? this.sizes()[0] ?? null;
     const aspect = size ? Number(size.aspect_ratio) || 2 / 3 : 2 / 3;
     const id = crypto.randomUUID();
@@ -145,7 +166,7 @@ export class SmartcropPhotosService {
     let cropData: CropData;
 
     try {
-      const cropped = await centerCropJpeg(file, aspect);
+      const cropped = await smartCropJpeg(file, aspect);
       cropData = cropped.cropData;
       originalUrl = URL.createObjectURL(file);
       croppedUrl = URL.createObjectURL(cropped.blob);
@@ -154,7 +175,7 @@ export class SmartcropPhotosService {
         const persisted = await this.persistSimulation({
           id,
           userId: user.id,
-          phone,
+          phone: senderPhone,
           size,
           originalFile: file,
           croppedBlob: cropped.blob,
@@ -176,7 +197,7 @@ export class SmartcropPhotosService {
       id,
       order_id: null,
       user_id: user.id,
-      sender_phone: phone,
+      sender_phone: senderPhone,
       original_url: originalUrl,
       cropped_url: croppedUrl,
       size_id: size?.id ?? null,
@@ -187,6 +208,44 @@ export class SmartcropPhotosService {
     };
     this.photos.update((list) => [photo, ...list]);
     return { error: null, photoId: id };
+  }
+
+  /**
+   * Notes: Re-run AI crop for an existing photo at a new print size (client-side).
+   */
+  async recropPhotoWithAi(
+    photo: SmartcropPhoto,
+    size: PrintSize,
+  ): Promise<{ error: Error | null }> {
+    try {
+      const result = await smartCropFromUrl(photo.original_url, Number(size.aspect_ratio) || 2 / 3);
+      const croppedUrl = URL.createObjectURL(result.blob);
+      if (this.supabase.isConfigured() && !photo.id.startsWith('demo-') && !photo.original_url.startsWith('blob:')) {
+        await this.updatePhoto(photo.id, {
+          size_id: size.id,
+          target_size_name: size.name,
+          crop_data: result.cropData,
+          cropped_url: croppedUrl,
+        });
+      } else {
+        this.photos.update((list) =>
+          list.map((p) =>
+            p.id === photo.id
+              ? {
+                  ...p,
+                  size_id: size.id,
+                  target_size_name: size.name,
+                  crop_data: result.cropData,
+                  cropped_url: croppedUrl,
+                }
+              : p,
+          ),
+        );
+      }
+      return { error: null };
+    } catch (e) {
+      return { error: e instanceof Error ? e : new Error(String(e)) };
+    }
   }
 
   private async persistSimulation(input: {
@@ -259,51 +318,3 @@ export class SmartcropPhotosService {
   }
 }
 
-async function centerCropJpeg(
-  file: File,
-  aspectRatio: number,
-): Promise<{ blob: Blob; cropData: CropData }> {
-  const bitmap = await createImageBitmap(file);
-  const srcW = bitmap.width;
-  const srcH = bitmap.height;
-  let cropW = srcW;
-  let cropH = cropW / aspectRatio;
-  if (cropH > srcH) {
-    cropH = srcH;
-    cropW = cropH * aspectRatio;
-  }
-  const x = (srcW - cropW) / 2;
-  // Bias slightly upward (headroom) like the server crop engine
-  const y = Math.max(0, (srcH - cropH) / 2 - cropH * 0.08);
-
-  const canvas = document.createElement('canvas');
-  const outW = Math.round(Math.min(1800, cropW));
-  const outH = Math.round(outW / aspectRatio);
-  canvas.width = outW;
-  canvas.height = outH;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) {
-    bitmap.close();
-    throw new Error('Canvas not available');
-  }
-  ctx.drawImage(bitmap, x, y, cropW, cropH, 0, 0, outW, outH);
-  bitmap.close();
-
-  const blob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('JPEG encode failed'))), 'image/jpeg', 0.92);
-  });
-
-  return {
-    blob,
-    cropData: {
-      x,
-      y,
-      width: cropW,
-      height: cropH,
-      zoom: 1,
-      rotation: 0,
-      focalPoint: { x: x + cropW / 2, y: y + cropH * 0.38 },
-      isManuallyEdited: false,
-    },
-  };
-}

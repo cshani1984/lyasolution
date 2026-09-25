@@ -18,8 +18,12 @@ export class SmartcropApiService {
     );
   }
 
+  /**
+   * Notes: Only treat API as available when a base URL is set AND an API key exists
+   * (avoids failing uploads when localhost URL is present but the server is down).
+   */
   isConfigured(): boolean {
-    return Boolean(this.baseUrl());
+    return Boolean(this.baseUrl() && this.apiKey());
   }
 
   private headers(): Record<string, string> {

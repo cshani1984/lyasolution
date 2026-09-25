@@ -6,13 +6,34 @@
     linear-gradient(180deg, #fff 0%, #f7fafc 100%);
 }
 
-.sc-demo__header {
+.sc-demo__header-actions {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-block-end: 1.25rem;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.sc-demo__upload {
+  cursor: pointer;
+}
+
+.sc-demo__card-actions {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.45rem;
+}
+
+.sc-demo__ai-btn {
+  border-color: #6236ff !important;
+  color: #6236ff !important;
+  background: #f0ebff !important;
+  font-weight: 700;
+  width: 100%;
+}
+
+.sc-demo__toast.is-ai {
+  background: #eef2ff;
+  color: #4338ca;
 }
 
 .sc-demo__brand-row {

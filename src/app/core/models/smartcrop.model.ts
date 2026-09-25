@@ -17,6 +17,31 @@ export interface CropFocalPoint {
   y: number;
 }
 
+export type FocalPoint = CropFocalPoint;
+
+/** Detection cascade outcome from the crop engine. */
+export type DetectedType = 'face' | 'object' | 'saliency_landscape';
+
+/** Axis-aligned rectangle in image pixel space. */
+export interface BoundingBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * Notes: Persisted AI metrics for admin badges.
+ * confidenceScore 0–100; cropLossPercentage = discarded original area %.
+ */
+export interface CropMetrics {
+  detectedType: DetectedType;
+  confidenceScore: number;
+  cropLossPercentage: number;
+  headPaddingApplied: boolean;
+  hasTruncationRisk: boolean;
+}
+
 export interface CropData {
   x: number;
   y: number;
@@ -26,6 +51,7 @@ export interface CropData {
   rotation?: number;
   focalPoint: CropFocalPoint;
   isManuallyEdited: boolean;
+  metrics?: CropMetrics;
 }
 
 /** Result from the ngx-image-cropper modal. */

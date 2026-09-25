@@ -9,7 +9,13 @@
         <h1>{{ i18n.t('smartcrop.demo.title') }}</h1>
         <p class="lede">{{ i18n.t('smartcrop.demo.subtitle') }}</p>
       </div>
-      <a routerLink="/smartcrop" class="btn btn--ghost">{{ i18n.t('smartcrop.demo.back') }}</a>
+      <div class="sc-demo__header-actions">
+        <label class="btn btn--primary sc-demo__upload">
+          {{ i18n.t('smartcrop.dash.upload') }}
+          <input type="file" accept="image/*" hidden (change)="onUploadFile($event)" />
+        </label>
+        <a routerLink="/smartcrop" class="btn btn--ghost">{{ i18n.t('smartcrop.demo.back') }}</a>
+      </div>
     </header>
 
     <div class="sc-demo__toolbar">
@@ -26,7 +32,7 @@
     </div>
 
     @if (toast()) {
-      <p class="sc-demo__toast">{{ toast() }}</p>
+      <p class="sc-demo__toast" [class.is-ai]="aiBusy()">{{ toast() }}</p>
     }
 
     @if (busy() && !photos().length) {
@@ -44,14 +50,19 @@
               (remove)="remove(photo)"
               (togglePreview)="togglePreview(photo.id)"
             />
-            <label class="sc-demo__size">
-              <span>{{ i18n.t('smartcrop.batch.changeSize') }}</span>
-              <select [ngModel]="photo.target_size_name" (change)="onCardSizeChange(photo, $event)">
-                @for (s of sizes; track s.id) {
-                  <option [value]="s.name">{{ s.name }}</option>
-                }
-              </select>
-            </label>
+            <div class="sc-demo__card-actions">
+              <label class="sc-demo__size">
+                <span>{{ i18n.t('smartcrop.batch.changeSize') }}</span>
+                <select [ngModel]="photo.target_size_name" (change)="onCardSizeChange(photo, $event)">
+                  @for (s of sizes; track s.id) {
+                    <option [value]="s.name">{{ s.name }}</option>
+                  }
+                </select>
+              </label>
+              <button type="button" class="btn btn--ghost sc-demo__ai-btn" (click)="runAiOnCard(photo)" [disabled]="busy()">
+                {{ i18n.t('smartcrop.crop.aiGenerate') }}
+              </button>
+            </div>
           </div>
         }
       </div>

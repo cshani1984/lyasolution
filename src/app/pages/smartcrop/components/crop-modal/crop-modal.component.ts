@@ -21,11 +21,13 @@ import {
 } from 'ngx-image-cropper';
 import type {
   CropData,
+  CropMetrics,
   CropSaveResult,
   PrintSize,
   SmartcropPhoto,
 } from '../../../../core/models/smartcrop.model';
 import { I18nService } from '../../../../core/services/i18n.service';
+import { smartCropFromUrl } from '../../../../core/smartcrop/crop-engine.client';
 
 @Component({
   selector: 'app-smartcrop-crop-modal',
@@ -48,12 +50,16 @@ export class SmartcropCropModalComponent implements OnChanges {
   @Output() readonly closed = new EventEmitter<void>();
   @Output() readonly saved = new EventEmitter<CropSaveResult>();
   @Output() readonly resetAi = new EventEmitter<void>();
+  /** Notes: Approve for printing without leaving the editor. */
+  @Output() readonly approved = new EventEmitter<void>();
 
   readonly selectedSizeId = signal<string>('');
   readonly transform = signal<ImageTransform>({ scale: 1, rotate: 0 });
   readonly ready = signal(false);
   readonly loadFailed = signal(false);
   readonly cropperPos = signal<CropperPosition | undefined>(undefined);
+  readonly aiRunning = signal(false);
+  private aiMetrics: CropMetrics | null = null;
 
   /** When false, do not restore previous crop_data (e.g. after size change). */
   private restoreExistingCrop = true;
@@ -98,6 +104,7 @@ export class SmartcropCropModalComponent implements OnChanges {
   private resetCropperState(restoreCrop: boolean): void {
     this.restoreExistingCrop = restoreCrop;
     this.lastCrop = null;
+    this.aiMetrics = null;
     this.ready.set(false);
     this.loadFailed.set(false);
     this.cropperPos.set(undefined);
@@ -106,6 +113,30 @@ export class SmartcropCropModalComponent implements OnChanges {
       rotate: restoreCrop ? (this.photo?.crop_data?.rotation ?? 0) : 0,
     });
     this.cropperKey += 1;
+  }
+
+  /**
+   * Notes: "מחולל AI" — MediaPipe face/object detect + apply crop box in the editor.
+   */
+  async runAiGenerate(): Promise<void> {
+    if (!this.photo || this.aiRunning()) return;
+    this.aiRunning.set(true);
+    try {
+      const result = await smartCropFromUrl(this.photo.original_url, this.activeAspect());
+      this.aiMetrics = result.metrics;
+      this.restoreExistingCrop = true;
+      this.transform.set({ scale: 1, rotate: 0 });
+      this.cropperPos.set({
+        x1: result.cropData.x,
+        y1: result.cropData.y,
+        x2: result.cropData.x + result.cropData.width,
+        y2: result.cropData.y + result.cropData.height,
+      });
+    } catch {
+      // Parent can still offer server/client reset via toolbar.
+    } finally {
+      this.aiRunning.set(false);
+    }
   }
 
   onSizeChange(sizeId: string): void {
@@ -194,6 +225,14 @@ export class SmartcropCropModalComponent implements OnChanges {
       rotation: t.rotate ?? 0,
       focalPoint: { x: x + width / 2, y: y + height * 0.4 },
       isManuallyEdited: true,
+      // Notes: Keep prior AI detection type; mark manual override as full confidence.
+      metrics: this.aiMetrics ?? {
+        detectedType: this.photo?.crop_data?.metrics?.detectedType ?? 'saliency_landscape',
+        confidenceScore: 100,
+        cropLossPercentage: this.photo?.crop_data?.metrics?.cropLossPercentage ?? 0,
+        headPaddingApplied: false,
+        hasTruncationRisk: this.photo?.crop_data?.metrics?.hasTruncationRisk ?? false,
+      },
     };
 
     let objectUrl = event.objectUrl ?? undefined;

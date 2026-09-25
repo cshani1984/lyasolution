@@ -12,10 +12,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { I18nService } from '../../../core/services/i18n.service';
-import {
-  SmartcropAuthService,
-  smartcropAuthOrigin,
-} from '../../../core/services/smartcrop-auth.service';
+import { SmartcropAuthService } from '../../../core/services/smartcrop-auth.service';
 import { SupabaseClientService } from '../../../core/services/supabase-client.service';
 
 export type AuthModalTab = 'login' | 'register';
@@ -42,6 +39,7 @@ export class SmartcropAuthModalComponent implements OnChanges {
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);
   readonly otpSent = signal(false);
+  readonly regOtpSent = signal(false);
   readonly showUserMissing = signal(false);
 
   phone = '';
@@ -54,6 +52,7 @@ export class SmartcropAuthModalComponent implements OnChanges {
       this.tab.set(this.initialTab);
       this.error.set(null);
       this.otpSent.set(false);
+      this.regOtpSent.set(false);
       this.showUserMissing.set(false);
       this.otp = '';
     }
@@ -68,6 +67,9 @@ export class SmartcropAuthModalComponent implements OnChanges {
     this.tab.set(tab);
     this.error.set(null);
     this.showUserMissing.set(false);
+    this.regOtpSent.set(false);
+    this.otpSent.set(false);
+    this.otp = '';
   }
 
   close(): void {
@@ -75,6 +77,11 @@ export class SmartcropAuthModalComponent implements OnChanges {
   }
 
   async google(fromRegister = false): Promise<void> {
+    // Google / Gmail login temporarily disabled — phone OTP only.
+    void fromRegister;
+    this.error.set(this.i18n.t('smartcrop.auth.googleDisabled'));
+    return;
+    /*
     if (typeof window !== 'undefined' && window.location.hostname === 'lya-solution.com') {
       window.location.replace('https://www.lya-solution.com/smartcrop?login=1&startGoogle=1');
       return;
@@ -100,6 +107,7 @@ export class SmartcropAuthModalComponent implements OnChanges {
     const { error } = await this.auth.signInWithGoogle(redirectTo);
     this.busy.set(false);
     if (error) this.error.set(error.message);
+    */
   }
 
   async sendOtp(): Promise<void> {
@@ -146,8 +154,12 @@ export class SmartcropAuthModalComponent implements OnChanges {
       return;
     }
     if (!this.auth.isSignedIn()) {
-      this.showUserMissing.set(true);
-      this.error.set(null);
+      // Prompt user to send OTP first when not yet verified.
+      if (!this.phone.trim()) {
+        this.error.set(this.i18n.t('smartcrop.phone.invalid'));
+        return;
+      }
+      await this.sendOtp();
       return;
     }
     await this.finishAuth();
@@ -177,8 +189,42 @@ export class SmartcropAuthModalComponent implements OnChanges {
       return;
     }
 
-    // Not signed in — stash and start Google (creates account + applies studio).
-    await this.google(true);
+    // Phone-only registration: send OTP, then verify + complete studio profile.
+    if (!this.regOtpSent()) {
+      this.busy.set(true);
+      this.error.set(null);
+      this.auth.stashPendingStudioRegistration(name, phone);
+      const { error } = await this.auth.signInWithPhone(phone);
+      this.busy.set(false);
+      if (error) {
+        this.error.set(error.message);
+        return;
+      }
+      this.registerPhone = phone;
+      this.phone = phone;
+      this.regOtpSent.set(true);
+      return;
+    }
+
+    if (!this.otp.trim()) {
+      this.error.set(this.i18n.t('smartcrop.auth.otpRequired'));
+      return;
+    }
+    this.busy.set(true);
+    this.error.set(null);
+    const { error } = await this.auth.verifyPhoneOtp(phone, this.otp.trim());
+    if (error) {
+      this.busy.set(false);
+      this.error.set(error.message);
+      return;
+    }
+    const done = await this.auth.completeStudioRegistration({ studioName: name, phone });
+    this.busy.set(false);
+    if (done.error) {
+      this.error.set(done.error.message);
+      return;
+    }
+    await this.finishAuth();
   }
 
   goRegister(): void {

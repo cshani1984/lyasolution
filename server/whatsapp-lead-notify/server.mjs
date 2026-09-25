@@ -15,7 +15,9 @@
  * First-time link (Render logs often hide ASCII QR): GET /setup/qr?token=<API_KEY>
  */
 import crypto from 'crypto';
-import 'dotenv/config';
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
+dotenv.config();
 import express from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
@@ -44,6 +46,8 @@ const corsOptions =
 const app = express();
 app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS ?? '1') || 1);
 app.use(cors(corsOptions));
+/** Twilio WhatsApp webhooks post application/x-www-form-urlencoded */
+app.use(express.urlencoded({ extended: false }));
 /** 12mb allows demo WhatsApp webhook with media_base64 */
 app.use(express.json({ limit: '12mb' }));
 
@@ -267,7 +271,9 @@ app.listen(PORT, () => {
   log(`listening on http://0.0.0.0:${PORT}`);
   log('POST /api/notify-lead — body: { firstName, lastName, phone, email, message }');
   log('POST /api/cv/enhance — body: { text, field, lang, desiredRole? }');
-  log('POST /api/whatsapp/webhook — SmartCrop demo ingestion');
+  log('POST /api/whatsapp/webhook — SmartCrop (JSON demo + Twilio WhatsApp form)');
+  if (process.env.TWILIO_ACCOUNT_SID?.trim()) log('Twilio WhatsApp: credentials present');
+  else log('Twilio WhatsApp: TWILIO_* not set (JSON webhook still works)');
   log('POST /api/crop/process — SmartCrop re-crop');
   log('POST /api/photos/batch-update — SmartCrop batch');
   if (isOpenAiConfigured()) log('OpenAI: configured for CV enhance');

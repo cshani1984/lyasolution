@@ -68,8 +68,16 @@
           <button type="button" class="btn btn--ghost" (click)="rotateLeft()" [attr.aria-label]="i18n.t('smartcrop.crop.rotateLeft')">↺</button>
           <button type="button" class="btn btn--ghost" (click)="rotateRight()" [attr.aria-label]="i18n.t('smartcrop.crop.rotateRight')">↻</button>
         </div>
-        <button type="button" class="btn btn--ghost" (click)="resetAi.emit()">
-          {{ i18n.t('smartcrop.crop.resetAi') }}
+        <button
+          type="button"
+          class="btn btn--ghost sc-modal__ai"
+          (click)="runAiGenerate()"
+          [disabled]="aiRunning() || loadFailed()"
+        >
+          {{ aiRunning() ? i18n.t('smartcrop.studio.aiWorking') : i18n.t('smartcrop.crop.aiGenerate') }}
+        </button>
+        <button type="button" class="btn btn--ghost" (click)="approved.emit()">
+          {{ i18n.t('smartcrop.crop.approve') }}
         </button>
         <button type="button" class="btn btn--primary" (click)="save()" [disabled]="!ready() && !loadFailed()">
           {{ i18n.t('smartcrop.crop.save') }}

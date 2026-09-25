@@ -1,7 +1,7 @@
 <div class="sc-studio">
   <header class="sc-studio__top">
     <div class="sc-studio__brand">
-      <a routerLink="/" class="sc-studio__logo-link" [attr.aria-label]="i18n.t('nav.home')">
+      <a routerLink="/smartcrop" class="sc-studio__logo-link" [attr.aria-label]="i18n.t('nav.home')">
         <img src="/smartcrop-logo.png" alt="SmartCrop" width="34" height="34" />
         <strong>SmartCrop</strong>
       </a>
@@ -23,8 +23,17 @@
   </header>
 
   @if (toast()) {
-    <p class="sc-studio__toast">{{ toast() }}</p>
+    <p class="sc-studio__toast" [class.is-ai]="aiBusy()">{{ toast() }}</p>
   }
+
+  <app-smartcrop-batch-action-bar
+    [count]="selectedCount()"
+    [sizes]="photosService.sizes()"
+    (changeSize)="batchChangeSize($event)"
+    (approve)="batchApprove()"
+    (remove)="batchDelete()"
+    (clear)="clearSelection()"
+  />
 
   <div class="sc-studio__main">
     <section class="sc-studio__editor">
@@ -39,28 +48,76 @@
 
         <div class="sc-studio__canvas">
           <div class="sc-studio__tools">
-            <button type="button" class="is-active" (click)="showOriginal.set(false)">
+            <button type="button" [class.is-active]="!showOriginal() && !compareMode()" (click)="showOriginal.set(false); compareMode.set(false)">
               {{ i18n.t('smartcrop.studio.smartCrop') }}
             </button>
+            <button type="button" [class.is-active]="compareMode()" (click)="toggleCompare()">
+              {{ i18n.t('smartcrop.studio.compare') }}
+            </button>
             <button type="button" (click)="openCrop()">{{ i18n.t('smartcrop.studio.manualCrop') }}</button>
+            <button type="button" class="sc-studio__ai-gen" (click)="resetAiCrop()" [disabled]="busy() || aiBusy()">
+              {{ i18n.t('smartcrop.crop.aiGenerate') }}
+            </button>
             <button type="button" [class.is-active]="showOriginal()" (click)="toggleOriginal()">
               {{ i18n.t('smartcrop.card.original') }}
             </button>
           </div>
 
-          <div class="sc-studio__frame">
-            @if (previewUrl()) {
-              <img [src]="previewUrl()!" [alt]="photo.target_size_name" />
+          <div class="sc-studio__stage" [class.is-busy]="aiBusy()">
+            @if (aiBusy()) {
+              <div class="sc-studio__ai-overlay">
+                <span class="sc-studio__spinner" aria-hidden="true"></span>
+                <p>{{ i18n.t('smartcrop.studio.aiWorking') }}</p>
+              </div>
             }
-            <div class="sc-studio__ai-tag sc-studio__ai-tag--a">{{ i18n.t('smartcrop.studio.faceTag') }}</div>
-            <div class="sc-studio__ai-tag sc-studio__ai-tag--b">{{ i18n.t('smartcrop.studio.headroomTag') }}</div>
+
+            @if (compareMode()) {
+              <div class="sc-studio__compare">
+                <figure>
+                  <figcaption>{{ i18n.t('smartcrop.studio.originalLabel') }}</figcaption>
+                  <img [src]="photo.original_url" [alt]="photo.target_size_name" />
+                </figure>
+                <figure>
+                  <figcaption>{{ i18n.t('smartcrop.studio.autoCropLabel') }}</figcaption>
+                  <img [src]="photo.cropped_url || photo.original_url" [alt]="photo.target_size_name" />
+                </figure>
+              </div>
+            } @else {
+              <div class="sc-studio__frame">
+                @if (previewUrl()) {
+                  <img [src]="previewUrl()!" [alt]="photo.target_size_name" />
+                }
+                @if (activeMetrics(); as m) {
+                  <div class="sc-studio__ai-tag sc-studio__ai-tag--a">{{ detectionLabel(m.detectedType) }}</div>
+                  @if (m.headPaddingApplied) {
+                    <div class="sc-studio__ai-tag sc-studio__ai-tag--b">{{ i18n.t('smartcrop.studio.headroomTag') }}</div>
+                  }
+                }
+              </div>
+            }
           </div>
+
+          @if (activeMetrics(); as m) {
+            <div class="sc-studio__metrics" role="group" [attr.aria-label]="i18n.t('smartcrop.metrics.title')">
+              <span class="sc-studio__metric" [class]="confidenceClass()">
+                {{ detectionLabel(m.detectedType) }} — {{ m.confidenceScore | number: '1.0-1' }}%
+                {{ i18n.t('smartcrop.metrics.confidence') }}
+              </span>
+              <span class="sc-studio__metric" [class.is-danger]="cropLossWarnUi()">
+                {{ m.cropLossPercentage | number: '1.0-1' }}% {{ i18n.t('smartcrop.metrics.croppedOut') }}
+                @if (cropLossWarnUi()) {
+                  <i aria-hidden="true">!</i>
+                }
+              </span>
+              <span class="sc-studio__metric is-ratio">{{ activeSizeLabel() }}</span>
+            </div>
+          }
         </div>
       } @else {
         <div class="sc-studio__empty">
           <p>{{ i18n.t('smartcrop.dash.empty') }}</p>
           <label class="sc-studio__upload">
-            {{ i18n.t('smartcrop.dash.simulate') }}
+            {{ i18n.t('smartcrop.dash.upload') }}
             <input type="file" accept="image/*" hidden (change)="onSimulateFile($event)" />
           </label>
         </div>
@@ -75,7 +132,7 @@
             type="button"
             [class.is-selected]="isSizeSelected(s)"
             (click)="selectSize(s.id)"
-            [disabled]="!activePhoto()"
+            [disabled]="!activePhoto() || busy()"
           >
             <strong>{{ s.name }}</strong>
             <span>{{ s.width_cm }}×{{ s.height_cm }}</span>
@@ -88,6 +145,12 @@
       </div>
 
       <div class="sc-studio__actions">
+        <button type="button" class="sc-studio__btn sc-studio__btn--ghost" (click)="openCrop()" [disabled]="!activePhoto()">
+          {{ i18n.t('smartcrop.studio.editCrop') }}
+        </button>
+        <button type="button" class="sc-studio__btn sc-studio__ai-gen" (click)="resetAiCrop()" [disabled]="!activePhoto() || busy()">
+          {{ i18n.t('smartcrop.crop.aiGenerate') }}
+        </button>
         <button type="button" class="sc-studio__btn sc-studio__btn--primary" (click)="approveActive()" [disabled]="!activePhoto() || busy()">
           {{ i18n.t('smartcrop.studio.approvePrint') }}
         </button>
@@ -95,7 +158,7 @@
           {{ i18n.t('smartcrop.dash.approveAll') }}
         </button>
         <label class="sc-studio__btn sc-studio__btn--ghost">
-          {{ i18n.t('smartcrop.dash.simulate') }}
+          {{ i18n.t('smartcrop.dash.upload') }}
           <input type="file" accept="image/*" hidden (change)="onSimulateFile($event)" />
         </label>
       </div>
@@ -112,16 +175,16 @@
     </div>
     <div class="sc-studio__thumbs">
       @for (photo of photos(); track photo.id) {
-        <button
-          type="button"
-          class="sc-studio__thumb"
-          [class.is-active]="isActiveThumb(photo)"
-          (click)="selectPhoto(photo)"
-        >
-          <img [src]="photo.cropped_url || photo.original_url" [alt]="photo.target_size_name" />
-          <span class="sc-studio__thumb-size">{{ photo.target_size_name }}</span>
-          <i class="sc-studio__status" [class]="statusClass(photo.status)"></i>
-        </button>
+        <div class="sc-studio__thumb-wrap" [class.is-active]="isActiveThumb(photo)" [class.is-checked]="isSelected(photo.id)">
+          <label class="sc-studio__check">
+            <input type="checkbox" [checked]="isSelected(photo.id)" (click)="toggleSelect(photo.id, $event)" />
+          </label>
+          <button type="button" class="sc-studio__thumb" (click)="selectPhoto(photo)">
+            <img [src]="photo.cropped_url || photo.original_url" [alt]="photo.target_size_name" />
+            <span class="sc-studio__thumb-size">{{ photo.target_size_name }}</span>
+            <i class="sc-studio__status" [class]="statusClass(photo.status)"></i>
+          </button>
+        </div>
       }
     </div>
   </section>
@@ -137,6 +200,7 @@
   (closed)="cropOpen.set(false)"
   (saved)="saveCrop($event)"
   (resetAi)="resetAiCrop()"
+  (approved)="approveActive()"
 />
 
 <app-smartcrop-phone-verification-modal
