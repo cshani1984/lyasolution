@@ -181,3 +181,9 @@ html[dir='ltr'] .text-gradient {
   background-image: radial-gradient(rgba(55, 71, 79, 0.12) 1px, transparent 1px);
   background-size: 18px 18px;
 }
+
+/* Lock page scroll while SmartCrop crop editor is open */
+body.sc-crop-modal-open {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}

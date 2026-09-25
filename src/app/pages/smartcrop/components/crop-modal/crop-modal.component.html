@@ -1,7 +1,13 @@
 @if (open && photo) {
-  <div class="sc-modal" role="dialog" aria-modal="true">
-    <div class="sc-modal__backdrop" (click)="closed.emit()"></div>
-    <div class="sc-modal__panel">
+  <div
+    class="sc-modal"
+    role="dialog"
+    aria-modal="true"
+    (wheel)="onWheel($event)"
+    (touchmove)="onTouchMove($event)"
+  >
+    <div class="sc-modal__backdrop" (click)="closed.emit()" (wheel)="$event.preventDefault()"></div>
+    <div class="sc-modal__panel" (click)="$event.stopPropagation()">
       <header class="sc-modal__head">
         <h2>{{ i18n.t('smartcrop.crop.title') }}</h2>
         <div class="sc-modal__meta">
@@ -35,26 +41,29 @@
         @if (loadFailed()) {
           <p class="sc-modal__error">{{ i18n.t('smartcrop.crop.loadFailed') }}</p>
         } @else {
-          @for (k of [cropperKey]; track k) {
-            <image-cropper
-              [imageURL]="photo.original_url"
-              [maintainAspectRatio]="true"
-              [aspectRatio]="activeAspect()"
-              [resetCropOnAspectRatioChange]="true"
-              [(transform)]="transformModel"
-              [cropper]="cropperPos()"
-              [allowMoveImage]="true"
-              format="jpeg"
-              output="blob"
-              [imageQuality]="92"
-              alignImage="center"
-              backgroundColor="#111"
-              (imageCropped)="onImageCropped($event)"
-              (imageLoaded)="onImageLoaded($event)"
-              (cropperReady)="onCropperReady($event)"
-              (loadImageFailed)="onLoadFailed()"
-            />
-          }
+          <div class="sc-modal__cropper-wrap">
+            @for (k of [cropperKey]; track k) {
+              <image-cropper
+                [imageURL]="photo.original_url"
+                [maintainAspectRatio]="true"
+                [aspectRatio]="activeAspect()"
+                [resetCropOnAspectRatioChange]="true"
+                [containWithinAspectRatio]="false"
+                [(transform)]="transformModel"
+                [cropper]="cropperPos()"
+                [allowMoveImage]="true"
+                format="jpeg"
+                output="blob"
+                [imageQuality]="92"
+                alignImage="center"
+                backgroundColor="#111"
+                (imageCropped)="onImageCropped($event)"
+                (imageLoaded)="onImageLoaded($event)"
+                (cropperReady)="onCropperReady($event)"
+                (loadImageFailed)="onLoadFailed()"
+              />
+            }
+          </div>
         }
       </div>
 

@@ -4,6 +4,7 @@ import {
   HostListener,
   Input,
   OnChanges,
+  OnDestroy,
   Output,
   SimpleChanges,
   ViewChild,
@@ -11,8 +12,9 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { DecimalPipe } from '@angular/common';
+import { DecimalPipe, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { PLATFORM_ID } from '@angular/core';
 import {
   ImageCropperComponent,
   type ImageCroppedEvent,
@@ -38,8 +40,9 @@ import { smartCropFromUrl } from '../../../../core/smartcrop/crop-engine.client'
   templateUrl: './crop-modal.component.html',
   styleUrl: './crop-modal.component.scss',
 })
-export class SmartcropCropModalComponent implements OnChanges {
+export class SmartcropCropModalComponent implements OnChanges, OnDestroy {
   readonly i18n = inject(I18nService);
+  private readonly platformId = inject(PLATFORM_ID);
 
   @ViewChild(ImageCropperComponent) cropperCmp?: ImageCropperComponent;
 
@@ -69,6 +72,22 @@ export class SmartcropCropModalComponent implements OnChanges {
   private lastCrop: ImageCroppedEvent | null = null;
   private originalSize: Dimensions | null = null;
   private displayedSize: Dimensions | null = null;
+  private lockedScrollY = 0;
+  private bodyLocked = false;
+  private readonly onDocWheel = (event: WheelEvent) => {
+    if (!this.open) return;
+    const target = event.target as HTMLElement | null;
+    if (!target?.closest?.('.sc-modal__panel')) {
+      event.preventDefault();
+    }
+  };
+  private readonly onDocTouchMove = (event: TouchEvent) => {
+    if (!this.open) return;
+    const target = event.target as HTMLElement | null;
+    if (!target?.closest?.('.sc-modal__panel')) {
+      event.preventDefault();
+    }
+  };
   cropperKey = 0;
 
   /**
@@ -93,11 +112,82 @@ export class SmartcropCropModalComponent implements OnChanges {
   });
 
   ngOnChanges(changes: SimpleChanges): void {
+    if (changes['open']) {
+      if (this.open) this.lockBodyScroll();
+      else this.unlockBodyScroll();
+    }
     if (changes['photo'] || changes['open'] || changes['sizes']) {
       if (this.open && this.photo) {
         this.syncSizeFromPhoto();
         this.resetCropperState(true);
+        // Recalculate cropper size after panel layout settles.
+        setTimeout(() => this.cropperCmp?.onResize(), 80);
+        setTimeout(() => this.cropperCmp?.onResize(), 220);
       }
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.unlockBodyScroll();
+  }
+
+  /** Notes: Prevent the dashboard behind the dialog from scrolling. */
+  private lockBodyScroll(): void {
+    if (!isPlatformBrowser(this.platformId) || this.bodyLocked) return;
+    const body = document.body;
+    this.lockedScrollY = window.scrollY || document.documentElement.scrollTop || 0;
+    body.classList.add('sc-crop-modal-open');
+    body.style.position = 'fixed';
+    body.style.top = `-${this.lockedScrollY}px`;
+    body.style.left = '0';
+    body.style.right = '0';
+    body.style.width = '100%';
+    body.style.overflow = 'hidden';
+    document.addEventListener('wheel', this.onDocWheel, { passive: false });
+    document.addEventListener('touchmove', this.onDocTouchMove, { passive: false });
+    this.bodyLocked = true;
+  }
+
+  private unlockBodyScroll(): void {
+    if (!isPlatformBrowser(this.platformId) || !this.bodyLocked) return;
+    const body = document.body;
+    body.classList.remove('sc-crop-modal-open');
+    body.style.position = '';
+    body.style.top = '';
+    body.style.left = '';
+    body.style.right = '';
+    body.style.width = '';
+    body.style.overflow = '';
+    document.removeEventListener('wheel', this.onDocWheel);
+    document.removeEventListener('touchmove', this.onDocTouchMove);
+    window.scrollTo(0, this.lockedScrollY);
+    this.bodyLocked = false;
+  }
+
+  /** Keep wheel inside the modal panel when it can scroll; otherwise block. */
+  onWheel(event: WheelEvent): void {
+    if (!this.open) return;
+    const target = event.target as HTMLElement | null;
+    const panel = target?.closest?.('.sc-modal__panel') as HTMLElement | null;
+    if (!panel) {
+      event.preventDefault();
+      return;
+    }
+    const canScroll = panel.scrollHeight > panel.clientHeight + 1;
+    if (!canScroll) {
+      event.preventDefault();
+      return;
+    }
+    const atTop = panel.scrollTop <= 0 && event.deltaY < 0;
+    const atBottom = panel.scrollTop + panel.clientHeight >= panel.scrollHeight - 1 && event.deltaY > 0;
+    if (atTop || atBottom) event.preventDefault();
+  }
+
+  onTouchMove(event: TouchEvent): void {
+    if (!this.open) return;
+    const target = event.target as HTMLElement | null;
+    if (!target?.closest?.('.sc-modal__panel')) {
+      event.preventDefault();
     }
   }
 
