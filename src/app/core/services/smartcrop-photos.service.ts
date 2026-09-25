@@ -147,6 +147,7 @@ export class SmartcropPhotosService {
   async simulateFromFile(
     file: File,
     phone: string,
+    sizeName?: string,
   ): Promise<{ error: Error | null; photoId?: string }> {
     const user = this.auth.user();
     if (!user) return { error: new Error('Not signed in') };
@@ -157,7 +158,13 @@ export class SmartcropPhotosService {
       `+9725${user.id.replace(/\D/g, '').slice(0, 8).padEnd(8, '0')}`;
 
     if (!this.sizes().length) this.seedFallbackSizes();
-    const size = this.sizes().find((s) => s.is_default) ?? this.sizes()[0] ?? null;
+    const size =
+      (sizeName
+        ? this.sizes().find((s) => s.name === sizeName)
+        : null) ??
+      this.sizes().find((s) => s.is_default) ??
+      this.sizes()[0] ??
+      null;
     const aspect = size ? Number(size.aspect_ratio) || 2 / 3 : 2 / 3;
     const id = crypto.randomUUID();
 

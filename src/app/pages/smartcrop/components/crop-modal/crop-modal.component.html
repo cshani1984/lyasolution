@@ -25,7 +25,13 @@
         <button type="button" class="sc-modal__close" (click)="closed.emit()" [attr.aria-label]="i18n.t('smartcrop.crop.close')">×</button>
       </header>
 
-      <div class="sc-modal__stage">
+      <div class="sc-modal__stage" [class.is-ai]="aiRunning()">
+        @if (aiRunning()) {
+          <div class="sc-modal__ai-overlay" aria-live="polite">
+            <span class="sc-modal__spinner" aria-hidden="true"></span>
+            <p>{{ i18n.t('smartcrop.studio.aiWorking') }}</p>
+          </div>
+        }
         @if (loadFailed()) {
           <p class="sc-modal__error">{{ i18n.t('smartcrop.crop.loadFailed') }}</p>
         } @else {
@@ -35,7 +41,7 @@
               [maintainAspectRatio]="true"
               [aspectRatio]="activeAspect()"
               [resetCropOnAspectRatioChange]="true"
-              [transform]="transform()"
+              [(transform)]="transformModel"
               [cropper]="cropperPos()"
               [allowMoveImage]="true"
               format="jpeg"
@@ -44,8 +50,8 @@
               alignImage="center"
               backgroundColor="#111"
               (imageCropped)="onImageCropped($event)"
-              (transformChange)="onTransformChange($event)"
-              (cropperReady)="onCropperReady()"
+              (imageLoaded)="onImageLoaded($event)"
+              (cropperReady)="onCropperReady($event)"
               (loadImageFailed)="onLoadFailed()"
             />
           }
@@ -53,7 +59,7 @@
       </div>
 
       <div class="sc-modal__controls">
-        <label>
+        <label class="sc-modal__zoom">
           {{ i18n.t('smartcrop.crop.zoom') }}
           <input
             type="range"
@@ -73,13 +79,17 @@
           class="btn btn--ghost sc-modal__ai"
           (click)="runAiGenerate()"
           [disabled]="aiRunning() || loadFailed()"
+          [attr.aria-busy]="aiRunning()"
         >
-          {{ aiRunning() ? i18n.t('smartcrop.studio.aiWorking') : i18n.t('smartcrop.crop.aiGenerate') }}
+          <span class="sc-modal__ai-label">{{ i18n.t('smartcrop.crop.aiGenerate') }}</span>
+          @if (aiRunning()) {
+            <span class="sc-modal__ai-dot" aria-hidden="true"></span>
+          }
         </button>
-        <button type="button" class="btn btn--ghost" (click)="approved.emit()">
+        <button type="button" class="btn btn--ghost" (click)="approved.emit()" [disabled]="aiRunning()">
           {{ i18n.t('smartcrop.crop.approve') }}
         </button>
-        <button type="button" class="btn btn--primary" (click)="save()" [disabled]="!ready() && !loadFailed()">
+        <button type="button" class="btn btn--primary" (click)="save()" [disabled]="aiRunning() || (!ready() && !loadFailed())">
           {{ i18n.t('smartcrop.crop.save') }}
         </button>
       </div>

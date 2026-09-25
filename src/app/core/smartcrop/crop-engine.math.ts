@@ -1,8 +1,8 @@
 /** Shared crop metric math (client + docs). */
 
 export const CROP_LOSS_WARN_PERCENT = 25;
-/** Extra space above faces so hair / headroom is never chopped. */
-export const HEAD_TOP_PADDING_RATIO = 0.22;
+/** Extra space above faces so hair / headroom is never chopped (15%). */
+export const HEAD_TOP_PADDING_RATIO = 0.15;
 
 export interface BoundingBox {
   x: number;
@@ -48,4 +48,32 @@ export function confidenceTone(score: number): 'green' | 'yellow' | 'red' {
   if (score > 80) return 'green';
   if (score >= 60) return 'yellow';
   return 'red';
+}
+
+/**
+ * Notes: Offset between geometric image center and AI focal point.
+ * correctionDelta.distancePercent = (distance / diagonal) * 100
+ */
+export function calculateCorrectionDelta(
+  imgW: number,
+  imgH: number,
+  focal: { x: number; y: number },
+): {
+  dx: number;
+  dy: number;
+  distancePx: number;
+  distancePercent: number;
+} {
+  const cx = imgW / 2;
+  const cy = imgH / 2;
+  const dx = focal.x - cx;
+  const dy = focal.y - cy;
+  const distancePx = Math.hypot(dx, dy);
+  const diagonal = Math.hypot(imgW, imgH) || 1;
+  return {
+    dx: Math.round(dx * 10) / 10,
+    dy: Math.round(dy * 10) / 10,
+    distancePx: Math.round(distancePx * 10) / 10,
+    distancePercent: Math.round((distancePx / diagonal) * 1000) / 10,
+  };
 }

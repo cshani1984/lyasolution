@@ -10,13 +10,31 @@
         <p class="lede">{{ i18n.t('smartcrop.demo.subtitle') }}</p>
       </div>
       <div class="sc-demo__header-actions">
-        <label class="btn btn--primary sc-demo__upload">
-          {{ i18n.t('smartcrop.dash.upload') }}
-          <input type="file" accept="image/*" hidden (change)="onUploadFile($event)" />
-        </label>
         <a routerLink="/smartcrop" class="btn btn--ghost">{{ i18n.t('smartcrop.demo.back') }}</a>
       </div>
     </header>
+
+    <div class="sc-demo__uploader">
+      <app-smartcrop-file-uploader
+        [sizes]="sizes"
+        [busy]="busy() || aiBusy()"
+        [sizeName]="uploadSizeName()"
+        (sizeNameChange)="uploadSizeName.set($event)"
+        (filesSelected)="onUploadFiles($event)"
+      />
+    </div>
+
+    @if (comparePhoto(); as cmp) {
+      <div class="sc-demo__compare">
+        <app-smartcrop-photo-comparison-card
+          [photo]="cmp"
+          [aspectRatio]="compareAspect()"
+          [sizeLabel]="cmp.target_size_name"
+          (edit)="openEdit(cmp)"
+          (resetAi)="runAiOnCard(cmp)"
+        />
+      </div>
+    }
 
     <div class="sc-demo__toolbar">
       <label>

@@ -2,9 +2,15 @@
  * SmartCrop ingestion + crop processing routes.
  */
 import { randomUUID } from 'crypto';
-import { normalizePhoneE164, parseSizeFromCaption } from './whatsappParser.mjs';
+import multer from 'multer';
+import {
+  buildHotfolderPath,
+  normalizePhoneE164,
+  parseWhatsAppOrder,
+  slugifyCustomer,
+} from './whatsappParser.mjs';
 import { getSupabaseAdmin, isSupabaseAdminConfigured } from './supabaseAdmin.mjs';
-import { loadImageBuffer, processSmartCrop } from './cropEngine.mjs';
+import { loadImageBuffer, processBlindCenterCrop, processSmartCrop } from './cropEngine.mjs';
 import {
   assertTwilioSignature,
   isTwilioInbound,
@@ -15,26 +21,106 @@ import {
 
 const BUCKET = 'photo-prints';
 
+const ALLOWED_MIME = new Set([
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'image/heif',
+]);
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024, files: 20 },
+  fileFilter(_req, file, cb) {
+    const ok =
+      ALLOWED_MIME.has(String(file.mimetype || '').toLowerCase()) ||
+      /\.(jpe?g|png|webp|heic|heif)$/i.test(file.originalname || '');
+    cb(ok ? null : new Error('Unsupported image type'), ok);
+  },
+});
+
 /**
- * Notes: Persist one WhatsApp photo through crop engine + Supabase.
+ * Notes: Resolve photo-shop (lab) account — owner of the dashboard.
+ * Priority: explicit user_id → SMARTCROP_SHOP_USER_ID → profile matching To/shop phone.
+ */
+async function resolveShopUserId(supabase, { userId, shopPhone }) {
+  if (userId) return userId;
+  const envId = process.env.SMARTCROP_SHOP_USER_ID?.trim();
+  if (envId) return envId;
+  const phone = normalizePhoneE164(String(shopPhone ?? ''));
+  if (!phone) return null;
+  const { data } = await supabase.from('profiles').select('id').eq('phone', phone).maybeSingle();
+  return data?.id ?? null;
+}
+
+/**
+ * Notes: Upsert CRM row for end-customer under the shop account.
+ */
+async function upsertShopCustomer(supabase, { shopUserId, phone, fullName }) {
+  if (!shopUserId || !phone) return;
+  const { data: existing } = await supabase
+    .from('shop_customers')
+    .select('id, photo_count, full_name')
+    .eq('shop_user_id', shopUserId)
+    .eq('phone', phone)
+    .maybeSingle();
+
+  if (existing) {
+    await supabase
+      .from('shop_customers')
+      .update({
+        photo_count: (existing.photo_count ?? 0) + 1,
+        last_order_at: new Date().toISOString(),
+        full_name: fullName || existing.full_name,
+      })
+      .eq('id', existing.id);
+    return;
+  }
+
+  await supabase.from('shop_customers').insert({
+    shop_user_id: shopUserId,
+    phone,
+    full_name: fullName || null,
+    photo_count: 1,
+  });
+}
+
+/**
+ * Notes: Persist one WhatsApp / upload photo for a shop, keyed by end-customer phone.
  * @param {{
- *   senderPhone: string,
+ *   senderPhone?: string,
+ *   shopPhone?: string,
  *   media_url?: string,
  *   media_base64?: string,
  *   caption_text?: string,
+ *   sizeName?: string,
+ *   customer_name?: string,
  *   user_id?: string | null,
  * }} input
  */
 async function ingestSmartcropPhoto(input) {
-  const senderPhone = normalizePhoneE164(String(input.senderPhone ?? ''));
-  if (!senderPhone) {
-    throw Object.assign(new Error('sender_phone required'), { status: 400 });
+  const order = parseWhatsAppOrder(input.caption_text);
+  if (input.sizeName) order.sizeName = input.sizeName;
+  if (input.customer_name) order.customerName = String(input.customer_name).trim() || order.customerName;
+
+  const fromPhone = normalizePhoneE164(String(input.senderPhone ?? ''));
+  const shopPhone = normalizePhoneE164(String(input.shopPhone ?? ''));
+
+  // End-customer phone: caption wins (shop forward), else WhatsApp From
+  let customerPhone = order.customerPhone || fromPhone;
+  if (shopPhone && fromPhone && fromPhone === shopPhone && order.customerPhone) {
+    customerPhone = order.customerPhone;
+  }
+  if (!customerPhone) {
+    throw Object.assign(new Error('customer phone required (sender or caption)'), { status: 400 });
   }
   if (!input.media_url && !input.media_base64) {
     throw Object.assign(new Error('media_url or media_base64 required'), { status: 400 });
   }
 
-  const sizeName = parseSizeFromCaption(input.caption_text);
+  const sizeName = order.sizeName || '10x15';
   const supabase = getSupabaseAdmin();
 
   const { data: sizeRow } = await supabase
@@ -45,12 +131,18 @@ async function ingestSmartcropPhoto(input) {
 
   const aspectRatio = sizeRow?.aspect_ratio ? Number(sizeRow.aspect_ratio) : 2 / 3;
 
-  let userId = input.user_id || null;
-  if (!userId) {
+  // Shop owns the dashboard; do NOT bind user_id to end-customer phone
+  let userId = await resolveShopUserId(supabase, {
+    userId: input.user_id || null,
+    shopPhone: shopPhone || process.env.SMARTCROP_SHOP_PHONE || '',
+  });
+
+  // Fallback: if only one profile matches From and no shop configured, keep legacy link
+  if (!userId && fromPhone && fromPhone === customerPhone) {
     const { data: profile } = await supabase
       .from('profiles')
       .select('id')
-      .eq('phone', senderPhone)
+      .eq('phone', fromPhone)
       .maybeSingle();
     userId = profile?.id ?? null;
   }
@@ -93,8 +185,13 @@ async function ingestSmartcropPhoto(input) {
   });
 
   const id = randomUUID();
-  const originalPath = `${senderPhone.replace(/\+/g, '')}/${id}-original.jpg`;
-  const croppedPath = `${senderPhone.replace(/\+/g, '')}/${id}-cropped.jpg`;
+  const shopSegment = userId || 'inbox';
+  const customerSlug = slugifyCustomer(order.customerName, customerPhone);
+  const phoneDigits = customerPhone.replace(/\+/g, '');
+  const folderBase = `${shopSegment}/${phoneDigits}/${sizeName}`;
+  const originalPath = `${folderBase}/${id}-original.jpg`;
+  const croppedPath = `${folderBase}/${id}-cropped.jpg`;
+  const hotfolderPath = buildHotfolderPath(order.customerName, customerPhone, sizeName);
 
   const originalJpeg = await (await import('sharp')).default(inputBuffer).rotate().jpeg({ quality: 92 }).toBuffer();
 
@@ -110,8 +207,21 @@ async function ingestSmartcropPhoto(input) {
   });
   if (upCrop.error) throw upCrop.error;
 
+  // Print-ready copy under hotfolder-style storage prefix (syncable to lab PC)
+  const printPath = `${shopSegment}/hotfolder/${customerSlug}_${sizeName}/${id}.jpg`;
+  await supabase.storage.from(BUCKET).upload(printPath, croppedBuffer, {
+    contentType: 'image/jpeg',
+    upsert: true,
+  });
+
   const { data: origPub } = supabase.storage.from(BUCKET).getPublicUrl(originalPath);
   const { data: cropPub } = supabase.storage.from(BUCKET).getPublicUrl(croppedPath);
+
+  const aiConfidence = cropData?.metrics?.confidenceScore ?? null;
+  const combinedConfidence =
+    typeof aiConfidence === 'number'
+      ? Math.round((aiConfidence * 0.7 + order.parseConfidence * 0.3) * 10) / 10
+      : order.parseConfidence;
 
   const { data: photo, error: photoErr } = await supabase
     .from('photos')
@@ -119,7 +229,14 @@ async function ingestSmartcropPhoto(input) {
       id,
       order_id: orderId,
       user_id: userId,
-      sender_phone: senderPhone,
+      sender_phone: customerPhone,
+      customer_name: order.customerName,
+      copies: order.copies,
+      paper_type: order.paperType,
+      caption_text: input.caption_text ?? null,
+      parsed_summary: order.summary,
+      parse_confidence: combinedConfidence,
+      hotfolder_path: hotfolderPath,
       original_url: origPub.publicUrl,
       cropped_url: cropPub.publicUrl,
       size_id: sizeRow?.id ?? null,
@@ -132,11 +249,43 @@ async function ingestSmartcropPhoto(input) {
 
   if (photoErr) throw photoErr;
 
+  await upsertShopCustomer(supabase, {
+    shopUserId: userId,
+    phone: customerPhone,
+    fullName: order.customerName,
+  });
+
+  let blindUrl = null;
+  try {
+    const blind = await processBlindCenterCrop(inputBuffer, aspectRatio);
+    const blindPath = `${folderBase}/${id}-blind.jpg`;
+    const upBlind = await supabase.storage.from(BUCKET).upload(blindPath, blind.buffer, {
+      contentType: 'image/jpeg',
+      upsert: true,
+    });
+    if (!upBlind.error) {
+      const { data: blindPub } = supabase.storage.from(BUCKET).getPublicUrl(blindPath);
+      blindUrl = blindPub.publicUrl;
+    }
+  } catch {
+    /* optional */
+  }
+
   return {
     photoId: photo.id,
     sizeName,
     userId,
     orderId,
+    customerPhone,
+    customerName: order.customerName,
+    copies: order.copies,
+    paperType: order.paperType,
+    parsedSummary: order.summary,
+    parseConfidence: combinedConfidence,
+    hotfolderPath,
+    originalUrl: origPub.publicUrl,
+    croppedUrl: cropPub.publicUrl,
+    blindUrl,
     metrics: cropData.metrics ?? null,
     cropData,
   };
@@ -172,11 +321,13 @@ export function registerSmartcropRoutes(app, ctx) {
         // Notes: Logger — received user details and photo URL.
         log('Twilio WhatsApp inbound', {
           from: parsed.From,
+          to: parsed.To,
           body: parsed.Body,
           numMedia: parsed.NumMedia,
           mediaUrl: parsed.MediaUrl0 || null,
           mediaContentType: parsed.MediaContentType0 || null,
           senderPhone: parsed.senderPhone,
+          shopPhone: parsed.shopPhone,
         });
 
         let reply =
@@ -189,15 +340,25 @@ export function registerSmartcropRoutes(app, ctx) {
             const media = await resolveTwilioMedia(parsed);
             const result = await ingestSmartcropPhoto({
               senderPhone: parsed.senderPhone,
+              shopPhone: parsed.shopPhone,
               media_url: media.media_url,
               media_base64: media.media_base64,
               caption_text: parsed.caption_text,
             });
-            reply = `קיבלנו את התמונה — חתכנו ל-${result.sizeName}. אפשר לאשר באפליקציה ✨`;
-            log('Twilio WhatsApp ingested', { photoId: result.photoId, sizeName: result.sizeName });
+            const conf =
+              typeof result.parseConfidence === 'number'
+                ? ` · דיוק פענוח ${Math.round(result.parseConfidence)}%`
+                : '';
+            reply = `קיבלנו! ${result.parsedSummary || result.sizeName}${conf}. נשמר ל־${result.hotfolderPath || 'תיקיית לקוח'} ✨`;
+            log('Twilio WhatsApp ingested', {
+              photoId: result.photoId,
+              sizeName: result.sizeName,
+              customerPhone: result.customerPhone,
+              hotfolderPath: result.hotfolderPath,
+            });
           }
         } else if (parsed.Body) {
-          reply = 'קיבלנו את ההודעה. שלחו תמונה להדפסה עם גודל (למשל 10x15).';
+          reply = 'קיבלנו את ההודעה. שלחו תמונה להדפסה עם גודל (למשל 10x15) ושם/טלפון הלקוח אם מעבירים הודעה.';
         }
 
         const preferRest = process.env.TWILIO_REPLY_MODE === 'rest';
@@ -229,10 +390,13 @@ export function registerSmartcropRoutes(app, ctx) {
 
     try {
       const result = await ingestSmartcropPhoto({
-        senderPhone: String(body.sender_phone ?? ''),
+        senderPhone: String(body.sender_phone ?? body.customer_phone ?? ''),
+        shopPhone: String(body.shop_phone ?? body.to_phone ?? ''),
         media_url: body.media_url,
         media_base64: body.media_base64,
         caption_text: body.caption_text,
+        sizeName: body.sizeName || body.size_name,
+        customer_name: body.customer_name,
         user_id: body.user_id ?? null,
       });
       res.json({ ok: true, ...result });
@@ -377,6 +541,142 @@ export function registerSmartcropRoutes(app, ctx) {
     } catch (err) {
       logErr('batch-update failed', err?.message ?? err);
       res.status(500).json({ ok: false, error: err?.message ?? 'Batch update failed' });
+    }
+  });
+
+  /**
+   * Notes: Manual browser upload (drag/drop / file picker) — multipart form-data.
+   * Fields: files[] (or photos[]), sizeName|size_name|sizeId, sender_phone, user_id
+   */
+  app.post(
+    '/api/photos/upload',
+    rateLimiter,
+    (req, res, next) => {
+      upload.array('files', 20)(req, res, (err) => {
+        if (err) {
+          res.status(400).json({ ok: false, error: err.message || 'Upload failed' });
+          return;
+        }
+        next();
+      });
+    },
+    async (req, res) => {
+      log('HTTP POST /api/photos/upload', { ip: req.ip ?? '', files: req.files?.length ?? 0 });
+      if (!checkApiKey(req, res)) return;
+      if (!isSupabaseAdminConfigured()) {
+        res.status(503).json({ ok: false, error: 'Supabase admin not configured' });
+        return;
+      }
+
+      try {
+        const files = Array.isArray(req.files) ? req.files : [];
+        if (!files.length) {
+          res.status(400).json({ ok: false, error: 'No image files provided (field: files)' });
+          return;
+        }
+
+        const sizeName =
+          String(req.body?.sizeName || req.body?.size_name || '10x15').trim() || '10x15';
+        const senderPhone = String(req.body?.sender_phone || req.body?.customer_phone || '');
+        const customerName = req.body?.customer_name || null;
+        const caption =
+          String(req.body?.caption_text || '').trim() ||
+          [customerName, senderPhone, sizeName].filter(Boolean).join(' ');
+        const userId = req.body?.user_id || null;
+
+        const photos = [];
+        for (const file of files) {
+          const mime = file.mimetype || 'image/jpeg';
+          const b64 = `data:${mime};base64,${file.buffer.toString('base64')}`;
+          const result = await ingestSmartcropPhoto({
+            senderPhone,
+            shopPhone: String(req.body?.shop_phone || ''),
+            media_base64: b64,
+            caption_text: caption,
+            sizeName,
+            customer_name: customerName,
+            user_id: userId,
+          });
+          photos.push({
+            photoId: result.photoId,
+            originalUrl: result.originalUrl,
+            croppedUrl: result.croppedUrl,
+            blindUrl: result.blindUrl,
+            sizeName: result.sizeName,
+            customerPhone: result.customerPhone,
+            customerName: result.customerName,
+            hotfolderPath: result.hotfolderPath,
+            parseConfidence: result.parseConfidence,
+            parsedSummary: result.parsedSummary,
+            cropData: result.cropData,
+            metrics: result.metrics,
+          });
+        }
+
+        res.json({ ok: true, count: photos.length, photos });
+      } catch (err) {
+        logErr('photos upload failed', err?.message ?? err);
+        const status = err?.status || 500;
+        res.status(status).json({ ok: false, error: err?.message ?? 'Upload failed' });
+      }
+    },
+  );
+
+  /**
+   * Notes: Mark selected photos as printed / sent to lab hotfolder.
+   */
+  app.post('/api/photos/send-to-print', rateLimiter, async (req, res) => {
+    log('HTTP POST /api/photos/send-to-print', { ip: req.ip ?? '' });
+    if (!checkApiKey(req, res)) return;
+    if (!isSupabaseAdminConfigured()) {
+      res.status(503).json({ ok: false, error: 'Supabase admin not configured' });
+      return;
+    }
+
+    try {
+      const { photoIds } = req.body ?? {};
+      if (!Array.isArray(photoIds) || !photoIds.length) {
+        res.status(400).json({ ok: false, error: 'photoIds required' });
+        return;
+      }
+
+      const supabase = getSupabaseAdmin();
+      const folders = [];
+      let updated = 0;
+
+      for (const photoId of photoIds) {
+        const { data: photo } = await supabase.from('photos').select('*').eq('id', photoId).maybeSingle();
+        if (!photo) continue;
+
+        const hotfolder =
+          photo.hotfolder_path ||
+          buildHotfolderPath(photo.customer_name, photo.sender_phone, photo.target_size_name);
+
+        const { error } = await supabase
+          .from('photos')
+          .update({ status: 'printed', hotfolder_path: hotfolder })
+          .eq('id', photoId);
+        if (!error) {
+          updated += 1;
+          folders.push(hotfolder);
+        }
+      }
+
+      if (req.body?.orderId) {
+        await supabase
+          .from('orders')
+          .update({ status: 'sent_to_print' })
+          .eq('id', req.body.orderId);
+      }
+
+      res.json({
+        ok: true,
+        updated,
+        hotfolderPaths: [...new Set(folders)],
+      });
+    } catch (err) {
+      logErr('send-to-print failed', err?.message ?? err);
+      res.status(500).json({ ok: false, error: err?.message ?? 'Send to print failed' });
     }
   });
 }

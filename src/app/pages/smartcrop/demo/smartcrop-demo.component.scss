@@ -17,6 +17,15 @@
   cursor: pointer;
 }
 
+.sc-demo__uploader {
+  margin-block: 1rem 1.25rem;
+  max-width: 36rem;
+}
+
+.sc-demo__compare {
+  margin-bottom: 1.5rem;
+}
+
 .sc-demo__card-actions {
   display: grid;
   gap: 0.45rem;

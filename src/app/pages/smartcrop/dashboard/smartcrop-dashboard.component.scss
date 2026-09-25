@@ -198,9 +198,110 @@
 
 @media (min-width: 980px) {
   .sc-studio__main {
-    grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.85fr);
+    grid-template-columns: minmax(200px, 0.65fr) minmax(0, 1.45fr) minmax(260px, 0.8fr);
     align-items: start;
   }
+}
+
+.sc-studio__clients {
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid rgba(30, 36, 48, 0.08);
+  box-shadow: 0 8px 24px rgba(30, 36, 48, 0.05);
+  padding: 0.85rem;
+  display: grid;
+  gap: 0.4rem;
+  align-content: start;
+  max-height: min(70vh, 40rem);
+  overflow: auto;
+}
+
+.sc-studio__clients h2 {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+}
+
+.sc-studio__client {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: start;
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.65rem;
+  border: 1px solid transparent;
+  background: #f7f8fb;
+  cursor: pointer;
+  font: inherit;
+}
+
+.sc-studio__client strong {
+  display: block;
+  font-size: 0.85rem;
+}
+
+.sc-studio__client span {
+  display: block;
+  font-size: 0.72rem;
+  color: #6b7280;
+}
+
+.sc-studio__client em {
+  font-style: normal;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #4a5dba;
+}
+
+.sc-studio__client em i {
+  font-style: normal;
+  margin-inline-start: 0.25rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 0.65rem;
+}
+
+.sc-studio__client.is-active {
+  border-color: color-mix(in srgb, #4a5dba 45%, transparent);
+  background: color-mix(in srgb, #dce1ff 55%, #fff);
+}
+
+.sc-studio__clients-empty {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.sc-studio__parsed {
+  display: block !important;
+  margin-top: 0.2rem;
+  color: #4a5dba !important;
+  font-weight: 600;
+}
+
+.sc-studio__customer-meta {
+  display: grid;
+  gap: 0.25rem;
+  justify-items: end;
+}
+
+.sc-studio__thumb-phone {
+  position: absolute;
+  inset-block-end: 0.35rem;
+  inset-inline-start: 0.35rem;
+  max-width: calc(100% - 0.7rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.6rem;
+  font-weight: 600;
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.25rem;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
 }
 
 .sc-studio__editor,
@@ -436,6 +537,19 @@
   font-size: 0.82rem;
   color: #6b7280;
   line-height: 1.45;
+}
+
+.sc-studio__hotfolder {
+  margin-top: 0.5rem !important;
+  font-size: 0.75rem !important;
+  word-break: break-all;
+}
+
+.sc-studio__hotfolder code {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.72rem;
+  color: #067a4a;
 }
 
 .sc-studio__actions {

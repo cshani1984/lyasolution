@@ -33,13 +33,26 @@ export interface BoundingBox {
 /**
  * Notes: Persisted AI metrics for admin badges.
  * confidenceScore 0–100; cropLossPercentage = discarded original area %.
+ * correctionDelta = offset between geometric center and AI focal point.
  */
+export interface CropCorrectionDelta {
+  /** Horizontal offset in px (AI focal − geometric center). */
+  dx: number;
+  /** Vertical offset in px (AI focal − geometric center). */
+  dy: number;
+  /** Euclidean distance in px. */
+  distancePx: number;
+  /** Distance as % of image diagonal (0–100). */
+  distancePercent: number;
+}
+
 export interface CropMetrics {
   detectedType: DetectedType;
   confidenceScore: number;
   cropLossPercentage: number;
   headPaddingApplied: boolean;
   hasTruncationRisk: boolean;
+  correctionDelta?: CropCorrectionDelta;
 }
 
 export interface CropData {
@@ -86,7 +99,17 @@ export interface SmartcropPhoto {
   id: string;
   order_id: string | null;
   user_id: string | null;
+  /** End-customer WhatsApp / phone (not the shop). */
   sender_phone: string;
+  customer_name?: string | null;
+  copies?: number | null;
+  paper_type?: string | null;
+  caption_text?: string | null;
+  parsed_summary?: string | null;
+  /** Combined NLP + AI confidence 0–100. */
+  parse_confidence?: number | null;
+  /** Lab hotfolder path e.g. C:\Hotfolder\Dani_Klein_10x15 */
+  hotfolder_path?: string | null;
   original_url: string;
   cropped_url: string | null;
   size_id: string | null;
@@ -94,4 +117,14 @@ export interface SmartcropPhoto {
   crop_data: CropData | null;
   status: PhotoStatus;
   created_at: string;
+}
+
+/** Shop CRM customer row (grouped by phone under shop account). */
+export interface ShopCustomer {
+  id?: string;
+  phone: string;
+  full_name: string | null;
+  photo_count: number;
+  pending_count: number;
+  last_order_at?: string;
 }

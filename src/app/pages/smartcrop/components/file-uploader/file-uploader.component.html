@@ -1,0 +1,45 @@
+<div class="sc-uploader" [attr.dir]="i18n.isRtl() ? 'rtl' : 'ltr'">
+  <label class="sc-uploader__size">
+    <span>{{ i18n.t('smartcrop.upload.size') }}</span>
+    <select
+      [ngModel]="sizeName"
+      (ngModelChange)="onSizeChange($event)"
+      [disabled]="busy"
+    >
+      @for (s of sizes; track s.id) {
+        <option [value]="s.name">{{ s.name }} ({{ s.width_cm }}×{{ s.height_cm }} cm)</option>
+      }
+      @if (!sizes.length) {
+        <option value="10x15">10x15 cm</option>
+        <option value="13x18">13x18 cm</option>
+        <option value="20x30">20x30 cm</option>
+        <option value="A4">A4</option>
+      }
+    </select>
+  </label>
+
+  <div
+    class="sc-uploader__zone"
+    [class.is-drag]="dragging()"
+    [class.is-busy]="busy"
+    (dragenter)="onDragEnter($event)"
+    (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave()"
+    (drop)="onDrop($event)"
+  >
+    <span class="material-symbols-outlined sc-uploader__ico" aria-hidden="true">cloud_upload</span>
+    <p>{{ i18n.t('smartcrop.upload.drop') }}</p>
+    <p class="sc-uploader__hint">{{ i18n.t('smartcrop.upload.hint') }}</p>
+    <label class="sc-uploader__pick">
+      {{ i18n.t('smartcrop.upload.pick') }}
+      <input
+        type="file"
+        [accept]="accept"
+        multiple
+        hidden
+        [disabled]="busy"
+        (change)="onPick($event)"
+      />
+    </label>
+  </div>
+</div>

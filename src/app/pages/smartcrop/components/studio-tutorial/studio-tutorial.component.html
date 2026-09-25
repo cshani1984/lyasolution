@@ -1,0 +1,69 @@
+@if (open) {
+  <div class="sc-tut" role="dialog" aria-modal="true" [attr.aria-label]="i18n.t('smartcrop.tutorial.title')" [attr.dir]="i18n.isRtl() ? 'rtl' : 'ltr'">
+    <button type="button" class="sc-tut__backdrop" (click)="skip()" [attr.aria-label]="i18n.t('smartcrop.tutorial.skip')"></button>
+
+    <div class="sc-tut__card">
+      <header class="sc-tut__head">
+        <div>
+          <p class="sc-tut__kicker">{{ i18n.t('smartcrop.tutorial.kicker') }}</p>
+          <h2>{{ i18n.t('smartcrop.tutorial.title') }}</h2>
+        </div>
+        <button type="button" class="sc-tut__close" (click)="skip()" [attr.aria-label]="i18n.t('smartcrop.tutorial.skip')">×</button>
+      </header>
+
+      <div class="sc-tut__progress" aria-hidden="true">
+        <span [style.width.%]="progress()"></span>
+      </div>
+
+      <div class="sc-tut__dots" role="tablist">
+        @for (s of steps; track s.titleKey; let i = $index) {
+          <button
+            type="button"
+            class="sc-tut__dot"
+            [class.is-on]="i === index()"
+            [class.is-done]="i < index()"
+            (click)="index.set(i)"
+            [attr.aria-label]="i18n.t('smartcrop.tutorial.stepOf').replace('{n}', '' + (i + 1)).replace('{total}', '' + steps.length)"
+          ></button>
+        }
+      </div>
+
+      <div class="sc-tut__body">
+        <div class="sc-tut__icon" aria-hidden="true">
+          <span class="material-symbols-outlined">{{ step().icon }}</span>
+          <em>{{ index() + 1 }}</em>
+        </div>
+        <h3>{{ i18n.t(step().titleKey) }}</h3>
+        <p>{{ i18n.t(step().bodyKey) }}</p>
+
+        @if (index() === 0) {
+          <div class="sc-tut__example">
+            <span class="material-symbols-outlined">chat_bubble</span>
+            <div>
+              <strong>{{ i18n.t('smartcrop.tutorial.exChat') }}</strong>
+              <em>{{ i18n.t('smartcrop.tutorial.exParsed') }}</em>
+            </div>
+          </div>
+        }
+        @if (index() === 3) {
+          <div class="sc-tut__example is-folder">
+            <span class="material-symbols-outlined">folder_open</span>
+            <code>{{ i18n.t('smartcrop.tutorial.exFolder') }}</code>
+          </div>
+        }
+      </div>
+
+      <footer class="sc-tut__foot">
+        <button type="button" class="sc-tut__ghost" (click)="skip()">{{ i18n.t('smartcrop.tutorial.skip') }}</button>
+        <div class="sc-tut__nav">
+          @if (index() > 0) {
+            <button type="button" class="sc-tut__ghost" (click)="back()">{{ i18n.t('smartcrop.tutorial.back') }}</button>
+          }
+          <button type="button" class="sc-tut__primary" (click)="next()">
+            {{ isLast() ? i18n.t('smartcrop.tutorial.done') : i18n.t('smartcrop.tutorial.next') }}
+          </button>
+        </div>
+      </footer>
+    </div>
+  </div>
+}

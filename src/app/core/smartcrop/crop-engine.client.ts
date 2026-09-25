@@ -17,6 +17,7 @@ import type {
 import type { BoundingBox } from './crop-engine.math';
 import {
   HEAD_TOP_PADDING_RATIO,
+  calculateCorrectionDelta,
   calculateCropLossPercentage,
   calculateTruncationRisk,
 } from './crop-engine.math';
@@ -70,6 +71,28 @@ export async function smartCropFromUrl(
   }
 }
 
+/**
+ * Notes: Classic blind geometric-center crop (lab “stupid crop”) for before/after UI.
+ */
+export async function blindCenterCropFromUrl(
+  imageUrl: string,
+  aspectRatio: number,
+): Promise<Blob> {
+  const res = await fetch(imageUrl);
+  if (!res.ok) throw new Error(`Failed to fetch image (${res.status})`);
+  const blob = await res.blob();
+  const bitmap = await createImageBitmap(blob);
+  try {
+    const cropBox = computeCropBox(bitmap.width, bitmap.height, aspectRatio, {
+      x: bitmap.width / 2,
+      y: bitmap.height / 2,
+    }, { headPaddingApplied: false });
+    return await renderCropBlob(bitmap, cropBox, aspectRatio);
+  } finally {
+    bitmap.close();
+  }
+}
+
 /** Notes: Shared analyze → crop → JPEG encode for File or URL bitmaps. */
 async function smartCropFromBitmap(
   bitmap: ImageBitmap,
@@ -104,12 +127,14 @@ async function smartCropFromBitmap(
     cropLossPercentage,
   );
 
+  const correctionDelta = calculateCorrectionDelta(imgW, imgH, analysis.focalPoint);
   const metrics: CropMetrics = {
     detectedType: analysis.detectedType,
     confidenceScore: round1(analysis.confidenceScore),
     cropLossPercentage: round1(cropLossPercentage),
     headPaddingApplied: analysis.headPaddingApplied,
     hasTruncationRisk,
+    correctionDelta,
   };
 
   const outBlob = await renderCropBlob(bitmap, cropBox, aspectRatio);

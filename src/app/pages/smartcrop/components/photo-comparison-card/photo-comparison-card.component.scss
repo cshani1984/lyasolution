@@ -1,0 +1,229 @@
+.sc-pcc {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+  border-radius: 0.85rem;
+  background: var(--sc-surface-container, #f0f1f5);
+}
+
+.sc-pcc__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.sc-pcc__head h3 {
+  margin: 0;
+  font-family: var(--sc-display, inherit);
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.sc-pcc__head p {
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  color: var(--sc-on-variant, #45464f);
+}
+
+.sc-pcc__face {
+  display: inline-flex;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  background: var(--sc-primary, #4a5dba);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.sc-pcc__face.is-green {
+  background: #15803d;
+}
+
+.sc-pcc__face.is-yellow {
+  background: #a16207;
+}
+
+.sc-pcc__face.is-red {
+  background: var(--sc-error, #ba1a1a);
+}
+
+.sc-pcc__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.sc-pcc__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: 0.4rem;
+  background: var(--sc-surface-lowest, #fff);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.sc-pcc__badge.is-green {
+  color: #15803d;
+  background: color-mix(in srgb, #15803d 12%, #fff);
+}
+
+.sc-pcc__badge.is-yellow {
+  color: #a16207;
+  background: color-mix(in srgb, #a16207 12%, #fff);
+}
+
+.sc-pcc__badge.is-red,
+.sc-pcc__badge.is-danger {
+  color: var(--sc-error, #ba1a1a);
+  background: color-mix(in srgb, var(--sc-error, #ba1a1a) 12%, #fff);
+}
+
+.sc-pcc__badge.is-ratio {
+  color: var(--sc-primary, #4a5dba);
+}
+
+.sc-pcc__dual {
+  display: grid;
+  gap: 0.85rem;
+}
+
+@media (min-width: 720px) {
+  .sc-pcc__dual {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.sc-pcc__card {
+  border-radius: 0.75rem;
+  background: var(--sc-surface-lowest, #fff);
+  padding: 0.75rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.sc-pcc__card-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.sc-pcc__card-title.is-bad {
+  color: var(--sc-error, #ba1a1a);
+}
+
+.sc-pcc__card-title.is-good {
+  color: var(--sc-primary, #4a5dba);
+}
+
+.sc-pcc__card-title em {
+  font-style: normal;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.25rem;
+}
+
+.sc-pcc__card-title.is-bad em {
+  background: color-mix(in srgb, var(--sc-error, #ba1a1a) 18%, transparent);
+}
+
+.sc-pcc__card-title.is-good em {
+  background: color-mix(in srgb, var(--sc-primary-fixed, #dce1ff) 70%, transparent);
+  color: var(--sc-primary, #4a5dba);
+}
+
+.sc-pcc__frame {
+  position: relative;
+  aspect-ratio: 2 / 3;
+  max-height: 18rem;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background: #d2d9f4;
+}
+
+.sc-pcc__frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sc-pcc__frame.is-bad img {
+  object-position: center 35%;
+  opacity: 0.9;
+  transform: scale(1.12);
+}
+
+.sc-pcc__warn {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  min-height: 2.5rem;
+  background: color-mix(in srgb, var(--sc-error, #ba1a1a) 35%, transparent);
+  display: grid;
+  place-items: center;
+  padding: 0.35rem;
+}
+
+.sc-pcc__warn span {
+  background: var(--sc-error, #ba1a1a);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.2rem 0.45rem;
+  border-radius: 0.25rem;
+  text-align: center;
+  line-height: 1.3;
+}
+
+.sc-pcc__safe {
+  position: absolute;
+  inset-block-start: 0.5rem;
+  inset-inline: 0.5rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.35rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.35rem;
+  background: color-mix(in srgb, #fff 88%, transparent);
+  backdrop-filter: blur(6px);
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--sc-primary, #4a5dba);
+}
+
+.sc-pcc__card > p {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--sc-on-variant, #45464f);
+}
+
+.sc-pcc__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.sc-pcc__btn {
+  padding: 0.5rem 0.85rem;
+  border-radius: 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--sc-outline, #74777f) 35%, transparent);
+  background: var(--sc-surface-lowest, #fff);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sc-pcc__btn--primary {
+  border-color: transparent;
+  background: var(--sc-primary, #4a5dba);
+  color: #fff;
+}

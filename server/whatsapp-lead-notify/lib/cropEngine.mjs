@@ -121,12 +121,14 @@ export async function processSmartCrop(inputBuffer, opts = {}) {
   );
 
   const focalPoint = analysis.focalPoint;
+  const correctionDelta = calculateCorrectionDelta(imgW, imgH, focalPoint);
   const metrics = {
     detectedType: analysis.detectedType,
     confidenceScore: round1(analysis.confidenceScore),
     cropLossPercentage: round1(cropLossPercentage),
     headPaddingApplied,
     hasTruncationRisk,
+    correctionDelta,
   };
 
   const cropData = {
@@ -151,6 +153,7 @@ export async function processSmartCrop(inputBuffer, opts = {}) {
     cropLossPercentage: metrics.cropLossPercentage,
     headPaddingApplied: metrics.headPaddingApplied,
     hasTruncationRisk: metrics.hasTruncationRisk,
+    correctionDelta,
   };
 }
 
@@ -403,6 +406,55 @@ export function calculateCropLossPercentage(imgW, imgH, cropBox) {
   const originalArea = Math.max(1, imgW * imgH);
   const croppedArea = Math.max(1, cropBox.width * cropBox.height);
   return clamp(((originalArea - croppedArea) / originalArea) * 100, 0, 100);
+}
+
+/**
+ * Notes: Offset between geometric image center and AI focal point.
+ * distancePercent = (euclidean distance / image diagonal) * 100
+ *
+ * @param {number} imgW
+ * @param {number} imgH
+ * @param {{ x: number, y: number }} focal
+ */
+export function calculateCorrectionDelta(imgW, imgH, focal) {
+  const cx = imgW / 2;
+  const cy = imgH / 2;
+  const dx = focal.x - cx;
+  const dy = focal.y - cy;
+  const distancePx = Math.hypot(dx, dy);
+  const diagonal = Math.hypot(imgW, imgH) || 1;
+  return {
+    dx: round1(dx),
+    dy: round1(dy),
+    distancePx: round1(distancePx),
+    distancePercent: round1((distancePx / diagonal) * 100),
+  };
+}
+
+/**
+ * Notes: Blind geometric-center crop (classic lab behavior) for before/after UI.
+ *
+ * @param {Buffer} inputBuffer
+ * @param {number} aspectRatio
+ */
+export async function processBlindCenterCrop(inputBuffer, aspectRatio = 2 / 3) {
+  const meta = await sharp(inputBuffer).rotate().metadata();
+  const imgW = meta.width || 1;
+  const imgH = meta.height || 1;
+  const cropBox = computeCropBox(imgW, imgH, aspectRatio, { x: imgW / 2, y: imgH / 2 }, {
+    headPaddingApplied: false,
+  });
+  const buffer = await sharp(inputBuffer)
+    .rotate()
+    .extract({
+      left: cropBox.x,
+      top: cropBox.y,
+      width: cropBox.width,
+      height: cropBox.height,
+    })
+    .jpeg({ quality: 88 })
+    .toBuffer();
+  return { buffer, cropBox };
 }
 
 /**

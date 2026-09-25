@@ -25,6 +25,15 @@ export interface BoundingBox {
  * Full engine output after auto (or manual) crop.
  * Notes: confidenceScore is 0–100; cropLossPercentage is discarded area %.
  */
+/** Offset between geometric center and AI focal point. */
+export interface CropCorrectionDelta {
+  dx: number;
+  dy: number;
+  distancePx: number;
+  /** (distance / image diagonal) * 100 */
+  distancePercent: number;
+}
+
 export interface CropEngineResult {
   processedBuffer?: ArrayBuffer | Uint8Array;
   focalPoint: FocalPoint;
@@ -36,6 +45,7 @@ export interface CropEngineResult {
   headPaddingApplied: boolean;
   /** true if subject touches crop edge or cropLoss > 25% */
   hasTruncationRisk: boolean;
+  correctionDelta?: CropCorrectionDelta;
 }
 
 /** Metrics persisted inside photos.crop_data JSON. */
@@ -45,6 +55,7 @@ export interface CropMetrics {
   cropLossPercentage: number;
   headPaddingApplied: boolean;
   hasTruncationRisk: boolean;
+  correctionDelta?: CropCorrectionDelta;
 }
 
 /** Warn admins in red when discarded area exceeds this %. */
@@ -93,6 +104,29 @@ export function confidenceTone(score: number): 'green' | 'yellow' | 'red' {
   if (score > 80) return 'green';
   if (score >= 60) return 'yellow';
   return 'red';
+}
+
+/**
+ * Notes: Offset between geometric image center and AI focal point.
+ * distancePercent = (euclidean distance / image diagonal) * 100
+ */
+export function calculateCorrectionDelta(
+  imgW: number,
+  imgH: number,
+  focal: FocalPoint,
+): CropCorrectionDelta {
+  const cx = imgW / 2;
+  const cy = imgH / 2;
+  const dx = focal.x - cx;
+  const dy = focal.y - cy;
+  const distancePx = Math.hypot(dx, dy);
+  const diagonal = Math.hypot(imgW, imgH) || 1;
+  return {
+    dx: Math.round(dx * 10) / 10,
+    dy: Math.round(dy * 10) / 10,
+    distancePx: Math.round(distancePx * 10) / 10,
+    distancePercent: Math.round((distancePx / diagonal) * 1000) / 10,
+  };
 }
 
 /**

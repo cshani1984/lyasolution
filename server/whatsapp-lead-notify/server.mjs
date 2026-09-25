@@ -275,6 +275,8 @@ app.listen(PORT, () => {
   if (process.env.TWILIO_ACCOUNT_SID?.trim()) log('Twilio WhatsApp: credentials present');
   else log('Twilio WhatsApp: TWILIO_* not set (JSON webhook still works)');
   log('POST /api/crop/process — SmartCrop re-crop');
+  log('POST /api/photos/upload — SmartCrop browser multipart upload');
+  log('POST /api/photos/send-to-print — mark printed + hotfolder paths');
   log('POST /api/photos/batch-update — SmartCrop batch');
   if (isOpenAiConfigured()) log('OpenAI: configured for CV enhance');
   else log('OpenAI: OPENAI_API_KEY not set (CV enhance unavailable)');

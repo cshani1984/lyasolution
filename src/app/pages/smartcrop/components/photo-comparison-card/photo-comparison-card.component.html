@@ -1,0 +1,76 @@
+<div class="sc-pcc" [attr.dir]="i18n.isRtl() ? 'rtl' : 'ltr'">
+  <header class="sc-pcc__head">
+    <div>
+      <h3>{{ i18n.t('smartcrop.compare.title') }}</h3>
+      <p>{{ i18n.t('smartcrop.compare.sub') }} · {{ sizeLabel || photo.target_size_name }}</p>
+    </div>
+    @if (metrics(); as m) {
+      <span class="sc-pcc__face" [class]="confidenceClass()">
+        {{ detectionLabel() }} {{ m.confidenceScore | number: '1.0-1' }}%
+      </span>
+    }
+  </header>
+
+  @if (metrics(); as m) {
+    <div class="sc-pcc__badges" role="group" [attr.aria-label]="i18n.t('smartcrop.metrics.title')">
+      <span class="sc-pcc__badge" [class]="confidenceClass()">
+        🎯 {{ m.confidenceScore | number: '1.0-0' }}% {{ detectionLabel() }}
+      </span>
+      <span class="sc-pcc__badge" [class.is-danger]="lossDanger()">
+        ✂️ {{ m.cropLossPercentage | number: '1.0-0' }}% {{ i18n.t('smartcrop.metrics.croppedOut') }}
+      </span>
+      <span class="sc-pcc__badge is-ratio">📐 {{ sizeLabel || photo.target_size_name }}</span>
+      @if (m.correctionDelta; as d) {
+        <span class="sc-pcc__badge">
+          Δ {{ d.distancePercent | number: '1.0-1' }}% {{ i18n.t('smartcrop.metrics.correction') }}
+        </span>
+      }
+    </div>
+  }
+
+  <div class="sc-pcc__dual">
+    <article class="sc-pcc__card">
+      <div class="sc-pcc__card-title is-bad">
+        <span>
+          <span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle">cancel</span>
+          {{ i18n.t('smartcrop.compare.badTitle') }}
+        </span>
+        <em>{{ i18n.t('smartcrop.compare.badBadge') }}</em>
+      </div>
+      <div class="sc-pcc__frame is-bad">
+        <img [src]="resolvedBlindUrl()" [alt]="photo.target_size_name" />
+        <div class="sc-pcc__warn">
+          <span>{{ badWarnText() }}</span>
+        </div>
+      </div>
+      <p>{{ i18n.t('smartcrop.compare.badBody') }}</p>
+    </article>
+
+    <article class="sc-pcc__card">
+      <div class="sc-pcc__card-title is-good">
+        <span>
+          <span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;color:var(--sc-secondary,#006e1c)">check_circle</span>
+          {{ i18n.t('smartcrop.compare.goodTitle') }}
+        </span>
+        <em>{{ i18n.t('smartcrop.compare.goodBadge') }}</em>
+      </div>
+      <div class="sc-pcc__frame">
+        <img [src]="photo.cropped_url || photo.original_url" [alt]="photo.target_size_name" />
+        <div class="sc-pcc__safe">
+          <span>{{ i18n.t('smartcrop.compare.goodSafe') }}</span>
+          <span>{{ i18n.t('smartcrop.compare.goodEye') }}</span>
+        </div>
+      </div>
+      <p>{{ i18n.t('smartcrop.compare.goodBody') }}</p>
+    </article>
+  </div>
+
+  <footer class="sc-pcc__actions">
+    <button type="button" class="sc-pcc__btn" (click)="edit.emit()">
+      {{ i18n.t('smartcrop.studio.editCrop') }}
+    </button>
+    <button type="button" class="sc-pcc__btn sc-pcc__btn--primary" (click)="resetAi.emit()">
+      {{ i18n.t('smartcrop.crop.aiGenerate') }}
+    </button>
+  </footer>
+</div>

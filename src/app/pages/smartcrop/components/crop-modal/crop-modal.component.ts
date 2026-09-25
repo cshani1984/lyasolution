@@ -18,6 +18,8 @@ import {
   type ImageCroppedEvent,
   type ImageTransform,
   type CropperPosition,
+  type LoadedImage,
+  type Dimensions,
 } from 'ngx-image-cropper';
 import type {
   CropData,
@@ -61,11 +63,23 @@ export class SmartcropCropModalComponent implements OnChanges {
   readonly aiRunning = signal(false);
   private aiMetrics: CropMetrics | null = null;
 
-  /** When false, do not restore previous crop_data (e.g. after size change). */
+  /** When true, restore previous crop box after ready (converted to display coords). */
   private restoreExistingCrop = true;
 
   private lastCrop: ImageCroppedEvent | null = null;
+  private originalSize: Dimensions | null = null;
+  private displayedSize: Dimensions | null = null;
   cropperKey = 0;
+
+  /**
+   * Two-way bridge for ngx-image-cropper [(transform)].
+   */
+  get transformModel(): ImageTransform {
+    return this.transform();
+  }
+  set transformModel(value: ImageTransform) {
+    this.transform.set(value ?? { scale: 1, rotate: 0 });
+  }
 
   readonly activeSize = computed(() => {
     const id = this.selectedSizeId();
@@ -105,59 +119,36 @@ export class SmartcropCropModalComponent implements OnChanges {
     this.restoreExistingCrop = restoreCrop;
     this.lastCrop = null;
     this.aiMetrics = null;
+    this.originalSize = null;
+    this.displayedSize = null;
     this.ready.set(false);
     this.loadFailed.set(false);
     this.cropperPos.set(undefined);
+    // Always open at scale 1 so the full original fits in the stage.
     this.transform.set({
-      scale: restoreCrop ? (this.photo?.crop_data?.zoom ?? 1) : 1,
+      scale: 1,
       rotate: restoreCrop ? (this.photo?.crop_data?.rotation ?? 0) : 0,
     });
     this.cropperKey += 1;
   }
 
+  onImageLoaded(image: LoadedImage): void {
+    this.originalSize = image.original.size;
+  }
+
   /**
-   * Notes: "מחולל AI" — MediaPipe face/object detect + apply crop box in the editor.
+   * Notes: cropperReady dimensions = displayed image size.
+   * crop_data / AI results use original pixels — convert before applying.
    */
-  async runAiGenerate(): Promise<void> {
-    if (!this.photo || this.aiRunning()) return;
-    this.aiRunning.set(true);
-    try {
-      const result = await smartCropFromUrl(this.photo.original_url, this.activeAspect());
-      this.aiMetrics = result.metrics;
-      this.restoreExistingCrop = true;
-      this.transform.set({ scale: 1, rotate: 0 });
-      this.cropperPos.set({
-        x1: result.cropData.x,
-        y1: result.cropData.y,
-        x2: result.cropData.x + result.cropData.width,
-        y2: result.cropData.y + result.cropData.height,
-      });
-    } catch {
-      // Parent can still offer server/client reset via toolbar.
-    } finally {
-      this.aiRunning.set(false);
-    }
-  }
-
-  onSizeChange(sizeId: string): void {
-    if (!sizeId || sizeId === this.selectedSizeId()) return;
-    this.selectedSizeId.set(sizeId);
-    // New aspect ratio — rebuild cropper; don't keep old box.
-    this.resetCropperState(false);
-  }
-
-  onImageCropped(event: ImageCroppedEvent): void {
-    this.lastCrop = event;
-  }
-
-  onCropperReady(): void {
+  onCropperReady(dimensions: Dimensions): void {
+    this.displayedSize = dimensions;
     this.ready.set(true);
     requestAnimationFrame(() => {
       this.cropperCmp?.onResize();
       if (!this.restoreExistingCrop) return;
       const existing = this.photo?.crop_data;
       if (existing && existing.width > 0 && existing.height > 0) {
-        this.cropperPos.set({
+        this.applyOriginalCropBox({
           x1: existing.x,
           y1: existing.y,
           x2: existing.x + existing.width,
@@ -167,8 +158,62 @@ export class SmartcropCropModalComponent implements OnChanges {
     });
   }
 
-  onTransformChange(t: ImageTransform): void {
-    this.transform.set(t);
+  /**
+   * Notes: AI Generator — detect faces and move crop frame smoothly (no remount / no toolbar reflow).
+   */
+  async runAiGenerate(): Promise<void> {
+    if (!this.photo || this.aiRunning()) return;
+    this.aiRunning.set(true);
+    try {
+      const result = await smartCropFromUrl(this.photo.original_url, this.activeAspect());
+      this.aiMetrics = result.metrics;
+      this.transform.set({ scale: 1, rotate: this.transform().rotate ?? 0 });
+      this.applyOriginalCropBox({
+        x1: result.cropData.x,
+        y1: result.cropData.y,
+        x2: result.cropData.x + result.cropData.width,
+        y2: result.cropData.y + result.cropData.height,
+      });
+      requestAnimationFrame(() => this.cropperCmp?.onResize());
+    } catch {
+      // Keep editor usable.
+    } finally {
+      this.aiRunning.set(false);
+    }
+  }
+
+  /** Convert original-image crop box → displayed cropper coordinates. */
+  private applyOriginalCropBox(original: CropperPosition): void {
+    const box = this.toDisplayedCropper(original);
+    if (!box) return;
+    this.cropperPos.set({ ...box });
+  }
+
+  private toDisplayedCropper(original: CropperPosition): CropperPosition | null {
+    const orig = this.originalSize;
+    const disp = this.displayedSize;
+    if (!orig?.width || !orig?.height || !disp?.width || !disp?.height) {
+      // Fallback: assume 1:1 if sizes not ready yet (rare).
+      return original;
+    }
+    const sx = disp.width / orig.width;
+    const sy = disp.height / orig.height;
+    return {
+      x1: original.x1 * sx,
+      y1: original.y1 * sy,
+      x2: original.x2 * sx,
+      y2: original.y2 * sy,
+    };
+  }
+
+  onSizeChange(sizeId: string): void {
+    if (!sizeId || sizeId === this.selectedSizeId()) return;
+    this.selectedSizeId.set(sizeId);
+    this.resetCropperState(false);
+  }
+
+  onImageCropped(event: ImageCroppedEvent): void {
+    this.lastCrop = event;
   }
 
   onLoadFailed(): void {
@@ -190,10 +235,11 @@ export class SmartcropCropModalComponent implements OnChanges {
 
   @HostListener('document:keydown.escape')
   onEsc(): void {
-    if (this.open) this.closed.emit();
+    if (this.open && !this.aiRunning()) this.closed.emit();
   }
 
   async save(): Promise<void> {
+    if (this.aiRunning()) return;
     let event = this.lastCrop;
     if (this.cropperCmp) {
       try {
@@ -208,6 +254,7 @@ export class SmartcropCropModalComponent implements OnChanges {
       return;
     }
 
+    // imagePosition is relative to the ORIGINAL image — store as-is.
     const { x1, y1, x2, y2 } = event.imagePosition;
     const width = Math.max(1, Math.round(x2 - x1));
     const height = Math.max(1, Math.round(y2 - y1));
@@ -225,12 +272,11 @@ export class SmartcropCropModalComponent implements OnChanges {
       rotation: t.rotate ?? 0,
       focalPoint: { x: x + width / 2, y: y + height * 0.4 },
       isManuallyEdited: true,
-      // Notes: Keep prior AI detection type; mark manual override as full confidence.
       metrics: this.aiMetrics ?? {
         detectedType: this.photo?.crop_data?.metrics?.detectedType ?? 'saliency_landscape',
         confidenceScore: 100,
         cropLossPercentage: this.photo?.crop_data?.metrics?.cropLossPercentage ?? 0,
-        headPaddingApplied: false,
+        headPaddingApplied: Boolean(this.photo?.crop_data?.metrics?.headPaddingApplied),
         hasTruncationRisk: this.photo?.crop_data?.metrics?.hasTruncationRisk ?? false,
       },
     };

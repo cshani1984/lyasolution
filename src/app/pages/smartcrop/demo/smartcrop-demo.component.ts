@@ -11,11 +11,20 @@ import { I18nService } from '../../../core/services/i18n.service';
 import { smartCropFromUrl, smartCropJpeg } from '../../../core/smartcrop/crop-engine.client';
 import { SmartcropPhotoCardComponent } from '../components/photo-card/photo-card.component';
 import { SmartcropCropModalComponent } from '../components/crop-modal/crop-modal.component';
+import { SmartcropFileUploaderComponent } from '../components/file-uploader/file-uploader.component';
+import { SmartcropPhotoComparisonCardComponent } from '../components/photo-comparison-card/photo-comparison-card.component';
 
 @Component({
   selector: 'app-smartcrop-demo',
   standalone: true,
-  imports: [FormsModule, RouterLink, SmartcropPhotoCardComponent, SmartcropCropModalComponent],
+  imports: [
+    FormsModule,
+    RouterLink,
+    SmartcropPhotoCardComponent,
+    SmartcropCropModalComponent,
+    SmartcropFileUploaderComponent,
+    SmartcropPhotoComparisonCardComponent,
+  ],
   templateUrl: './smartcrop-demo.component.html',
   styleUrl: './smartcrop-demo.component.scss',
 })
@@ -28,10 +37,12 @@ export class SmartcropDemoComponent implements OnInit, OnDestroy {
   readonly originalPreviewIds = signal(new Set<string>());
   readonly sizeFilter = signal('all');
   readonly editingPhoto = signal<SmartcropPhoto | null>(null);
+  readonly comparePhoto = signal<SmartcropPhoto | null>(null);
   readonly busy = signal(false);
   readonly aiBusy = signal(false);
   readonly toast = signal<string | null>(null);
   readonly editingIndex = signal(0);
+  readonly uploadSizeName = signal('10x15');
 
   private readonly blobUrls = new Set<string>();
 
@@ -42,6 +53,13 @@ export class SmartcropDemoComponent implements OnInit, OnDestroy {
 
   readonly editingAspect = computed(() => {
     const photo = this.editingPhoto();
+    if (!photo) return 2 / 3;
+    const size = this.sizes.find((s) => s.id === photo.size_id || s.name === photo.target_size_name);
+    return size ? Number(size.aspect_ratio) : 2 / 3;
+  });
+
+  readonly compareAspect = computed(() => {
+    const photo = this.comparePhoto();
     if (!photo) return 2 / 3;
     const size = this.sizes.find((s) => s.id === photo.size_id || s.name === photo.target_size_name);
     return size ? Number(size.aspect_ratio) : 2 / 3;
@@ -80,34 +98,47 @@ export class SmartcropDemoComponent implements OnInit, OnDestroy {
     const file = input.files?.[0];
     input.value = '';
     if (!file) return;
+    await this.onUploadFiles({ files: [file], sizeName: this.uploadSizeName() });
+  }
 
+  async onUploadFiles(payload: { files: File[]; sizeName: string }): Promise<void> {
+    if (!payload.files.length) return;
+    this.uploadSizeName.set(payload.sizeName || '10x15');
     this.busy.set(true);
     this.aiBusy.set(true);
     this.toast.set(this.i18n.t('smartcrop.studio.aiWorking'));
 
-    const size = this.sizes.find((s) => s.is_default) ?? this.sizes[0];
-    try {
-      const originalUrl = URL.createObjectURL(file);
-      this.blobUrls.add(originalUrl);
-      const cropped = await smartCropJpeg(file, Number(size.aspect_ratio));
-      const croppedUrl = URL.createObjectURL(cropped.blob);
-      this.blobUrls.add(croppedUrl);
+    const size =
+      this.sizes.find((s) => s.name === payload.sizeName) ??
+      this.sizes.find((s) => s.is_default) ??
+      this.sizes[0];
 
-      const photo: SmartcropPhoto = {
-        id: `upload-${crypto.randomUUID()}`,
-        order_id: 'demo-order',
-        user_id: 'demo-user',
-        sender_phone: '+972500000000',
-        original_url: originalUrl,
-        cropped_url: croppedUrl,
-        size_id: size.id,
-        target_size_name: size.name,
-        crop_data: cropped.cropData,
-        status: 'pending',
-        created_at: new Date().toISOString(),
-      };
-      this.photos.update((list) => [photo, ...list]);
-      this.openEdit(photo);
+    try {
+      let last: SmartcropPhoto | null = null;
+      for (const file of payload.files) {
+        const originalUrl = URL.createObjectURL(file);
+        this.blobUrls.add(originalUrl);
+        const cropped = await smartCropJpeg(file, Number(size.aspect_ratio));
+        const croppedUrl = URL.createObjectURL(cropped.blob);
+        this.blobUrls.add(croppedUrl);
+
+        const photo: SmartcropPhoto = {
+          id: `upload-${crypto.randomUUID()}`,
+          order_id: 'demo-order',
+          user_id: 'demo-user',
+          sender_phone: '+972500000000',
+          original_url: originalUrl,
+          cropped_url: croppedUrl,
+          size_id: size.id,
+          target_size_name: size.name,
+          crop_data: cropped.cropData,
+          status: 'pending',
+          created_at: new Date().toISOString(),
+        };
+        this.photos.update((list) => [photo, ...list]);
+        last = photo;
+      }
+      if (last) this.comparePhoto.set(last);
       this.toast.set(this.i18n.t('smartcrop.dash.simulated'));
     } catch (e) {
       this.toast.set(e instanceof Error ? e.message : 'Upload failed');

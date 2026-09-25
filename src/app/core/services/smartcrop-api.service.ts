@@ -97,4 +97,93 @@ export class SmartcropApiService {
     }
     return { ok: true, updated: data.updated };
   }
+
+  /**
+   * Notes: Multipart browser upload → server AI crop → persisted photo rows.
+   */
+  async uploadPhotos(payload: {
+    files: File[];
+    sizeName: string;
+    senderPhone: string;
+    userId?: string;
+    customerName?: string;
+    captionText?: string;
+  }): Promise<{
+    ok: boolean;
+    photos?: Array<{
+      photoId: string;
+      originalUrl: string;
+      croppedUrl: string;
+      blindUrl?: string | null;
+      sizeName: string;
+      cropData?: CropData;
+      metrics?: CropData['metrics'];
+    }>;
+    error?: string;
+  }> {
+    const base = this.baseUrl();
+    if (!base) return { ok: false, error: 'SmartCrop API URL not configured' };
+    const form = new FormData();
+    for (const file of payload.files) form.append('files', file);
+    form.append('sizeName', payload.sizeName || '10x15');
+    form.append('sender_phone', payload.senderPhone);
+    if (payload.userId) form.append('user_id', payload.userId);
+    if (payload.customerName) form.append('customer_name', payload.customerName);
+    if (payload.captionText) form.append('caption_text', payload.captionText);
+
+    const headers: Record<string, string> = {};
+    const key = this.apiKey();
+    if (key) headers['x-api-key'] = key;
+
+    const res = await fetch(`${base}/api/photos/upload`, {
+      method: 'POST',
+      headers,
+      body: form,
+    });
+    const data = (await res.json()) as {
+      ok?: boolean;
+      photos?: Array<{
+        photoId: string;
+        originalUrl: string;
+        croppedUrl: string;
+        blindUrl?: string | null;
+        sizeName: string;
+        cropData?: CropData;
+        metrics?: CropData['metrics'];
+      }>;
+      error?: string;
+    };
+    if (!res.ok || !data.ok) {
+      return { ok: false, error: data.error ?? res.statusText };
+    }
+    return { ok: true, photos: data.photos };
+  }
+
+  /**
+   * Notes: Mark photos printed and return lab hotfolder paths.
+   */
+  async sendToPrint(photoIds: string[]): Promise<{
+    ok: boolean;
+    updated?: number;
+    hotfolderPaths?: string[];
+    error?: string;
+  }> {
+    const base = this.baseUrl();
+    if (!base) return { ok: false, error: 'SmartCrop API URL not configured' };
+    const res = await fetch(`${base}/api/photos/send-to-print`, {
+      method: 'POST',
+      headers: this.headers(),
+      body: JSON.stringify({ photoIds }),
+    });
+    const data = (await res.json()) as {
+      ok?: boolean;
+      updated?: number;
+      hotfolderPaths?: string[];
+      error?: string;
+    };
+    if (!res.ok || !data.ok) {
+      return { ok: false, error: data.error ?? res.statusText };
+    }
+    return { ok: true, updated: data.updated, hotfolderPaths: data.hotfolderPaths };
+  }
 }
