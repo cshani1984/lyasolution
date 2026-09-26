@@ -363,6 +363,9 @@
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 0.45rem;
+  /* Always left → right, even when the app/page is RTL (Hebrew). */
+  direction: ltr;
+  unicode-bidi: isolate;
 }
 
 .sc-am__otp-box {

@@ -115,7 +115,20 @@ export class SmartcropAuthModalComponent implements OnChanges, OnDestroy {
 
   onOtpInput(index: number, event: Event): void {
     const input = event.target as HTMLInputElement;
-    const digit = (input.value || '').replace(/\D/g, '').slice(-1);
+    const raw = (input.value || '').replace(/\D/g, '');
+    // SMS autofill / multi-char into one box → fill left → right from this index
+    if (raw.length > 1) {
+      const next = [...this.otpDigits()];
+      for (let i = 0; i < raw.length && index + i < OTP_LEN; i++) {
+        next[index + i] = raw[i]!;
+      }
+      this.otpDigits.set(next);
+      const advance = Math.min(index + raw.length, OTP_LEN - 1);
+      this.focusOtp(advance);
+      if (this.otpComplete() && !this.busy()) void this.submitActiveOtp();
+      return;
+    }
+    const digit = raw.slice(-1);
     const next = [...this.otpDigits()];
     next[index] = digit;
     this.otpDigits.set(next);
@@ -145,6 +158,7 @@ export class SmartcropAuthModalComponent implements OnChanges, OnDestroy {
       }
       return;
     }
+    // Physical left/right in LTR OTP row (ignore document RTL)
     if (key === 'ArrowLeft' && index > 0) {
       this.focusOtp(index - 1);
       event.preventDefault();
@@ -152,6 +166,15 @@ export class SmartcropAuthModalComponent implements OnChanges, OnDestroy {
     if (key === 'ArrowRight' && index < OTP_LEN - 1) {
       this.focusOtp(index + 1);
       event.preventDefault();
+    }
+  }
+
+  /** Keep typing flow contiguous: jump to first empty if user clicks ahead. */
+  onOtpFocus(index: number): void {
+    const digits = this.otpDigits();
+    const firstEmpty = digits.findIndex((d) => !d);
+    if (firstEmpty >= 0 && firstEmpty < index) {
+      this.focusOtp(firstEmpty);
     }
   }
 
@@ -359,10 +382,17 @@ export class SmartcropAuthModalComponent implements OnChanges, OnDestroy {
     this.otpDigits.set(Array.from({ length: OTP_LEN }, () => ''));
   }
 
-  private focusOtp(index: number): void {
+  private focusOtp(index: number, attempts = 0): void {
     const el = this.otpBoxes?.get(index)?.nativeElement;
-    el?.focus();
-    el?.select();
+    if (el) {
+      el.focus({ preventScroll: true });
+      el.select();
+      return;
+    }
+    // Boxes may not exist yet right after otpSent / regOtpSent flips
+    if (attempts < 12) {
+      setTimeout(() => this.focusOtp(index, attempts + 1), 16);
+    }
   }
 
   private startResendTimer(): void {

@@ -426,7 +426,8 @@ export function registerSmartcropRoutes(app, ctx) {
 
         if (parsed.NumMedia > 0 && parsed.MediaUrl0) {
           if (!isSupabaseAdminConfigured()) {
-            reply = 'המערכת עדיין לא מוגדרת לקליטת תמונות. נסו שוב מאוחר יותר.';
+            reply =
+              'השרת לא מחובר ל-Supabase (חסר SUPABASE_URL / SERVICE_ROLE). לבדיקה חיה הגדירו את Webhook של Twilio ל: https://lyasolution-node-email-server.onrender.com/api/whatsapp/webhook';
           } else {
             const media = await resolveTwilioMedia(parsed);
             const result = await ingestSmartcropPhoto({

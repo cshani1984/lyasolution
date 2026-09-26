@@ -94,7 +94,13 @@
                     {{ resendLabel() }}
                   </button>
                 </div>
-                <div class="sc-am__otp-boxes" (paste)="onOtpPaste($event)" role="group" [attr.aria-label]="i18n.t('smartcrop.login.otp')">
+                <div
+                  class="sc-am__otp-boxes"
+                  dir="ltr"
+                  (paste)="onOtpPaste($event)"
+                  role="group"
+                  [attr.aria-label]="i18n.t('smartcrop.login.otp')"
+                >
                   @for (d of otpDigits(); track $index) {
                     <input
                       #otpBox
@@ -107,6 +113,7 @@
                       [value]="d"
                       (input)="onOtpInput($index, $event)"
                       (keydown)="onOtpKeydown($index, $event)"
+                      (focus)="onOtpFocus($index)"
                     />
                   }
                 </div>
@@ -173,7 +180,13 @@
                     {{ resendLabel() }}
                   </button>
                 </div>
-                <div class="sc-am__otp-boxes" (paste)="onOtpPaste($event)" role="group" [attr.aria-label]="i18n.t('smartcrop.login.otp')">
+                <div
+                  class="sc-am__otp-boxes"
+                  dir="ltr"
+                  (paste)="onOtpPaste($event)"
+                  role="group"
+                  [attr.aria-label]="i18n.t('smartcrop.login.otp')"
+                >
                   @for (d of otpDigits(); track $index) {
                     <input
                       #otpBox
@@ -186,6 +199,7 @@
                       [value]="d"
                       (input)="onOtpInput($index, $event)"
                       (keydown)="onOtpKeydown($index, $event)"
+                      (focus)="onOtpFocus($index)"
                     />
                   }
                 </div>

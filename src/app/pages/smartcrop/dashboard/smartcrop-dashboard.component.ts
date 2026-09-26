@@ -2,20 +2,19 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import type { CropSaveResult, DetectedType, ShopCustomer, SmartcropPhoto } from '../../../core/models/smartcrop.model';
+import type { CropData, CropSaveResult, DetectedType, ShopCustomer, SmartcropPhoto } from '../../../core/models/smartcrop.model';
 import { I18nService } from '../../../core/services/i18n.service';
 import { SmartcropAuthService } from '../../../core/services/smartcrop-auth.service';
 import { SmartcropPhotosService } from '../../../core/services/smartcrop-photos.service';
 import { SmartcropApiService } from '../../../core/services/smartcrop-api.service';
 import { SmartcropCropModalComponent } from '../components/crop-modal/crop-modal.component';
-import { SmartcropPhoneVerificationModalComponent } from '../components/phone-verification-modal/phone-verification-modal.component';
 import { SmartcropBatchActionBarComponent } from '../components/batch-action-bar/batch-action-bar.component';
 import { SmartcropFileUploaderComponent } from '../components/file-uploader/file-uploader.component';
 import { SmartcropPhotoComparisonCardComponent } from '../components/photo-comparison-card/photo-comparison-card.component';
 import { SmartcropStudioTutorialComponent } from '../components/studio-tutorial/studio-tutorial.component';
 import { SmartcropQuotaExceededModalComponent } from '../components/quota-exceeded-modal/quota-exceeded-modal.component';
 import { FooterComponent } from '../../../layout/footer/footer.component';
-import { CROP_LOSS_WARN_PERCENT, confidenceTone } from '../../../core/smartcrop/crop-engine.math';
+import { CROP_LOSS_WARN_PERCENT, HEAD_TOP_PADDING_RATIO, confidenceTone } from '../../../core/smartcrop/crop-engine.math';
 import { DEFAULT_SUPPORT_WA } from '../../../core/smartcrop/subscriptions';
 import {
   findPrintSize,
@@ -23,8 +22,13 @@ import {
   defaultPrintSize,
 } from '../../../core/smartcrop/print-sizes';
 import { smartCropFromUrl } from '../../../core/smartcrop/crop-engine.client';
+import { applyClientCrop } from '../../../core/data/smartcrop-demo.data';
 
 const TUTORIAL_STORAGE_KEY = 'smartcrop-studio-tutorial-v1';
+/** Nudge crop by this fraction of the current crop box. */
+const PAN_STEP = 0.06;
+/** Zoom in/out scale factor per click. */
+const ZOOM_STEP = 1.08;
 
 @Component({
   selector: 'app-smartcrop-dashboard',
@@ -34,7 +38,6 @@ const TUTORIAL_STORAGE_KEY = 'smartcrop-studio-tutorial-v1';
     RouterLink,
     DecimalPipe,
     SmartcropCropModalComponent,
-    SmartcropPhoneVerificationModalComponent,
     SmartcropBatchActionBarComponent,
     SmartcropFileUploaderComponent,
     SmartcropPhotoComparisonCardComponent,
@@ -58,7 +61,6 @@ export class SmartcropDashboardComponent implements OnInit {
   readonly showOriginal = signal(false);
   readonly compareMode = signal(false);
   readonly cropOpen = signal(false);
-  readonly showPhoneModal = signal(false);
   readonly showTutorial = signal(false);
   readonly showQuotaModal = signal(false);
   readonly quotaSupportUrl = signal(DEFAULT_SUPPORT_WA);
@@ -71,11 +73,8 @@ export class SmartcropDashboardComponent implements OnInit {
   /** null = all customers */
   readonly activeCustomerPhone = signal<string | null>(null);
   readonly customerQuery = signal('');
-  readonly headroomPct = signal(15);
-  readonly faceCenterPct = signal(84);
   readonly autoHorizon = signal(true);
   readonly showGrid = signal(false);
-  readonly showHeatmap = signal(false);
 
   readonly photos = computed(() => this.photosService.photos());
 
@@ -145,6 +144,42 @@ export class SmartcropDashboardComponent implements OnInit {
 
   readonly activeMetrics = computed(() => this.activePhoto()?.crop_data?.metrics ?? null);
 
+  /** Auto headroom % the engine applied above faces (0 if not a portrait pad). */
+  readonly autoHeadroomPct = computed(() => {
+    const m = this.activeMetrics();
+    if (!m?.headPaddingApplied) return 0;
+    return Math.round(HEAD_TOP_PADDING_RATIO * 100);
+  });
+
+  /** Print safety / bleed margin % from metrics. */
+  readonly autoSafetyPct = computed(() => {
+    const m = this.activeMetrics();
+    if (m?.safetyMarginPercentage != null) return Math.round(m.safetyMarginPercentage);
+    return m?.addedSafetyMargin ? 6 : 0;
+  });
+
+  /**
+   * Where the AI focus sits inside the crop (0% = top, 100% = bottom).
+   * Typical portraits land ~35–45% from the top.
+   */
+  readonly autoFaceCenterPct = computed(() => {
+    const crop = this.activePhoto()?.crop_data;
+    if (!crop?.focalPoint || !crop.height) return null;
+    const rel = ((crop.focalPoint.y - crop.y) / crop.height) * 100;
+    return Math.round(Math.min(100, Math.max(0, rel)));
+  });
+
+  /** How far AI shifted from geometric center (percent of diagonal). */
+  readonly autoFaceShiftPct = computed(() => {
+    const d = this.activeMetrics()?.correctionDelta?.distancePercent;
+    return d != null ? Math.round(d * 10) / 10 : null;
+  });
+
+  /** Readonly meter fill widths (visual only — not interactive sliders). */
+  readonly headroomMeterWidth = computed(() => Math.min(100, this.autoHeadroomPct() * 3.3));
+  readonly safetyMeterWidth = computed(() => Math.min(100, this.autoSafetyPct() * 8));
+  readonly faceCenterMeterWidth = computed(() => this.autoFaceCenterPct() ?? 0);
+
   readonly confidenceClass = computed(() => {
     const m = this.activeMetrics();
     if (!m) return 'is-muted';
@@ -212,11 +247,13 @@ export class SmartcropDashboardComponent implements OnInit {
   );
 
   async ngOnInit(): Promise<void> {
+    await this.auth.waitUntilReady();
+    await this.auth.syncPhoneFromAuthUser();
     await this.photosService.refreshAll();
     const first = this.filteredPhotos()[0];
     if (first) this.activeId.set(first.id);
-    if (this.auth.needsPhone()) this.showPhoneModal.set(true);
-    else this.maybeOpenTutorial();
+    // Phone OTP registration already links the number — skip WhatsApp sync modal.
+    this.maybeOpenTutorial();
   }
 
   openTutorial(): void {
@@ -240,11 +277,6 @@ export class SmartcropDashboardComponent implements OnInit {
     }
     // Delay slightly so the studio paints first
     setTimeout(() => this.showTutorial.set(true), 450);
-  }
-
-  onPhoneVerified(): void {
-    void this.photosService.refreshAll();
-    this.maybeOpenTutorial();
   }
 
   selectCustomer(phone: string | null): void {
@@ -287,9 +319,144 @@ export class SmartcropDashboardComponent implements OnInit {
     this.showGrid.update((v) => !v);
   }
 
-  toggleHeatmap(): void {
-    this.showHeatmap.update((v) => !v);
-    this.compareMode.set(this.showHeatmap());
+  /** Notes: Move the crop window on the original (image appears to pan opposite). */
+  async panCrop(dir: 'up' | 'down' | 'left' | 'right'): Promise<void> {
+    const photo = this.activePhoto();
+    if (!photo || this.showOriginal() || this.compareMode() || this.busy()) return;
+    const crop = await this.ensureCropBox(photo);
+    if (!crop) return;
+    const stepX = Math.max(4, Math.round(crop.width * PAN_STEP));
+    const stepY = Math.max(4, Math.round(crop.height * PAN_STEP));
+    let dx = 0;
+    let dy = 0;
+    // Moving the *image* up/right means the crop box moves down/left on the source.
+    if (dir === 'up') dy = -stepY;
+    if (dir === 'down') dy = stepY;
+    if (dir === 'left') dx = -stepX;
+    if (dir === 'right') dx = stepX;
+    await this.applyCropAdjust(photo, { ...crop, x: crop.x + dx, y: crop.y + dy });
+  }
+
+  /** Notes: Zoom in/out by shrinking/growing the crop box around its center. */
+  async zoomCrop(direction: 'in' | 'out'): Promise<void> {
+    const photo = this.activePhoto();
+    if (!photo || this.showOriginal() || this.compareMode() || this.busy()) return;
+    const crop = await this.ensureCropBox(photo);
+    if (!crop) return;
+    const factor = direction === 'in' ? 1 / ZOOM_STEP : ZOOM_STEP;
+    const cx = crop.x + crop.width / 2;
+    const cy = crop.y + crop.height / 2;
+    const nextW = crop.width * factor;
+    const nextH = crop.height * factor;
+    await this.applyCropAdjust(photo, {
+      ...crop,
+      width: nextW,
+      height: nextH,
+      x: cx - nextW / 2,
+      y: cy - nextH / 2,
+      zoom: Math.max(0.25, Math.min(4, (crop.zoom || 1) * (direction === 'in' ? ZOOM_STEP : 1 / ZOOM_STEP))),
+    });
+  }
+
+  private async ensureCropBox(photo: SmartcropPhoto): Promise<CropData | null> {
+    if (photo.crop_data?.width && photo.crop_data?.height) {
+      return { ...photo.crop_data };
+    }
+    try {
+      const size = await this.loadNaturalSize(photo.original_url);
+      const aspect = this.activeAspect();
+      let cropW: number;
+      let cropH: number;
+      if (size.w / size.h > aspect) {
+        cropH = size.h;
+        cropW = Math.round(cropH * aspect);
+      } else {
+        cropW = size.w;
+        cropH = Math.round(cropW / aspect);
+      }
+      return {
+        x: Math.round((size.w - cropW) / 2),
+        y: Math.round((size.h - cropH) / 2),
+        width: cropW,
+        height: cropH,
+        zoom: 1,
+        focalPoint: { x: size.w / 2, y: size.h * 0.4 },
+        isManuallyEdited: false,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private async applyCropAdjust(photo: SmartcropPhoto, raw: CropData): Promise<void> {
+    this.busy.set(true);
+    try {
+      const size = await this.loadNaturalSize(photo.original_url);
+      const aspect = this.activeAspect();
+      // Keep print aspect while clamping inside the original.
+      let width = Math.max(32, raw.width);
+      let height = width / aspect;
+      if (height > size.h) {
+        height = size.h;
+        width = height * aspect;
+      }
+      if (width > size.w) {
+        width = size.w;
+        height = width / aspect;
+      }
+      const x = Math.min(Math.max(0, raw.x), Math.max(0, size.w - width));
+      const y = Math.min(Math.max(0, raw.y), Math.max(0, size.h - height));
+      const crop: CropData = {
+        ...raw,
+        x: Math.round(x),
+        y: Math.round(y),
+        width: Math.round(width),
+        height: Math.round(height),
+        isManuallyEdited: true,
+        focalPoint: {
+          x: Math.round(x + width / 2),
+          y: Math.round(y + height * 0.4),
+        },
+      };
+      const applied = await applyClientCrop(photo.original_url, crop);
+      if (photo.cropped_url?.startsWith('blob:')) {
+        try {
+          URL.revokeObjectURL(photo.cropped_url);
+        } catch {
+          /* ignore */
+        }
+      }
+      await this.photosService.updatePhoto(photo.id, {
+        crop_data: applied.cropData,
+        cropped_url: applied.blobUrl,
+        status: 'pending',
+      });
+      this.showOriginal.set(false);
+      this.compareMode.set(false);
+    } catch (e) {
+      this.toast.set(e instanceof Error ? e.message : 'Adjust failed');
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  private naturalSizeCache = new Map<string, { w: number; h: number }>();
+
+  private loadNaturalSize(url: string): Promise<{ w: number; h: number }> {
+    const hit = this.naturalSizeCache.get(url);
+    if (hit) return Promise.resolve(hit);
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.decoding = 'async';
+      img.onload = () => {
+        const size = { w: img.naturalWidth, h: img.naturalHeight };
+        this.naturalSizeCache.set(url, size);
+        resolve(size);
+      };
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = url;
+    });
   }
 
   async selectSize(sizeId: string): Promise<void> {

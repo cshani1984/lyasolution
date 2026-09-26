@@ -22,8 +22,13 @@ export class SmartcropAuthService {
   readonly loading = signal(true);
   readonly authError = signal<string | null>(null);
   readonly needsPhone = computed(() => {
+    const u = this.user();
     const p = this.profile();
-    return Boolean(this.user()) && Boolean(p) && !p?.phone;
+    if (!u) return false;
+    // Phone OTP login already verified the number on the auth user.
+    if (u.phone?.trim()) return false;
+    if (p?.phone?.trim()) return false;
+    return Boolean(p);
   });
 
   /** New Google/OTP user without a studio name — show register step. */
@@ -151,9 +156,11 @@ export class SmartcropAuthService {
   }
 
   async ensureProfile(user: User): Promise<SmartcropProfile | null> {
+    const authPhone = user.phone?.trim() || null;
     const existing = await this.loadProfile(user.id);
     if (existing) {
       await this.applyPendingStudioRegistration();
+      await this.syncPhoneFromAuthUser(user);
       return this.profile();
     }
 
@@ -163,16 +170,48 @@ export class SmartcropAuthService {
       email: user.email ?? null,
       full_name: (meta['full_name'] as string) || (meta['name'] as string) || null,
       avatar_url: (meta['avatar_url'] as string) || (meta['picture'] as string) || null,
+      phone: authPhone,
     };
 
     const client = this.supabase.requireClient();
     const { error } = await client.from('profiles').upsert(row, { onConflict: 'id' });
     if (error) {
       console.warn('[SmartcropAuth] ensureProfile', error.message);
-      return null;
+      // Retry without phone if unique constraint (phone already claimed elsewhere)
+      if (authPhone && (error.code === '23505' || /profiles_phone_key/i.test(error.message))) {
+        const { error: retryErr } = await client.from('profiles').upsert(
+          { ...row, phone: null },
+          { onConflict: 'id' },
+        );
+        if (retryErr) console.warn('[SmartcropAuth] ensureProfile retry', retryErr.message);
+      } else {
+        return null;
+      }
     }
     await this.applyPendingStudioRegistration();
+    await this.syncPhoneFromAuthUser(user);
     return this.loadProfile(user.id);
+  }
+
+  /**
+   * Notes: After phone OTP, copy auth.user.phone onto profiles and link WhatsApp photos.
+   * Idempotent — safe if the phone is already saved.
+   */
+  async syncPhoneFromAuthUser(user?: User | null): Promise<void> {
+    const u = user ?? this.user();
+    const phone = u?.phone?.trim();
+    if (!u || !phone) return;
+    const profile = this.profile() ?? (await this.loadProfile(u.id));
+    if (profile?.phone === phone) {
+      await this.linkPhotosByPhone(phone);
+      return;
+    }
+    if (profile?.phone) {
+      // Profile already has a different phone — still try linking auth phone photos.
+      await this.linkPhotosByPhone(phone);
+      return;
+    }
+    await this.updatePhone(phone);
   }
 
   /** Studio name/phone saved before Google OAuth from the register form. */
@@ -225,8 +264,14 @@ export class SmartcropAuthService {
       return { error: new Error('Supabase is not configured') };
     }
     const client = this.supabase.requireClient();
-    const { error } = await client.auth.verifyOtp({ phone, token, type: 'sms' });
-    return { error: error ? new Error(error.message) : null };
+    const { data, error } = await client.auth.verifyOtp({ phone, token, type: 'sms' });
+    if (error) return { error: new Error(error.message) };
+    if (data.session) {
+      this.session.set(data.session);
+      this.user.set(data.session.user);
+      await this.ensureProfile(data.session.user);
+    }
+    return { error: null };
   }
 
   async updatePhone(phone: string): Promise<{ error: Error | null }> {
@@ -234,13 +279,49 @@ export class SmartcropAuthService {
     if (!user) {
       return { error: new Error('Not signed in') };
     }
-    await this.ensureProfile(user);
+    const normalized = phone.trim();
+    if (!normalized) return { error: new Error('Invalid phone') };
+
+    // Avoid recursive ensureProfile → updatePhone loops: load only.
+    let profile = this.profile();
+    if (!profile) profile = await this.loadProfile(user.id);
+
+    if (profile?.phone === normalized) {
+      await this.linkPhotosByPhone(normalized);
+      return { error: null };
+    }
+
+    if (!profile) {
+      const client = this.supabase.requireClient();
+      const meta = user.user_metadata ?? {};
+      await client.from('profiles').upsert(
+        {
+          id: user.id,
+          email: user.email ?? null,
+          full_name: (meta['full_name'] as string) || (meta['name'] as string) || null,
+          phone: normalized,
+        },
+        { onConflict: 'id' },
+      );
+      await this.linkPhotosByPhone(normalized);
+      await this.loadProfile(user.id);
+      return { error: null };
+    }
+
     const client = this.supabase.requireClient();
-    const { error } = await client.from('profiles').update({ phone }).eq('id', user.id);
+    const { error } = await client.from('profiles').update({ phone: normalized }).eq('id', user.id);
     if (error) {
+      // Already linked on this account (race) or unique conflict — reload and treat as OK if ours.
+      if (error.code === '23505' || /profiles_phone_key/i.test(error.message)) {
+        await this.loadProfile(user.id);
+        if (this.profile()?.phone === normalized) {
+          await this.linkPhotosByPhone(normalized);
+          return { error: null };
+        }
+      }
       return { error: new Error(error.message) };
     }
-    await this.linkPhotosByPhone(phone);
+    await this.linkPhotosByPhone(normalized);
     await this.loadProfile(user.id);
     return { error: null };
   }
@@ -254,15 +335,25 @@ export class SmartcropAuthService {
       return { error: new Error('Not signed in') };
     }
     await this.ensureProfile(user);
+    const phone = (input.phone?.trim() || user.phone?.trim() || '') || undefined;
     const patch: { full_name: string; phone?: string } = {
       full_name: input.studioName.trim(),
     };
-    const phone = input.phone?.trim();
-    if (phone) patch.phone = phone;
+    // Only set phone if profile does not already have it (avoids duplicate key).
+    if (phone && this.profile()?.phone !== phone) {
+      patch.phone = phone;
+    }
 
     const client = this.supabase.requireClient();
     const { error } = await client.from('profiles').update(patch).eq('id', user.id);
     if (error) {
+      if (error.code === '23505' || /profiles_phone_key/i.test(error.message)) {
+        // Name update without phone retry
+        await client.from('profiles').update({ full_name: patch.full_name }).eq('id', user.id);
+        await this.loadProfile(user.id);
+        if (phone) await this.linkPhotosByPhone(phone);
+        return { error: null };
+      }
       return { error: new Error(error.message) };
     }
     if (phone) await this.linkPhotosByPhone(phone);
