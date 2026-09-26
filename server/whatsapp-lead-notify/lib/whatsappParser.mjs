@@ -80,6 +80,38 @@ export function phoneLookupCandidates(raw) {
 }
 
 /**
+ * Notes: Extract Israeli / E.164 phones from free text (forwarded WhatsApp captions).
+ * Supports: 05X-XXXXXXX, 05X XXX XXXX, +9725XXXXXXXX, 9725…
+ * @param {string} text
+ * @returns {string[]} unique E.164 phones
+ */
+export function extractPhonesFromText(text) {
+  const raw = String(text ?? '');
+  if (!raw.trim()) return [];
+  const re =
+    /(?:\+?972[\s\-.]?|0)(5\d)[\s\-.]?(\d{3})[\s\-.]?(\d{4})\b|\+\d{10,15}\b/g;
+  const found = new Set();
+  let m;
+  while ((m = re.exec(raw)) !== null) {
+    const chunk = m[0];
+    const n = normalizePhoneE164(chunk);
+    if (phoneDigits(n).length >= 9) found.add(n);
+  }
+  return [...found];
+}
+
+/**
+ * Notes: Prefer first Israeli mobile in caption for shop-forward attribution.
+ * @param {string | null | undefined} caption
+ * @returns {string}
+ */
+export function extractPrimaryCustomerPhone(caption) {
+  const phones = extractPhonesFromText(caption ?? '');
+  const il = phones.find((p) => phoneDigits(p).startsWith('9725'));
+  return il || phones[0] || '';
+}
+
+/**
  * Parse caption for print size name. Defaults to 10x15.
  * @param {string | null | undefined} caption
  * @returns {string}
@@ -146,9 +178,9 @@ export function parseWhatsAppOrder(caption) {
   }
 
   const phoneMatch = text.match(
-    /(?:\+972[\s-]?)?(?:0?5\d[\s-]?\d{3}[\s-]?\d{4}|\+?\d{10,15})/,
+    /(?:\+?972[\s\-.]?|0)(5\d)[\s\-.]?(\d{3})[\s\-.]?(\d{4})\b|\+\d{10,15}\b/,
   );
-  const customerPhone = phoneMatch ? normalizePhoneE164(phoneMatch[0]) : '';
+  const customerPhone = extractPrimaryCustomerPhone(text) || (phoneMatch ? normalizePhoneE164(phoneMatch[0]) : '');
 
   let customerName = null;
   const nameLabeled = text.match(

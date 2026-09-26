@@ -1,0 +1,51 @@
+<div class="sc-cust-search" dir="rtl">
+  <label class="sc-cust-search__field">
+    <span class="material-symbols-outlined" aria-hidden="true">search</span>
+    <input
+      type="search"
+      autocomplete="off"
+      [placeholder]="i18n.t('smartcrop.studio.searchPlaceholder')"
+      [value]="query()"
+      (input)="onQueryInput(($any($event.target)).value)"
+      (focus)="onFocus()"
+      [attr.aria-expanded]="open()"
+      aria-haspopup="listbox"
+    />
+  </label>
+
+  @if (open()) {
+    <ul class="sc-cust-search__menu" role="listbox">
+      <li role="option">
+        <button type="button" class="sc-cust-search__item sc-cust-search__item--all" (click)="pickAll()">
+          <strong>{{ i18n.t('smartcrop.studio.allCustomers') }}</strong>
+          <span class="sc-cust-search__badge">{{ totalPhotos }}</span>
+        </button>
+      </li>
+      @for (c of matches(); track c.phone) {
+        <li role="option">
+          <button
+            type="button"
+            class="sc-cust-search__item"
+            [class.is-active]="selectedPhone === c.phone"
+            (click)="pick(c)"
+          >
+            <span class="sc-cust-search__meta">
+              <strong>{{ c.full_name || c.phone }}</strong>
+              @if (c.full_name) {
+                <em>{{ c.phone }}</em>
+              }
+            </span>
+            <span class="sc-cust-search__badges">
+              <span class="sc-cust-search__badge" [attr.title]="i18n.t('smartcrop.studio.caught')">{{ c.photo_count }}</span>
+              @if (c.pending_count) {
+                <span class="sc-cust-search__badge is-warn" [attr.title]="i18n.t('smartcrop.studio.pending')">{{ c.pending_count }}</span>
+              }
+            </span>
+          </button>
+        </li>
+      } @empty {
+        <li class="sc-cust-search__empty">{{ i18n.t('smartcrop.studio.searchEmpty') }}</li>
+      }
+    </ul>
+  }
+</div>

@@ -1,0 +1,121 @@
+.sc-cust-search {
+  position: relative;
+  min-width: min(100%, 18rem);
+  flex: 1 1 14rem;
+}
+
+.sc-cust-search__field {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.7rem;
+  border-radius: 12px;
+  border: 1px solid rgba(30, 36, 48, 0.12);
+  background: #fff;
+}
+
+.sc-cust-search__field .material-symbols-outlined {
+  font-size: 1.15rem;
+  color: #6b7280;
+}
+
+.sc-cust-search__field input {
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 0.9rem;
+  min-width: 0;
+}
+
+.sc-cust-search__menu {
+  position: absolute;
+  z-index: 20;
+  inset-inline: 0;
+  top: calc(100% + 0.35rem);
+  margin: 0;
+  padding: 0.35rem;
+  list-style: none;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid rgba(30, 36, 48, 0.12);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+  max-height: 16rem;
+  overflow: auto;
+}
+
+.sc-cust-search__item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.55rem 0.65rem;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  text-align: start;
+  font: inherit;
+  cursor: pointer;
+}
+
+.sc-cust-search__item:hover,
+.sc-cust-search__item.is-active {
+  background: #f3f0ff;
+}
+
+.sc-cust-search__item--all {
+  border-bottom: 1px solid rgba(30, 36, 48, 0.08);
+  margin-block-end: 0.2rem;
+  border-radius: 10px 10px 0 0;
+}
+
+.sc-cust-search__meta {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.sc-cust-search__meta strong {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.sc-cust-search__meta em {
+  font-style: normal;
+  font-size: 0.75rem;
+  color: #6b7280;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+.sc-cust-search__badges {
+  display: inline-flex;
+  gap: 0.3rem;
+  flex: 0 0 auto;
+}
+
+.sc-cust-search__badge {
+  display: inline-flex;
+  min-width: 1.4rem;
+  justify-content: center;
+  padding: 0.15rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.sc-cust-search__badge.is-warn {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.sc-cust-search__empty {
+  padding: 0.65rem;
+  font-size: 0.82rem;
+  color: #6b7280;
+}

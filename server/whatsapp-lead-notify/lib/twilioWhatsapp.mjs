@@ -48,6 +48,7 @@ export function parseTwilioWhatsAppBody(body) {
   const NumMedia = Number(body.NumMedia ?? 0);
   const MediaUrl0 = String(body.MediaUrl0 ?? '');
   const MediaContentType0 = String(body.MediaContentType0 ?? '');
+  const ProfileName = String(body.ProfileName ?? '').trim();
   // Prefer To as shop (your Twilio WA number e.g. whatsapp:+972509250384).
   const shopPhone = firstE164(body.To, body.OriginalTo, body.ChannelToAddress);
   const senderPhone = firstE164(body.From, body.WaId, body.Author);
@@ -59,6 +60,7 @@ export function parseTwilioWhatsAppBody(body) {
     NumMedia,
     MediaUrl0,
     MediaContentType0,
+    ProfileName,
     senderPhone,
     shopPhone,
     caption_text: Body,

@@ -152,5 +152,18 @@ export interface ShopCustomer {
   full_name: string | null;
   photo_count: number;
   pending_count: number;
+  ready_count?: number;
+  crop_loss_alerts?: number;
   last_order_at?: string;
+}
+
+/** API shape from GET /api/customers/search */
+export interface CustomerSearchHit {
+  id: string;
+  name: string | null;
+  phone: string;
+  totalPhotos: number;
+  pendingPhotos: number;
+  readyPhotos?: number;
+  cropLossAlerts?: number;
 }

@@ -1,0 +1,39 @@
+<section class="sc-cust-head" dir="rtl" [attr.aria-label]="i18n.t('smartcrop.studio.customerFilter')">
+  <div class="sc-cust-head__who">
+    <div class="sc-cust-head__avatar" aria-hidden="true">
+      {{ (customer.full_name || customer.phone || '?').slice(0, 1) }}
+    </div>
+    <div class="sc-cust-head__meta">
+      <strong>{{ customer.full_name || i18n.t('smartcrop.studio.unnamedCustomer') }}</strong>
+      <div class="sc-cust-head__phone">
+        <a [href]="telHref()" dir="ltr">{{ customer.phone }}</a>
+        <button type="button" class="sc-cust-head__copy" (click)="copyPhone()" [attr.title]="i18n.t('smartcrop.studio.copyPhone')">
+          <span class="material-symbols-outlined" aria-hidden="true">content_copy</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="sc-cust-head__stats">
+    <span class="sc-cust-head__pill">
+      {{ customer.photo_count }} {{ i18n.t('smartcrop.studio.caught') }}
+    </span>
+    <span class="sc-cust-head__pill is-ok">
+      {{ customer.ready_count ?? 0 }} {{ i18n.t('smartcrop.studio.readyPrint') }}
+    </span>
+    @if ((customer.crop_loss_alerts ?? 0) > 0) {
+      <span class="sc-cust-head__pill is-warn">
+        {{ customer.crop_loss_alerts }} {{ i18n.t('smartcrop.studio.cropLossAlerts') }}
+      </span>
+    }
+    @if (customer.pending_count) {
+      <span class="sc-cust-head__pill is-pending">
+        {{ customer.pending_count }} {{ i18n.t('smartcrop.studio.pending') }}
+      </span>
+    }
+  </div>
+
+  <button type="button" class="sc-cust-head__clear" (click)="cleared.emit()">
+    {{ i18n.t('smartcrop.studio.showAllCustomers') }}
+  </button>
+</section>

@@ -1473,6 +1473,19 @@
   padding-bottom: 0.25rem;
 }
 
+.sc-studio__thumbs-empty {
+  margin: 0.5rem 0 0.25rem;
+  padding: 1rem 1.1rem;
+  width: 100%;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px dashed rgba(30, 36, 48, 0.15);
+  color: #6b7280;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: center;
+}
+
 .sc-studio__thumb {
   position: relative;
   flex: 0 0 110px;

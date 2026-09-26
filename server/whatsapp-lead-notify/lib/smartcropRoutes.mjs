@@ -363,12 +363,14 @@ async function isRegisteredShopPhone(supabase, phone) {
  * Notes: Upsert CRM row for end-customer under the shop account.
  */
 async function upsertShopCustomer(supabase, { shopUserId, phone, fullName }) {
-  if (!shopUserId || !phone) return;
+  if (!shopUserId || !phone) return null;
+  const e164 = normalizePhoneE164(String(phone)) || String(phone).trim();
+  if (!e164 || e164 === 'admin') return null;
   const { data: existing } = await supabase
     .from('shop_customers')
     .select('id, photo_count, full_name')
     .eq('shop_user_id', shopUserId)
-    .eq('phone', phone)
+    .eq('phone', e164)
     .maybeSingle();
 
   if (existing) {
@@ -380,15 +382,20 @@ async function upsertShopCustomer(supabase, { shopUserId, phone, fullName }) {
         full_name: fullName || existing.full_name,
       })
       .eq('id', existing.id);
-    return;
+    return existing.id;
   }
 
-  await supabase.from('shop_customers').insert({
-    shop_user_id: shopUserId,
-    phone,
-    full_name: fullName || null,
-    photo_count: 1,
-  });
+  const { data: created } = await supabase
+    .from('shop_customers')
+    .insert({
+      shop_user_id: shopUserId,
+      phone: e164,
+      full_name: fullName || null,
+      photo_count: 1,
+    })
+    .select('id')
+    .single();
+  return created?.id ?? null;
 }
 
 /**
@@ -401,6 +408,7 @@ async function upsertShopCustomer(supabase, { shopUserId, phone, fullName }) {
  *   caption_text?: string,
  *   sizeName?: string,
  *   customer_name?: string,
+ *   profile_name?: string,
  *   user_id?: string | null,
  * }} input
  */
@@ -408,6 +416,15 @@ async function ingestSmartcropPhoto(input) {
   const order = parseWhatsAppOrder(input.caption_text);
   if (input.sizeName) order.sizeName = input.sizeName;
   if (input.customer_name) order.customerName = String(input.customer_name).trim() || order.customerName;
+  const profileName = String(input.profile_name ?? '').trim();
+  if (
+    !order.customerName &&
+    profileName &&
+    !/^whatsapp:/i.test(profileName) &&
+    !/^\+?\d[\d\s\-]+$/.test(profileName)
+  ) {
+    order.customerName = profileName;
+  }
 
   const fromPhone = normalizePhoneE164(String(input.senderPhone ?? ''));
   const shopPhone = normalizePhoneE164(String(input.shopPhone ?? ''));
@@ -444,6 +461,9 @@ async function ingestSmartcropPhoto(input) {
   if (!customerPhone) {
     customerPhone = isShopForward ? 'admin' : fromPhone || 'admin';
     customerName = customerName || (isShopForward ? 'Admin' : null);
+  }
+  if (customerPhone && customerPhone !== 'admin') {
+    customerPhone = normalizePhoneE164(customerPhone) || customerPhone;
   }
   order.customerName = customerName;
   if (!input.media_url && !input.media_base64) {
@@ -687,6 +707,73 @@ export function registerSmartcropRoutes(app, ctx) {
   const { checkApiKey, rateLimiter, log, logErr } = ctx;
 
   /**
+   * Notes: Fast customer search for the studio portal.
+   * GET /api/customers/search?q=...&user_id=<shop uuid>
+   * Returns up to 10 matches with total/pending photo counts.
+   */
+  app.get('/api/customers/search', checkApiKey, async (req, res) => {
+    try {
+      if (!isSupabaseAdminConfigured()) {
+        res.status(503).json({ error: 'Supabase admin not configured' });
+        return;
+      }
+      const userId = String(req.query.user_id || '').trim();
+      const q = String(req.query.q || '').trim().toLowerCase();
+      if (!userId) {
+        res.status(400).json({ error: 'user_id required' });
+        return;
+      }
+      const supabase = getSupabaseAdmin();
+      const { data: photos, error } = await supabase
+        .from('photos')
+        .select('id, sender_phone, customer_name, status, crop_data, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(2000);
+      if (error) {
+        res.status(500).json({ error: error.message });
+        return;
+      }
+
+      /** @type {Map<string, { id: string, name: string | null, phone: string, totalPhotos: number, pendingPhotos: number, readyPhotos: number, cropLossAlerts: number }>} */
+      const map = new Map();
+      for (const p of photos ?? []) {
+        const phone = String(p.sender_phone || '').trim() || 'unknown';
+        const row = map.get(phone) ?? {
+          id: phone,
+          name: p.customer_name || null,
+          phone,
+          totalPhotos: 0,
+          pendingPhotos: 0,
+          readyPhotos: 0,
+          cropLossAlerts: 0,
+        };
+        row.totalPhotos += 1;
+        if (p.status === 'pending') row.pendingPhotos += 1;
+        if (p.status === 'approved' || p.status === 'printed') row.readyPhotos += 1;
+        if (p.customer_name && !row.name) row.name = p.customer_name;
+        const loss = Number(p.crop_data?.metrics?.cropLossPercentage) || 0;
+        if (p.crop_data?.metrics?.hasTruncationRisk || loss > 25) row.cropLossAlerts += 1;
+        map.set(phone, row);
+      }
+
+      let list = [...map.values()];
+      if (q) {
+        list = list.filter(
+          (c) =>
+            c.phone.toLowerCase().includes(q) ||
+            phoneDigits(c.phone).includes(phoneDigits(q)) ||
+            (c.name || '').toLowerCase().includes(q),
+        );
+      }
+      list.sort((a, b) => b.totalPhotos - a.totalPhotos || b.pendingPhotos - a.pendingPhotos);
+      res.json(list.slice(0, 10));
+    } catch (err) {
+      res.status(500).json({ error: String(err?.message || err) });
+    }
+  });
+
+  /**
    * Notes: Debug studio phone match (API key). Open:
    *   GET /api/smartcrop/diagnose-phone?phone=%2B972509250384
    * with header x-api-key: <API_KEY>
@@ -787,6 +874,7 @@ export function registerSmartcropRoutes(app, ctx) {
                 media_url: media.media_url,
                 media_base64: media.media_base64,
                 caption_text: parsed.caption_text,
+                profile_name: parsed.ProfileName,
               });
               reply = buildCustomerBotReply({
                 customerName: result.customerName,

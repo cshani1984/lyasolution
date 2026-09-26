@@ -1,0 +1,129 @@
+.sc-cust-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin: 0 1rem 0.75rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #f8f7ff 0%, #fff 100%);
+  border: 1px solid rgba(98, 54, 255, 0.14);
+}
+
+.sc-cust-head__who {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+  flex: 1 1 12rem;
+}
+
+.sc-cust-head__avatar {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  color: #4c1d95;
+  background: #ede9fe;
+  flex: 0 0 auto;
+}
+
+.sc-cust-head__meta {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.sc-cust-head__meta strong {
+  font-size: 0.98rem;
+}
+
+.sc-cust-head__phone {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.sc-cust-head__phone a {
+  color: #4b5563;
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.sc-cust-head__phone a:hover {
+  color: #6236ff;
+  text-decoration: underline;
+}
+
+.sc-cust-head__copy {
+  border: 0;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0.1rem;
+  display: inline-flex;
+}
+
+.sc-cust-head__copy .material-symbols-outlined {
+  font-size: 1rem;
+}
+
+.sc-cust-head__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.sc-cust-head__pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 750;
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+.sc-cust-head__pill.is-ok {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.sc-cust-head__pill.is-warn {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.sc-cust-head__pill.is-pending {
+  background: #fffbeb;
+  color: #b45309;
+}
+
+.sc-cust-head__clear {
+  margin-inline-start: auto;
+  border: 1px solid rgba(30, 36, 48, 0.12);
+  background: #fff;
+  border-radius: 999px;
+  padding: 0.45rem 0.85rem;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  color: #374151;
+}
+
+.sc-cust-head__clear:hover {
+  border-color: rgba(98, 54, 255, 0.35);
+  color: #4c1d95;
+}
+
+@media (max-width: 640px) {
+  .sc-cust-head__clear {
+    width: 100%;
+    margin-inline-start: 0;
+  }
+}

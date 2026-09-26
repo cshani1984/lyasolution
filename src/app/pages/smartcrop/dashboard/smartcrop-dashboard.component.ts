@@ -13,6 +13,8 @@ import { SmartcropFileUploaderComponent } from '../components/file-uploader/file
 import { SmartcropPhotoComparisonCardComponent } from '../components/photo-comparison-card/photo-comparison-card.component';
 import { SmartcropStudioTutorialComponent } from '../components/studio-tutorial/studio-tutorial.component';
 import { SmartcropQuotaExceededModalComponent } from '../components/quota-exceeded-modal/quota-exceeded-modal.component';
+import { SmartcropCustomerSearchBarComponent } from '../components/customer-search-bar/customer-search-bar.component';
+import { SmartcropCustomerFilterHeaderComponent } from '../components/customer-filter-header/customer-filter-header.component';
 import { FooterComponent } from '../../../layout/footer/footer.component';
 import { CROP_LOSS_WARN_PERCENT, HEAD_TOP_PADDING_RATIO, confidenceTone } from '../../../core/smartcrop/crop-engine.math';
 import { heatmapGradientStyle, LOW_FOCUS_THRESHOLD } from '../../../core/smartcrop/focus-heatmap';
@@ -45,6 +47,8 @@ const ZOOM_STEP = 1.08;
     SmartcropPhotoComparisonCardComponent,
     SmartcropStudioTutorialComponent,
     SmartcropQuotaExceededModalComponent,
+    SmartcropCustomerSearchBarComponent,
+    SmartcropCustomerFilterHeaderComponent,
     FooterComponent,
   ],
   templateUrl: './smartcrop-dashboard.component.html',
@@ -121,10 +125,17 @@ export class SmartcropDashboardComponent implements OnInit, OnDestroy {
         full_name: p.customer_name ?? null,
         photo_count: 0,
         pending_count: 0,
+        ready_count: 0,
+        crop_loss_alerts: 0,
         last_order_at: p.created_at,
       };
       row.photo_count += 1;
       if (p.status === 'pending') row.pending_count += 1;
+      if (p.status === 'approved' || p.status === 'printed') row.ready_count = (row.ready_count ?? 0) + 1;
+      const loss = Number(p.crop_data?.metrics?.cropLossPercentage) || 0;
+      if (p.crop_data?.metrics?.hasTruncationRisk || loss > CROP_LOSS_WARN_PERCENT) {
+        row.crop_loss_alerts = (row.crop_loss_alerts ?? 0) + 1;
+      }
       if (p.customer_name && !row.full_name) row.full_name = p.customer_name;
       if (!row.last_order_at || p.created_at > row.last_order_at) row.last_order_at = p.created_at;
       map.set(phone, row);
@@ -132,15 +143,25 @@ export class SmartcropDashboardComponent implements OnInit, OnDestroy {
     const q = this.customerQuery().trim().toLowerCase();
     let list = [...map.values()];
     if (q) {
-      list = list.filter(
-        (c) =>
+      const qDigits = q.replace(/\D/g, '');
+      list = list.filter((c) => {
+        const phoneDigits = c.phone.replace(/\D/g, '');
+        return (
           c.phone.toLowerCase().includes(q) ||
-          (c.full_name || '').toLowerCase().includes(q),
-      );
+          (c.full_name || '').toLowerCase().includes(q) ||
+          (qDigits.length >= 3 && phoneDigits.includes(qDigits))
+        );
+      });
     }
     return list.sort((a, b) =>
       String(b.last_order_at ?? '').localeCompare(String(a.last_order_at ?? '')),
     );
+  });
+
+  readonly selectedCustomer = computed(() => {
+    const phone = this.activeCustomerPhone();
+    if (!phone) return null;
+    return this.customers().find((c) => c.phone === phone) ?? null;
   });
 
   readonly filteredPhotos = computed(() => {

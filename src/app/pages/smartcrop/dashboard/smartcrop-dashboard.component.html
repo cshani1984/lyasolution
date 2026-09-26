@@ -348,23 +348,13 @@
             <em>{{ whatsappOrderRef() }}</em>
           }
         </h3>
-        <label class="sc-studio__customer-pick">
-          <span class="visually-hidden">{{ i18n.t('smartcrop.studio.customers') }}</span>
-          <select
-            [ngModel]="activeCustomerPhone() ?? ''"
-            (ngModelChange)="selectCustomer($event === '' ? null : $event)"
-          >
-            <option value="">{{ i18n.t('smartcrop.studio.allCustomers') }} ({{ photos().length }})</option>
-            @for (c of customers(); track c.phone) {
-              <option [value]="c.phone">
-                {{ c.full_name || c.phone }} · {{ c.photo_count }}
-                @if (c.pending_count) {
-                  ({{ c.pending_count }})
-                }
-              </option>
-            }
-          </select>
-        </label>
+        <app-smartcrop-customer-search-bar
+          [customers]="customers()"
+          [selectedPhone]="activeCustomerPhone()"
+          [totalPhotos]="photos().length"
+          (selected)="selectCustomer($event)"
+          (queryChange)="customerQuery.set($event)"
+        />
       </div>
       <div class="sc-studio__stats">
         <span>{{ filteredPhotos().length }} {{ i18n.t('smartcrop.studio.caught') }}</span>
@@ -372,6 +362,11 @@
         <span class="is-ok">{{ approvedCount() }} {{ i18n.t('smartcrop.studio.approved') }}</span>
       </div>
     </div>
+
+    @if (selectedCustomer(); as cust) {
+      <app-smartcrop-customer-filter-header [customer]="cust" (cleared)="selectCustomer(null)" />
+    }
+
     <div class="sc-studio__thumbs">
       @for (photo of filteredPhotos(); track photo.id) {
         <div class="sc-studio__thumb-wrap" [class.is-active]="isActiveThumb(photo)" [class.is-checked]="isSelected(photo.id)">
@@ -385,6 +380,14 @@
             <i class="sc-studio__status" [class]="statusClass(photo.status)" [attr.title]="statusLabel(photo.status)"></i>
           </button>
         </div>
+      } @empty {
+        <p class="sc-studio__thumbs-empty">
+          {{
+            activeCustomerPhone()
+              ? i18n.t('smartcrop.studio.noPhotosForCustomer')
+              : i18n.t('smartcrop.dash.empty')
+          }}
+        </p>
       }
     </div>
   </section>

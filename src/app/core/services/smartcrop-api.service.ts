@@ -295,4 +295,47 @@ export class SmartcropApiService {
       quota: data['quota'] as { tier: string; used: number; max: number } | undefined,
     };
   }
+
+  /**
+   * Notes: Server customer search (shop-scoped). Prefer local dashboard list for UX;
+   * this is available when aggregating across large shops.
+   */
+  async searchCustomers(
+    userId: string,
+    q: string,
+  ): Promise<{
+    ok: boolean;
+    customers?: Array<{
+      id: string;
+      name: string | null;
+      phone: string;
+      totalPhotos: number;
+      pendingPhotos: number;
+      readyPhotos?: number;
+      cropLossAlerts?: number;
+    }>;
+    error?: string;
+  }> {
+    const base = this.baseUrl();
+    if (!base) return { ok: false, error: 'SmartCrop API URL not configured' };
+    const params = new URLSearchParams({ user_id: userId, q: q || '' });
+    const res = await fetch(`${base}/api/customers/search?${params}`, {
+      method: 'GET',
+      headers: this.headers(),
+    });
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      return { ok: false, error: data.error || res.statusText };
+    }
+    const customers = (await res.json()) as Array<{
+      id: string;
+      name: string | null;
+      phone: string;
+      totalPhotos: number;
+      pendingPhotos: number;
+      readyPhotos?: number;
+      cropLossAlerts?: number;
+    }>;
+    return { ok: true, customers };
+  }
 }
