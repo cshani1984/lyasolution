@@ -317,10 +317,29 @@
 
       @if (activePhoto(); as ap) {
         @if (ap.hotfolder_path) {
-          <p class="sc-studio__hotfolder">
-            <strong>{{ i18n.t('smartcrop.studio.hotfolder') }}:</strong>
-            <code>{{ ap.hotfolder_path }}</code>
-          </p>
+          <div class="sc-studio__hotfolder">
+            <button
+              type="button"
+              class="sc-studio__hotfolder-toggle"
+              (click)="showHotfolder.update((v) => !v)"
+              [attr.aria-expanded]="showHotfolder()"
+            >
+              <span class="material-symbols-outlined" aria-hidden="true">{{
+                showHotfolder() ? 'folder_off' : 'folder'
+              }}</span>
+              {{
+                showHotfolder()
+                  ? i18n.t('smartcrop.studio.hideHotfolder')
+                  : i18n.t('smartcrop.studio.showHotfolder')
+              }}
+            </button>
+            @if (showHotfolder()) {
+              <p class="sc-studio__hotfolder-path">
+                <strong>{{ i18n.t('smartcrop.studio.hotfolder') }}:</strong>
+                <code>{{ ap.hotfolder_path }}</code>
+              </p>
+            }
+          </div>
         }
       }
 
@@ -367,15 +386,38 @@
 
     <div class="sc-studio__thumbs">
       @for (photo of filteredPhotos(); track photo.id) {
-        <div class="sc-studio__thumb-wrap" [class.is-active]="isActiveThumb(photo)" [class.is-checked]="isSelected(photo.id)">
-          <label class="sc-studio__check">
+        <div
+          class="sc-studio__thumb-card"
+          [class.is-active]="isActiveThumb(photo)"
+          [class.is-checked]="isSelected(photo.id)"
+          [class.is-warn]="thumbNeedsReview(photo)"
+          [class.is-ok]="!thumbNeedsReview(photo)"
+        >
+          <label class="sc-studio__check" [attr.title]="i18n.t('smartcrop.batch.selected')">
             <input type="checkbox" [checked]="isSelected(photo.id)" (click)="toggleSelect(photo.id, $event)" />
           </label>
           <button type="button" class="sc-studio__thumb" (click)="selectPhoto(photo)">
-            <img [src]="photo.cropped_url || photo.original_url" [alt]="photo.target_size_name" />
-            <span class="sc-studio__thumb-size">{{ photo.target_size_name }}</span>
-            <span class="sc-studio__thumb-status" [class]="statusClass(photo.status)">{{ statusLabel(photo.status) }}</span>
-            <i class="sc-studio__status" [class]="statusClass(photo.status)" [attr.title]="statusLabel(photo.status)"></i>
+            <span class="sc-studio__thumb-media">
+              <img [src]="photo.cropped_url || photo.original_url" [alt]="thumbSizeLabel(photo)" />
+              @if (isActiveThumb(photo)) {
+                <span class="sc-studio__thumb-selected">{{ i18n.t('smartcrop.studio.selectedNow') }}</span>
+              }
+              <i
+                class="sc-studio__thumb-badge"
+                [class.is-ok]="!thumbNeedsReview(photo)"
+                [class.is-warn]="thumbNeedsReview(photo)"
+                [attr.title]="thumbStatusLabel(photo)"
+                aria-hidden="true"
+              >
+                <span class="material-symbols-outlined">{{ thumbNeedsReview(photo) ? 'priority_high' : 'check' }}</span>
+              </i>
+            </span>
+            <span class="sc-studio__thumb-foot">
+              <span class="sc-studio__thumb-size" [class.is-active]="isActiveThumb(photo)">{{ thumbSizeLabel(photo) }}</span>
+              <span class="sc-studio__thumb-status" [class.is-ok]="!thumbNeedsReview(photo)" [class.is-warn]="thumbNeedsReview(photo)">
+                {{ thumbStatusLabel(photo) }}
+              </span>
+            </span>
           </button>
         </div>
       } @empty {

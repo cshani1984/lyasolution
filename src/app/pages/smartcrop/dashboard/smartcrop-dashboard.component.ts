@@ -81,6 +81,8 @@ export class SmartcropDashboardComponent implements OnInit, OnDestroy {
   readonly customerQuery = signal('');
   readonly showGrid = signal(false);
   readonly showHeatmap = signal(false);
+  /** Print-folder path is hidden by default — lab staff can reveal when needed. */
+  readonly showHotfolder = signal(false);
   /** Blind center-crop preview URL for “regular crop” mode (revoked on replace). */
   readonly blindPreviewUrl = signal<string | null>(null);
   readonly blindBusy = signal(false);
@@ -97,7 +99,7 @@ export class SmartcropDashboardComponent implements OnInit, OnDestroy {
       if (!photo || !showBlind || this.compareMode()) {
         return;
       }
-      const key = `${photo.id}|${aspect}|${photo.original_url}`;
+      const key = `geo2|${photo.id}|${aspect}|${photo.original_url}`;
       if (key === this.blindCacheKey && this.blindPreviewUrl()) return;
       void this.loadBlindPreview(photo, aspect, key);
     });
@@ -1009,6 +1011,31 @@ export class SmartcropDashboardComponent implements OnInit, OnDestroy {
   statusLabel(status: string): string {
     if (status === 'approved' || status === 'printed') return this.i18n.t('smartcrop.studio.approved');
     return this.i18n.t('smartcrop.studio.pending');
+  }
+
+  /** Notes: Truncation / crop-loss → “needs review”; clean AI crop → ready (even if pending). */
+  thumbNeedsReview(photo: SmartcropPhoto): boolean {
+    const m = photo.crop_data?.metrics;
+    if (m) {
+      const loss = Number(m.cropLossPercentage) || 0;
+      return !!m.hasTruncationRisk || loss > CROP_LOSS_WARN_PERCENT;
+    }
+    return photo.status === 'pending';
+  }
+
+  thumbStatusLabel(photo: SmartcropPhoto): string {
+    return this.thumbNeedsReview(photo)
+      ? this.i18n.t('smartcrop.studio.thumbNeedsReview')
+      : this.i18n.t('smartcrop.studio.thumbReady');
+  }
+
+  /** Notes: Show WhatsApp-detected print size on the order card. */
+  thumbSizeLabel(photo: SmartcropPhoto): string {
+    const size = (photo.target_size_name || '').trim() || '10x15';
+    if (this.isActiveThumb(photo)) {
+      return this.i18n.t('smartcrop.studio.photoSize').replace('{size}', size);
+    }
+    return this.i18n.t('smartcrop.studio.sizeCm').replace('{size}', size);
   }
 
   isSizeSelected(size: { id: string; name: string }): boolean {

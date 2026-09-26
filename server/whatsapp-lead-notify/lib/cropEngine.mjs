@@ -519,6 +519,7 @@ export function calculateCorrectionDelta(imgW, imgH, focal) {
 
 /**
  * Notes: Blind geometric-center crop (classic lab behavior) for before/after UI.
+ * Pure center aspect-fit — not Photographer’s Eye — so head-cut risk is visible.
  *
  * @param {Buffer} inputBuffer
  * @param {number} aspectRatio
@@ -528,9 +529,7 @@ export async function processBlindCenterCrop(inputBuffer, aspectRatio = 2 / 3) {
   const imgW = meta.width || 1;
   const imgH = meta.height || 1;
   const oriented = orientAspectRatio(aspectRatio, imgW, imgH);
-  const cropBox = computeCropBox(imgW, imgH, oriented, { x: imgW / 2, y: imgH / 2 }, {
-    headPaddingApplied: false,
-  });
+  const cropBox = computeGeometricCropBox(imgW, imgH, oriented);
   const buffer = await sharp(inputBuffer)
     .rotate()
     .extract({

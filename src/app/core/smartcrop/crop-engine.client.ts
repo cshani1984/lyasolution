@@ -20,6 +20,7 @@ import {
   calculateCorrectionDelta,
   calculateCropLossPercentage,
   calculateTruncationRisk,
+  computeGeometricCropBox,
   computePhotographerCropBox,
   computeSmartShiftCropBox,
   buildPhotographerNote,
@@ -79,6 +80,7 @@ export async function smartCropFromUrl(
 
 /**
  * Notes: Classic blind geometric-center crop (lab “stupid crop”) for before/after UI.
+ * Uses pure center aspect-fit — not Photographer’s Eye — so head-cut risk is visible.
  */
 export async function blindCenterCropFromUrl(
   imageUrl: string,
@@ -90,10 +92,7 @@ export async function blindCenterCropFromUrl(
   const bitmap = await createImageBitmap(blob);
   try {
     const oriented = orientAspectRatio(aspectRatio, bitmap.width, bitmap.height);
-    const cropBox = computeCropBox(bitmap.width, bitmap.height, oriented, {
-      x: bitmap.width / 2,
-      y: bitmap.height / 2,
-    }, { headPaddingApplied: false });
+    const cropBox = computeGeometricCropBox(bitmap.width, bitmap.height, oriented);
     return await renderCropBlob(bitmap, cropBox, oriented);
   } finally {
     bitmap.close();
