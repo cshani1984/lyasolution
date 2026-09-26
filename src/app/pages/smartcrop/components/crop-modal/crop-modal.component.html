@@ -46,7 +46,12 @@
         @if (loadFailed()) {
           <p class="sc-modal__error">{{ i18n.t('smartcrop.crop.loadFailed') }}</p>
         } @else {
-          <div class="sc-modal__cropper-wrap">
+          <div
+            class="sc-modal__cropper-wrap"
+            [class.is-grid]="showGrid()"
+            [class.is-heatmap]="showHeatmap()"
+            [ngStyle]="heatmapCssVars()"
+          >
             @for (k of [cropperTrackKey()]; track k) {
               <image-cropper
                 [imageURL]="photo.original_url"
@@ -68,11 +73,48 @@
                 (loadImageFailed)="onLoadFailed()"
               />
             }
+            @if (focusScore() != null) {
+              <div
+                class="sc-modal__focus-badge"
+                [class.is-warn]="isLowFocus()"
+                role="status"
+              >
+                {{ i18n.t('smartcrop.studio.focusQuality') }}:
+                {{ focusScore() }}%
+                {{ isLowFocus() ? i18n.t('smartcrop.studio.focusBlurry') : i18n.t('smartcrop.studio.focusSharp') }}
+              </div>
+            }
           </div>
         }
       </div>
 
+      @if (isLowFocus() && activeMetrics()?.focusWarning) {
+        <p class="sc-modal__focus-warn">{{ activeMetrics()!.focusWarning }}</p>
+      }
+
       <div class="sc-modal__controls">
+        <div class="sc-modal__tools" role="group" [attr.aria-label]="i18n.t('smartcrop.studio.heatmap')">
+          <button
+            type="button"
+            class="sc-modal__tool-chip"
+            [class.is-active]="showHeatmap()"
+            (click)="toggleHeatmap()"
+            [disabled]="aiRunning() || generativeBusy"
+          >
+            <span class="material-symbols-outlined" aria-hidden="true">blur_on</span>
+            {{ i18n.t('smartcrop.studio.heatmap') }}
+          </button>
+          <button
+            type="button"
+            class="sc-modal__tool-chip"
+            [class.is-active]="showGrid()"
+            (click)="toggleGrid()"
+            [disabled]="aiRunning() || generativeBusy"
+          >
+            <span class="material-symbols-outlined" aria-hidden="true">grid_3x3</span>
+            {{ i18n.t('smartcrop.studio.grid') }}
+          </button>
+        </div>
         <label class="sc-modal__zoom">
           {{ i18n.t('smartcrop.crop.zoom') }}
           <input

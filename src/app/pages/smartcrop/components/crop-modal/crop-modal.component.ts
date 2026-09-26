@@ -12,7 +12,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { DecimalPipe, isPlatformBrowser } from '@angular/common';
+import { DecimalPipe, NgStyle, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PLATFORM_ID } from '@angular/core';
 import {
@@ -39,11 +39,12 @@ import {
   orientAspectRatio,
   type PrintSizeCategory,
 } from '../../../../core/smartcrop/print-sizes';
+import { LOW_FOCUS_THRESHOLD } from '../../../../core/smartcrop/focus-heatmap';
 
 @Component({
   selector: 'app-smartcrop-crop-modal',
   standalone: true,
-  imports: [DecimalPipe, FormsModule, ImageCropperComponent],
+  imports: [DecimalPipe, NgStyle, FormsModule, ImageCropperComponent],
   templateUrl: './crop-modal.component.html',
   styleUrl: './crop-modal.component.scss',
 })
@@ -78,7 +79,9 @@ export class SmartcropCropModalComponent implements OnChanges, OnDestroy {
   readonly cropperPos = signal<CropperPosition | undefined>(undefined);
   readonly aiRunning = signal(false);
   readonly originalSizeSig = signal<Dimensions | null>(null);
-  private aiMetrics: CropMetrics | null = null;
+  readonly showGrid = signal(true);
+  readonly showHeatmap = signal(false);
+  readonly aiMetricsSig = signal<CropMetrics | null>(null);
 
   /** When true, restore previous crop box after ready (converted to display coords). */
   private restoreExistingCrop = true;
@@ -142,6 +145,44 @@ export class SmartcropCropModalComponent implements OnChanges, OnDestroy {
   readonly cropperTrackKey = computed(
     () => `${this.cropperKey}-${this.selectedSizeId()}-${this.activeAspect().toFixed(4)}`,
   );
+
+  readonly activeMetrics = computed(
+    () => this.aiMetricsSig() ?? this.photo?.crop_data?.metrics ?? null,
+  );
+
+  readonly focusScore = computed(() => {
+    const m = this.activeMetrics();
+    if (m?.focusScore != null) return Math.round(m.focusScore);
+    return null;
+  });
+
+  readonly isLowFocus = computed(() => {
+    const m = this.activeMetrics();
+    if (m?.isLowFocus != null) return m.isLowFocus;
+    const s = this.focusScore();
+    return s != null && s < LOW_FOCUS_THRESHOLD;
+  });
+
+  /** Focal point inside the crop frame (%) — drives heatmap CSS vars on the cropper. */
+  readonly heatmapCssVars = computed(() => {
+    const crop = this.photo?.crop_data;
+    const focal = crop?.focalPoint;
+    let x = 50;
+    let y = 38;
+    if (focal && crop && crop.width > 0 && crop.height > 0) {
+      x = Math.max(5, Math.min(95, ((focal.x - crop.x) / crop.width) * 100));
+      y = Math.max(5, Math.min(95, ((focal.y - crop.y) / crop.height) * 100));
+    }
+    return { '--hm-x': `${x}%`, '--hm-y': `${y}%` };
+  });
+
+  toggleGrid(): void {
+    this.showGrid.update((v) => !v);
+  }
+
+  toggleHeatmap(): void {
+    this.showHeatmap.update((v) => !v);
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['open']) {
@@ -251,7 +292,7 @@ export class SmartcropCropModalComponent implements OnChanges, OnDestroy {
   private resetCropperState(restoreCrop: boolean): void {
     this.restoreExistingCrop = restoreCrop;
     this.lastCrop = null;
-    this.aiMetrics = null;
+    this.aiMetricsSig.set(null);
     this.originalSizeSig.set(null);
     this.displayedSize = null;
     this.ready.set(false);
@@ -299,7 +340,7 @@ export class SmartcropCropModalComponent implements OnChanges, OnDestroy {
     this.aiRunning.set(true);
     try {
       const result = await smartCropFromUrl(this.photo.original_url, this.activeAspect());
-      this.aiMetrics = result.metrics;
+      this.aiMetricsSig.set(result.metrics);
       this.transform.set({ scale: 1, rotate: this.transform().rotate ?? 0 });
       this.applyOriginalCropBox({
         x1: result.cropData.x,
@@ -386,7 +427,7 @@ export class SmartcropCropModalComponent implements OnChanges, OnDestroy {
     if (!photo) return false;
     if (photo.generative_fill_url) return false;
     if (photo.recommend_generative_fill) return true;
-    const m = this.aiMetrics ?? photo.crop_data?.metrics;
+    const m = this.aiMetricsSig() ?? photo.crop_data?.metrics;
     if (m?.shouldRecommendGenerativeFill) return true;
     return (m?.cropLossPercentage ?? 0) > 25;
   }
@@ -430,7 +471,7 @@ export class SmartcropCropModalComponent implements OnChanges, OnDestroy {
       rotation: t.rotate ?? 0,
       focalPoint: { x: x + width / 2, y: y + height * 0.4 },
       isManuallyEdited: true,
-      metrics: this.aiMetrics ?? {
+      metrics: this.aiMetricsSig() ?? {
         detectedType: this.photo?.crop_data?.metrics?.detectedType ?? 'saliency_landscape',
         confidenceScore: 100,
         cropLossPercentage: this.photo?.crop_data?.metrics?.cropLossPercentage ?? 0,

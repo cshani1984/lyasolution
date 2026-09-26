@@ -132,6 +132,124 @@
   border-radius: inherit;
 }
 
+/* Rule of thirds + heatmap sit on the live crop frame (moves with ngx-ic-cropper). */
+.sc-modal__cropper-wrap.is-grid ::ng-deep .ngx-ic-cropper::before {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background:
+    linear-gradient(
+      to right,
+      transparent 32.8%,
+      rgba(255, 255, 255, 0.45) 33%,
+      rgba(255, 255, 255, 0.45) 33.4%,
+      transparent 33.6%,
+      transparent 66.2%,
+      rgba(255, 255, 255, 0.45) 66.4%,
+      rgba(255, 255, 255, 0.45) 66.8%,
+      transparent 67%
+    ),
+    linear-gradient(
+      to bottom,
+      transparent 32.8%,
+      rgba(255, 255, 255, 0.45) 33%,
+      rgba(255, 255, 255, 0.45) 33.4%,
+      transparent 33.6%,
+      transparent 66.2%,
+      rgba(255, 255, 255, 0.45) 66.4%,
+      rgba(255, 255, 255, 0.45) 66.8%,
+      transparent 67%
+    );
+}
+
+.sc-modal__cropper-wrap.is-heatmap ::ng-deep .ngx-ic-cropper::after {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  mix-blend-mode: screen;
+  opacity: 0.9;
+  background: radial-gradient(
+    ellipse 42% 48% at var(--hm-x, 50%) var(--hm-y, 38%),
+    rgba(239, 68, 68, 0.55) 0%,
+    rgba(249, 115, 22, 0.4) 28%,
+    rgba(99, 102, 241, 0.28) 55%,
+    transparent 78%
+  );
+}
+
+.sc-modal__focus-badge {
+  position: absolute;
+  z-index: 7;
+  inset-block-end: 0.65rem;
+  inset-inline-end: 0.65rem;
+  pointer-events: none;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #fff;
+  background: rgba(5, 150, 105, 0.92);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+
+.sc-modal__focus-badge.is-warn {
+  background: rgba(225, 29, 72, 0.92);
+}
+
+.sc-modal__focus-warn {
+  flex: 0 0 auto;
+  margin: 0.55rem 0 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #9f1239;
+  background: #ffe4e6;
+  border: 1px solid #fecdd3;
+  border-radius: 0.65rem;
+  padding: 0.45rem 0.65rem;
+}
+
+.sc-modal__tools {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  flex: 0 0 auto;
+}
+
+.sc-modal__tool-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.4rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid rgba(55, 71, 79, 0.18);
+  background: #fff;
+  color: #374151;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sc-modal__tool-chip .material-symbols-outlined {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.sc-modal__tool-chip.is-active {
+  border-color: rgba(98, 54, 255, 0.45);
+  background: #f0ebff;
+  color: #4c1d95;
+}
+
+.sc-modal__tool-chip:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
 .sc-modal__stage image-cropper {
   display: flex !important;
   flex: 1 1 auto;
