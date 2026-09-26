@@ -100,9 +100,9 @@ const upload = multer({
  * Multi-tenant: each studio is identified by profiles.phone after login/register.
  * Priority:
  *   1) explicit user_id (browser upload while logged in)
- *   2) non-Twilio phone among To/From (studio line or studio sender)
- *   3) remaining phone (fallback)
- * Never match the Twilio WhatsApp channel number itself (sandbox +14155238886, etc.).
+ *   2) human phones among To/From (skip only Twilio Sandbox +14155238886)
+ * Production: To is often the studio Twilio WA number (= profiles.phone) — must NOT skip it.
+ * Sandbox: To is +14155…, From is the studio phone — match From.
  */
 async function resolveShopUserId(supabase, { userId, shopPhone, fromPhone }) {
   if (userId) return userId;
@@ -116,54 +116,28 @@ async function resolveShopUserId(supabase, { userId, shopPhone, fromPhone }) {
   return null;
 }
 
-/**
- * Notes: Twilio channel numbers from env (sandbox or production WA sender).
- * Digits only for comparison.
- * @returns {Set<string>}
- */
-function twilioChannelDigitSet() {
-  const raw = [
-    process.env.TWILIO_WHATSAPP_NUMBER,
-    process.env.TWILIO_PHONE_NUMBER,
-    // Classic Twilio WhatsApp sandbox — never a SmartCrop studio
-    'whatsapp:+14155238886',
-    '+14155238886',
-  ];
-  const out = new Set();
-  for (const r of raw) {
-    const d = phoneDigits(normalizePhoneE164(String(r ?? '')) || String(r ?? ''));
-    if (d.length >= 8) out.add(d);
-  }
-  return out;
-}
+/** Twilio WhatsApp Sandbox — never a SmartCrop studio profile. */
+const TWILIO_SANDBOX_DIGITS = '14155238886';
 
 /**
- * Notes: Prefer the human/studio phone; skip Twilio sandbox / channel number.
- * Supports both orientations:
- *   From=+972… To=+14155…  (studio sends photo into sandbox) ← desired
- *   From=+14155… To=+972…  (logs / misread From-To) ← still works
+ * Notes: Prefer non-sandbox phones. Never skip TWILIO_WHATSAPP_NUMBER — in production
+ * that env value IS the studio business line and must match profiles.phone.
  * @param {string} shopPhone  Twilio "To"
  * @param {string} fromPhone  Twilio "From"
  * @returns {string[]}
  */
 function studioLookupPhones(shopPhone, fromPhone) {
-  const channel = twilioChannelDigitSet();
-  const isChannel = (p) => {
-    const d = phoneDigits(p);
-    return Boolean(d && channel.has(d));
-  };
-  const phones = [shopPhone, fromPhone].filter((p) => p && phoneDigits(p).length >= 8);
-  const human = phones.filter((p) => !isChannel(p));
-  const twilioOnly = phones.filter((p) => isChannel(p));
-  // Dedupe by digits
+  const isSandbox = (p) => phoneDigits(p) === TWILIO_SANDBOX_DIGITS;
+  const phones = [fromPhone, shopPhone].filter((p) => p && phoneDigits(p).length >= 8);
+  // Prefer From first (sandbox: studio sends → From is +972…)
+  // then To (production: customer → To is studio WA number)
   const seen = new Set();
   const out = [];
-  for (const p of [...human, ...twilioOnly]) {
+  for (const p of phones) {
+    if (isSandbox(p)) continue;
     const d = phoneDigits(p);
     if (seen.has(d)) continue;
     seen.add(d);
-    // Never look up studio by Twilio channel number
-    if (isChannel(p)) continue;
     out.push(p);
   }
   return out;
@@ -291,12 +265,14 @@ async function backfillProfilePhone(supabase, userId, e164) {
  * @returns {Promise<string | null>}
  */
 async function findAuthUserIdByPhone(supabase, candidates) {
-  const wanted = new Set(candidates.map((c) => normalizePhoneE164(c)).filter(Boolean));
-  const wantedDigits = new Set([...wanted].map((c) => c.replace(/\D/g, '')));
+  const wantedDigitsList = candidates
+    .map((c) => phoneDigits(normalizePhoneE164(c) || c))
+    .filter((d) => d.length >= 8);
+
   const digitMatch = (raw) => {
-    const p = normalizePhoneE164(String(raw ?? ''));
-    if (!p) return false;
-    return wanted.has(p) || wantedDigits.has(p.replace(/\D/g, ''));
+    const d = phoneDigits(raw);
+    if (!d) return false;
+    return wantedDigitsList.some((w) => phonesMatch(d, w) || phonesMatch(raw, w));
   };
 
   try {
@@ -667,6 +643,51 @@ async function ingestSmartcropPhoto(input) {
 export function registerSmartcropRoutes(app, ctx) {
   const { checkApiKey, rateLimiter, log, logErr } = ctx;
 
+  /**
+   * Notes: Debug studio phone match (API key). Open:
+   *   GET /api/smartcrop/diagnose-phone?phone=%2B972509250384
+   * with header x-api-key: <API_KEY>
+   */
+  app.get('/api/smartcrop/diagnose-phone', checkApiKey, async (req, res) => {
+    try {
+      if (!isSupabaseAdminConfigured()) {
+        res.status(503).json({ error: 'Supabase admin not configured on server' });
+        return;
+      }
+      const raw = String(req.query.phone || '');
+      const supabase = getSupabaseAdmin();
+      const canonical = normalizePhoneE164(raw);
+      const wantDigits = phoneDigits(canonical || raw);
+      const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select('id, phone, email, full_name')
+        .not('phone', 'is', null)
+        .limit(200);
+      if (error) {
+        res.status(500).json({ error: error.message });
+        return;
+      }
+      const matches = (profiles ?? []).filter((r) => phonesMatch(r.phone, wantDigits));
+      const authId = await findAuthUserIdByPhone(supabase, phoneLookupCandidates(canonical || raw));
+      res.json({
+        input: raw,
+        canonical,
+        wantDigits,
+        profileMatches: matches,
+        profileCountWithPhone: (profiles ?? []).length,
+        samplePhones: (profiles ?? []).slice(0, 20).map((r) => ({
+          id: r.id,
+          phone: r.phone,
+          digits: phoneDigits(r.phone),
+        })),
+        authUserId: authId,
+        supabaseHost: String(process.env.SUPABASE_URL || '').replace(/^https?:\/\//, '').split('/')[0],
+      });
+    } catch (err) {
+      res.status(500).json({ error: String(err?.message || err) });
+    }
+  });
+
   app.post('/api/whatsapp/webhook', rateLimiter, async (req, res) => {
     log('HTTP POST /api/whatsapp/webhook', { ip: req.ip ?? '' });
 
@@ -774,8 +795,9 @@ export function registerSmartcropRoutes(app, ctx) {
         }
         let friendly = 'אירעה שגיאה בעיבוד. נסו שוב.';
         if (err?.status === 404) {
+          const tried = studioLookupPhones(parsed?.shopPhone || '', parsed?.senderPhone || '');
           friendly =
-            'לא מצאנו סטודיו. בסנדבוקס: שלחו תמונה מ-+972… אל מספר Twilio (+14155238886), אחרי login ל-SmartCrop עם אותו +972. בדקו ש-profiles.phone ב-Supabase תואם.';
+            `לא מצאנו סטודיו ל-${tried.join(' / ') || 'מספר לא זוהה'}. בדקו ב-Supabase → profiles שה-phone הוא +972509250384 (או אותו מספר שממנו שלחתם).`;
         } else if (/Storage upload failed|Bucket not found|not found/i.test(detail)) {
           friendly =
             'שגיאת אחסון תמונות (Storage). ודאו שקיים bucket בשם photo-prints ב-Supabase.';
