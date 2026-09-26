@@ -1,5 +1,5 @@
 /**
- * CropFlow subscription tiers (runtime ESM).
+ * SmartCrop subscription tiers (runtime ESM).
  */
 
 /** @typedef {'demo' | 'basic' | 'pro'} SubscriptionTier */

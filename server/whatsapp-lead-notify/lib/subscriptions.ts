@@ -1,5 +1,5 @@
 /**
- * CropFlow subscription tiers (shared contract).
+ * SmartCrop subscription tiers (shared contract).
  */
 export type SubscriptionTier = 'demo' | 'basic' | 'pro';
 

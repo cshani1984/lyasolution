@@ -1,4 +1,4 @@
--- CropFlow: expanded print sizes + optional metadata
+-- SmartCrop: expanded print sizes + optional metadata
 -- Run in Supabase SQL Editor after smartcrop_schema.sql
 
 alter table public.print_sizes

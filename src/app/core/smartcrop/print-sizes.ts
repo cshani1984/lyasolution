@@ -1,5 +1,5 @@
 /**
- * CropFlow print sizes — shared client constant.
+ * SmartCrop print sizes — shared client constant.
  * aspect_ratio is width_cm / height_cm (portrait); use getCalculatedAspectRatio for landscape.
  */
 import type { PrintSize } from '../models/smartcrop.model';

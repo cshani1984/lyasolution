@@ -1,5 +1,5 @@
 /**
- * CropFlow subscription tiers (Angular client).
+ * SmartCrop subscription tiers (Angular client).
  */
 export type SubscriptionTier = 'demo' | 'basic' | 'pro';
 

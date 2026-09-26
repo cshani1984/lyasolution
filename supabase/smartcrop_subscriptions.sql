@@ -1,4 +1,4 @@
--- CropFlow: subscription tier + Generative AI monthly quota
+-- SmartCrop: subscription tier + Generative AI monthly quota
 -- Run in Supabase → SQL Editor after smartcrop_schema.sql
 
 alter table public.profiles

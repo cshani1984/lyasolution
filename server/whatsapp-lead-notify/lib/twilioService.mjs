@@ -93,10 +93,20 @@ export async function downloadTwilioMedia(mediaUrl) {
     throw new Error('Twilio credentials required to download media');
   }
   const auth = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
-  const res = await fetch(mediaUrl, {
+  // Do not auto-follow: Twilio redirects to S3/CDN, and forwarding Basic Auth
+  // to S3 often returns 400. Authenticate only the first hop, then fetch Location bare.
+  let res = await fetch(mediaUrl, {
     headers: { Authorization: `Basic ${auth}` },
-    redirect: 'follow',
+    redirect: 'manual',
   });
+  if (res.status >= 300 && res.status < 400) {
+    const location = res.headers.get('location');
+    if (!location) {
+      throw new Error(`Twilio media download failed: redirect without Location (${res.status})`);
+    }
+    const nextUrl = new URL(location, mediaUrl).toString();
+    res = await fetch(nextUrl, { redirect: 'follow' });
+  }
   if (!res.ok) {
     throw new Error(`Twilio media download failed: ${res.status}`);
   }

@@ -1,5 +1,5 @@
 /**
- * CropFlow print sizes — TypeScript contract (runtime: printSizes.mjs).
+ * SmartCrop print sizes — TypeScript contract (runtime: printSizes.mjs).
  */
 export type PrintSizeCategory = 'standard' | 'passport' | 'square' | 'large';
 

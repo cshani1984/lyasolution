@@ -419,8 +419,12 @@ async function ingestSmartcropPhoto(input) {
         .insert({ user_id: userId, status: 'pending', total_photos: 1 })
         .select('id')
         .single();
-      if (orderErr) throw orderErr;
-      orderId = created.id;
+      if (orderErr) {
+        console.warn('[smartcrop] orders insert skipped', orderErr.message);
+        orderId = null;
+      } else {
+        orderId = created.id;
+      }
     }
   }
 
@@ -429,32 +433,59 @@ async function ingestSmartcropPhoto(input) {
     media_base64: input.media_base64,
   });
 
-  const { buffer: croppedBuffer, cropData } = await processSmartCrop(inputBuffer, {
-    aspectRatio,
-  });
+  let croppedBuffer;
+  let cropData;
+  try {
+    const processed = await processSmartCrop(inputBuffer, { aspectRatio });
+    croppedBuffer = processed.buffer;
+    cropData = processed.cropData;
+  } catch (cropErr) {
+    throw Object.assign(
+      new Error(`Crop failed: ${cropErr?.message || cropErr}`),
+      { status: 500, cause: cropErr },
+    );
+  }
 
   const id = randomUUID();
   const shopSegment = userId || 'inbox';
   const customerSlug = slugifyCustomer(order.customerName, customerPhone);
-  const phoneDigits = customerPhone.replace(/\+/g, '');
+  const phoneDigits = String(customerPhone).replace(/\+/g, '');
   const folderBase = `${shopSegment}/${phoneDigits}/${sizeCode}`;
   const originalPath = `${folderBase}/${id}-original.jpg`;
   const croppedPath = `${folderBase}/${id}-cropped.jpg`;
   const hotfolderPath = buildHotfolderPath(order.customerName, customerPhone, sizeCode);
 
-  const originalJpeg = await (await import('sharp')).default(inputBuffer).rotate().jpeg({ quality: 92 }).toBuffer();
+  let originalJpeg;
+  try {
+    originalJpeg = await (await import('sharp')).default(inputBuffer).rotate().jpeg({ quality: 92 }).toBuffer();
+  } catch (imgErr) {
+    throw Object.assign(
+      new Error(`Image decode failed: ${imgErr?.message || imgErr}`),
+      { status: 500, cause: imgErr },
+    );
+  }
 
   const upOrig = await supabase.storage.from(BUCKET).upload(originalPath, originalJpeg, {
     contentType: 'image/jpeg',
-    upsert: false,
+    upsert: true,
   });
-  if (upOrig.error) throw upOrig.error;
+  if (upOrig.error) {
+    throw Object.assign(
+      new Error(`Storage upload failed (${BUCKET}): ${upOrig.error.message}`),
+      { status: 500 },
+    );
+  }
 
   const upCrop = await supabase.storage.from(BUCKET).upload(croppedPath, croppedBuffer, {
     contentType: 'image/jpeg',
-    upsert: false,
+    upsert: true,
   });
-  if (upCrop.error) throw upCrop.error;
+  if (upCrop.error) {
+    throw Object.assign(
+      new Error(`Storage upload failed (${BUCKET}): ${upCrop.error.message}`),
+      { status: 500 },
+    );
+  }
 
   // Print-ready copy under hotfolder-style storage prefix (syncable to lab PC)
   const printPath = `${shopSegment}/hotfolder/${customerSlug}_${sizeCode}/${id}.jpg`;
@@ -472,31 +503,68 @@ async function ingestSmartcropPhoto(input) {
       ? Math.round((aiConfidence * 0.7 + order.parseConfidence * 0.3) * 10) / 10
       : order.parseConfidence;
 
-  const { data: photo, error: photoErr } = await supabase
-    .from('photos')
-    .insert({
+  const photoRow = {
+    id,
+    order_id: orderId,
+    user_id: userId,
+    sender_phone: customerPhone,
+    customer_name: order.customerName,
+    copies: order.copies,
+    paper_type: order.paperType,
+    caption_text: input.caption_text ?? null,
+    parsed_summary: order.summary,
+    parse_confidence: combinedConfidence,
+    hotfolder_path: hotfolderPath,
+    original_url: origPub.publicUrl,
+    cropped_url: cropPub.publicUrl,
+    size_id: sizeId,
+    target_size_name: sizeName,
+    crop_data: cropData,
+    status: photoStatusFromAutoCrop(cropData?.metrics),
+  };
+
+  let { data: photo, error: photoErr } = await supabase.from('photos').insert(photoRow).select('id').single();
+
+  // Retry without optional columns if schema is older
+  if (photoErr && /column|schema cache/i.test(photoErr.message || '')) {
+    const minimal = {
       id,
       order_id: orderId,
       user_id: userId,
       sender_phone: customerPhone,
-      customer_name: order.customerName,
-      copies: order.copies,
-      paper_type: order.paperType,
-      caption_text: input.caption_text ?? null,
-      parsed_summary: order.summary,
-      parse_confidence: combinedConfidence,
-      hotfolder_path: hotfolderPath,
       original_url: origPub.publicUrl,
       cropped_url: cropPub.publicUrl,
       size_id: sizeId,
       target_size_name: sizeName,
       crop_data: cropData,
       status: photoStatusFromAutoCrop(cropData?.metrics),
-    })
-    .select('id')
-    .single();
+    };
+    const retry = await supabase.from('photos').insert(minimal).select('id').single();
+    photo = retry.data;
+    photoErr = retry.error;
+  }
 
-  if (photoErr) throw photoErr;
+  // FK on size_id / order_id — keep the photo even if catalog drift
+  if (photoErr && /foreign key|violates/i.test(photoErr.message || '')) {
+    const noFk = {
+      id,
+      user_id: userId,
+      sender_phone: customerPhone,
+      original_url: origPub.publicUrl,
+      cropped_url: cropPub.publicUrl,
+      size_id: null,
+      target_size_name: sizeName,
+      crop_data: cropData,
+      status: 'pending',
+    };
+    const retry = await supabase.from('photos').insert(noFk).select('id').single();
+    photo = retry.data;
+    photoErr = retry.error;
+  }
+
+  if (photoErr) {
+    throw Object.assign(new Error(`DB photos insert: ${photoErr.message}`), { status: 500 });
+  }
 
   await upsertShopCustomer(supabase, {
     shopUserId: userId,
@@ -639,7 +707,9 @@ export function registerSmartcropRoutes(app, ctx) {
         }
         res.status(200).type('text/xml').send(out.twiml);
       } catch (err) {
-        logErr('Twilio WhatsApp webhook failed', err?.message ?? err);
+        const detail = String(err?.message || err || 'unknown');
+        logErr('Twilio WhatsApp webhook failed', detail);
+        if (err?.stack) logErr('Twilio WhatsApp stack', err.stack.slice(0, 800));
         if (err?.status === 404) {
           logErr('Studio phone lookup miss', {
             from: parsed?.From,
@@ -649,10 +719,22 @@ export function registerSmartcropRoutes(app, ctx) {
             fromCandidates: phoneLookupCandidates(parsed?.senderPhone || ''),
           });
         }
-        const friendly =
-          err?.status === 404
-            ? 'לא מצאנו סטודיו רשום למספר זה. היכנסו ל-SmartCrop עם אותו מספר WhatsApp שממנו שלחתם, ואז שלחו שוב תמונה.'
-            : 'אירעה שגיאה בעיבוד. נסו שוב.';
+        let friendly = 'אירעה שגיאה בעיבוד. נסו שוב.';
+        if (err?.status === 404) {
+          friendly =
+            'לא מצאנו סטודיו רשום למספר זה. היכנסו ל-SmartCrop עם אותו מספר WhatsApp שממנו שלחתם, ואז שלחו שוב תמונה.';
+        } else if (/Storage upload failed|Bucket not found|not found/i.test(detail)) {
+          friendly =
+            'שגיאת אחסון תמונות (Storage). ודאו שקיים bucket בשם photo-prints ב-Supabase.';
+        } else if (/Twilio media download|credentials/i.test(detail)) {
+          friendly = 'לא הצלחנו להוריד את התמונה מ-Twilio. בדקו TWILIO_ACCOUNT_SID / AUTH_TOKEN.';
+        } else if (/Image decode|unsupported|heic|corrupt/i.test(detail)) {
+          friendly = 'לא הצלחנו לקרוא את קובץ התמונה. נסו JPG או PNG.';
+        } else if (/DB photos insert|orders/i.test(detail)) {
+          friendly = `שגיאת מסד נתונים: ${detail.slice(0, 120)}`;
+        } else if (detail && detail !== 'unknown') {
+          friendly = `שגיאת עיבוד: ${detail.slice(0, 140)}`;
+        }
         const twiml = (await replyToWhatsApp({ From: '', reply: friendly })).twiml;
         res.status(200).type('text/xml').send(twiml);
       }

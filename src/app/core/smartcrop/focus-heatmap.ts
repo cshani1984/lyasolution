@@ -1,5 +1,5 @@
 /**
- * Focus / sharpness (Laplacian variance) + saliency heatmap helpers for CropFlow.
+ * Focus / sharpness (Laplacian variance) + saliency heatmap helpers for SmartCrop.
  */
 
 export const LOW_FOCUS_THRESHOLD = 40;

@@ -1045,8 +1045,8 @@ async function analyzeBufferFocus(inputBuffer, region) {
         ? {
             left: Math.max(0, Math.floor(region.x)),
             top: Math.max(0, Math.floor(region.y)),
-            width: Math.min(imgW, Math.floor(region.width)),
-            height: Math.min(imgH, Math.floor(region.height)),
+            width: Math.max(8, Math.floor(region.width)),
+            height: Math.max(8, Math.floor(region.height)),
           }
         : {
             left: Math.floor(imgW * 0.25),
@@ -1054,6 +1054,12 @@ async function analyzeBufferFocus(inputBuffer, region) {
             width: Math.floor(imgW * 0.5),
             height: Math.floor(imgH * 0.5),
           };
+    // Clamp extract inside image (Sharp throws if area overflows)
+    box.left = Math.min(box.left, Math.max(0, imgW - 8));
+    box.top = Math.min(box.top, Math.max(0, imgH - 8));
+    box.width = Math.min(box.width, imgW - box.left);
+    box.height = Math.min(box.height, imgH - box.top);
+    if (box.width < 8 || box.height < 8) return { focusScore: 50, isLowFocus: false };
 
     const maxSide = 160;
     const scale = Math.min(1, maxSide / Math.max(box.width, box.height, 1));

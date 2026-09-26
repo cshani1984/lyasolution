@@ -1,5 +1,5 @@
 /**
- * CropFlow print sizes (runtime ESM) — keep in sync with Angular print-sizes.ts
+ * SmartCrop print sizes (runtime ESM) — keep in sync with Angular print-sizes.ts
  */
 
 /** @typedef {'standard' | 'passport' | 'square' | 'large'} PrintSizeCategory */
