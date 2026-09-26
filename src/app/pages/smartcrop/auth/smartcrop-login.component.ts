@@ -2,10 +2,7 @@ import { Component, OnInit, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { I18nService } from '../../../core/services/i18n.service';
-import {
-  SmartcropAuthService,
-  smartcropAuthOrigin,
-} from '../../../core/services/smartcrop-auth.service';
+import { SmartcropAuthService } from '../../../core/services/smartcrop-auth.service';
 import { SupabaseClientService } from '../../../core/services/supabase-client.service';
 
 @Component({
@@ -41,30 +38,10 @@ export class SmartcropLoginComponent implements OnInit {
     const qError = this.route.snapshot.queryParamMap.get('error');
     if (qError) this.error.set(qError);
 
-    if (this.route.snapshot.queryParamMap.get('startGoogle') === '1') {
-      await this.google();
-      return;
-    }
-
-    await this.auth.exchangeOAuthCodeIfPresent();
     await this.auth.waitUntilReady();
     if (this.auth.isSignedIn()) {
       await this.router.navigateByUrl('/smartcrop/dashboard', { replaceUrl: true });
     }
-  }
-
-  async google(): Promise<void> {
-    if (typeof window !== 'undefined' && window.location.hostname === 'lya-solution.com') {
-      window.location.replace('https://www.lya-solution.com/smartcrop/login?startGoogle=1');
-      return;
-    }
-
-    this.busy.set(true);
-    this.error.set(null);
-    const redirectTo = `${smartcropAuthOrigin()}/smartcrop/auth/callback`;
-    const { error } = await this.auth.signInWithGoogle(redirectTo);
-    this.busy.set(false);
-    if (error) this.error.set(error.message);
   }
 
   async sendOtp(): Promise<void> {

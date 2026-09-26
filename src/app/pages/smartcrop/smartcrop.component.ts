@@ -20,7 +20,6 @@ export class SmartcropComponent implements OnInit {
 
   readonly loginOpen = signal(false);
   readonly authTab = signal<'login' | 'register'>('login');
-  readonly startGoogle = signal(false);
   readonly navOpen = signal(false);
   readonly faqOpen = signal<number | null>(0);
 
@@ -43,9 +42,8 @@ export class SmartcropComponent implements OnInit {
       return;
     }
     const q = this.route.snapshot.queryParamMap;
-    if (q.get('login') === '1' || q.get('startGoogle') === '1' || q.get('error') || q.get('register') === '1') {
+    if (q.get('login') === '1' || q.get('error') || q.get('register') === '1') {
       this.authTab.set(q.get('register') === '1' ? 'register' : 'login');
-      this.startGoogle.set(q.get('startGoogle') === '1');
       this.loginOpen.set(true);
     }
   }

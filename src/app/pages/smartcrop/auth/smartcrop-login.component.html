@@ -12,11 +12,6 @@
     @if (!supabase.isConfigured()) {
       <p class="sc-login__error">{{ i18n.t('smartcrop.login.noSupabase') }}</p>
     } @else {
-      <button type="button" class="btn btn--primary sc-login__google" (click)="google()" [disabled]="busy()">
-        {{ i18n.t('smartcrop.login.google') }}
-      </button>
-      <div class="sc-login__divider"><span>{{ i18n.t('smartcrop.login.or') }}</span></div>
-
       @if (!otpSent()) {
         <label>
           {{ i18n.t('smartcrop.phone.label') }}

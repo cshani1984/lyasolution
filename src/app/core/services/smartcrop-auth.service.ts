@@ -282,9 +282,27 @@ export class SmartcropAuthService {
   }
 
   async signOut(): Promise<void> {
-    if (!this.supabase.isConfigured()) return;
-    await this.supabase.requireClient().auth.signOut();
+    // Clear local auth state first so /smartcrop does not bounce back to the dashboard.
+    this.session.set(null);
+    this.user.set(null);
     this.profile.set(null);
+    this.authError.set(null);
+
+    if (!this.supabase.isConfigured()) return;
+
+    const client = this.supabase.requireClient();
+    try {
+      const { error } = await client.auth.signOut({ scope: 'global' });
+      if (error) {
+        await client.auth.signOut({ scope: 'local' });
+      }
+    } catch {
+      try {
+        await client.auth.signOut({ scope: 'local' });
+      } catch {
+        /* ignore — local signals already cleared */
+      }
+    }
   }
 
   isSignedIn(): boolean {

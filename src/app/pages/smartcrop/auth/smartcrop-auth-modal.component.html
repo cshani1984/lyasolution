@@ -58,26 +58,59 @@
           @if (!supabase.isConfigured()) {
             <p class="sc-am__err">{{ i18n.t('smartcrop.login.noSupabase') }}</p>
           } @else if (tab() === 'login') {
-            <button type="button" class="sc-am__google" (click)="google(false)" [disabled]="busy()">
-              <span class="sc-am__g">G</span>
-              {{ i18n.t('smartcrop.auth.googleBusiness') }}
-            </button>
-            <div class="sc-am__or"><span>{{ i18n.t('smartcrop.auth.orPhone') }}</span></div>
+            <label class="sc-am__phone-label">{{ i18n.t('smartcrop.auth.ownerPhone') }}</label>
+            <div class="sc-am__phone" [class.is-valid]="phoneValid()">
+              <div class="sc-am__cc" aria-hidden="true">
+                <span class="sc-am__cc-code">IL</span>
+                <strong>+972</strong>
+                <span class="sc-am__cc-chev">▾</span>
+              </div>
+              <input
+                class="sc-am__phone-input"
+                type="tel"
+                inputmode="numeric"
+                autocomplete="tel-national"
+                [value]="displayPhone()"
+                (input)="onPhoneInput($any($event.target).value)"
+                [placeholder]="i18n.t('smartcrop.auth.phonePlaceholderLocal')"
+                [attr.aria-label]="i18n.t('smartcrop.auth.ownerPhone')"
+              />
+              @if (phoneValid()) {
+                <span class="sc-am__ok" aria-hidden="true">✓</span>
+              }
+            </div>
 
-            <label class="sc-am__field">
-              <span>{{ i18n.t('smartcrop.phone.label') }}</span>
-              <input type="tel" [(ngModel)]="phone" [placeholder]="i18n.t('smartcrop.phone.placeholder')" />
-            </label>
-
-            @if (!otpSent()) {
-              <button type="button" class="sc-am__ghost" (click)="sendOtp()" [disabled]="busy()">
-                {{ i18n.t('smartcrop.login.sendOtp') }}
-              </button>
-            } @else {
-              <label class="sc-am__field">
-                <span>{{ i18n.t('smartcrop.login.otp') }}</span>
-                <input type="text" inputmode="numeric" maxlength="8" [(ngModel)]="otp" autocomplete="one-time-code" />
-              </label>
+            @if (otpSent()) {
+              <div class="sc-am__otp-panel">
+                <div class="sc-am__otp-head">
+                  <p>{{ i18n.t('smartcrop.auth.otpHint') }}</p>
+                  <button
+                    type="button"
+                    class="sc-am__resend"
+                    [disabled]="resendSeconds() > 0 || busy()"
+                    (click)="resendCode()"
+                  >
+                    <span aria-hidden="true">↻</span>
+                    {{ resendLabel() }}
+                  </button>
+                </div>
+                <div class="sc-am__otp-boxes" (paste)="onOtpPaste($event)" role="group" [attr.aria-label]="i18n.t('smartcrop.login.otp')">
+                  @for (d of otpDigits(); track $index) {
+                    <input
+                      #otpBox
+                      class="sc-am__otp-box"
+                      type="text"
+                      inputmode="numeric"
+                      maxlength="1"
+                      autocomplete="one-time-code"
+                      placeholder="·"
+                      [value]="d"
+                      (input)="onOtpInput($index, $event)"
+                      (keydown)="onOtpKeydown($index, $event)"
+                    />
+                  }
+                </div>
+              </div>
             }
 
             @if (error()) {
@@ -89,39 +122,79 @@
                 <strong>{{ i18n.t('smartcrop.auth.userMissingTitle') }}</strong>
                 <p>{{ i18n.t('smartcrop.auth.userMissingBody') }}</p>
                 <button type="button" class="sc-am__register-cta" (click)="goRegister()">
-                  {{ i18n.t('smartcrop.auth.quickRegister') }} →
+                  {{ i18n.t('smartcrop.auth.quickRegister') }}
                 </button>
               </div>
             }
 
             <button type="button" class="sc-am__primary" (click)="submitLogin()" [disabled]="busy()">
-              {{ i18n.t('smartcrop.auth.enterSystem') }} →
+              {{ otpSent() ? i18n.t('smartcrop.login.verify') : i18n.t('smartcrop.auth.enterSystem') }}
             </button>
           } @else {
             <label class="sc-am__field">
               <span>{{ i18n.t('smartcrop.auth.studioName') }}</span>
               <input type="text" [(ngModel)]="studioName" [placeholder]="i18n.t('smartcrop.auth.studioPlaceholder')" />
             </label>
-            <label class="sc-am__field">
-              <span>{{ i18n.t('smartcrop.phone.label') }}</span>
-              <input type="tel" [(ngModel)]="registerPhone" [placeholder]="i18n.t('smartcrop.phone.placeholder')" />
-            </label>
+
+            <label class="sc-am__phone-label">{{ i18n.t('smartcrop.auth.ownerPhone') }}</label>
+            <div class="sc-am__phone" [class.is-valid]="phoneValid()">
+              <div class="sc-am__cc" aria-hidden="true">
+                <span class="sc-am__cc-code">IL</span>
+                <strong>+972</strong>
+                <span class="sc-am__cc-chev">▾</span>
+              </div>
+              <input
+                class="sc-am__phone-input"
+                type="tel"
+                inputmode="numeric"
+                autocomplete="tel-national"
+                [value]="displayPhone()"
+                (input)="onPhoneInput($any($event.target).value)"
+                [placeholder]="i18n.t('smartcrop.auth.phonePlaceholderLocal')"
+                [attr.aria-label]="i18n.t('smartcrop.auth.ownerPhone')"
+                [disabled]="regOtpSent()"
+              />
+              @if (phoneValid()) {
+                <span class="sc-am__ok" aria-hidden="true">✓</span>
+              }
+            </div>
 
             @if (regOtpSent()) {
-              <label class="sc-am__field">
-                <span>{{ i18n.t('smartcrop.login.otp') }}</span>
-                <input type="text" inputmode="numeric" maxlength="8" [(ngModel)]="otp" autocomplete="one-time-code" />
-              </label>
+              <div class="sc-am__otp-panel">
+                <div class="sc-am__otp-head">
+                  <p>{{ i18n.t('smartcrop.auth.otpHint') }}</p>
+                  <button
+                    type="button"
+                    class="sc-am__resend"
+                    [disabled]="resendSeconds() > 0 || busy()"
+                    (click)="resendCode()"
+                  >
+                    <span aria-hidden="true">↻</span>
+                    {{ resendLabel() }}
+                  </button>
+                </div>
+                <div class="sc-am__otp-boxes" (paste)="onOtpPaste($event)" role="group" [attr.aria-label]="i18n.t('smartcrop.login.otp')">
+                  @for (d of otpDigits(); track $index) {
+                    <input
+                      #otpBox
+                      class="sc-am__otp-box"
+                      type="text"
+                      inputmode="numeric"
+                      maxlength="1"
+                      autocomplete="one-time-code"
+                      placeholder="·"
+                      [value]="d"
+                      (input)="onOtpInput($index, $event)"
+                      (keydown)="onOtpKeydown($index, $event)"
+                    />
+                  }
+                </div>
+              </div>
             }
 
             @if (error()) {
               <p class="sc-am__err">{{ error() }}</p>
             }
-
-            <button type="button" class="sc-am__google" (click)="google(true)" [disabled]="busy()">
-              <span class="sc-am__g">G</span>
-              {{ i18n.t('smartcrop.auth.googleBusiness') }}
-            </button>
 
             <button type="button" class="sc-am__primary" (click)="submitRegister()" [disabled]="busy()">
               {{ regOtpSent() ? i18n.t('smartcrop.login.verify') : i18n.t('smartcrop.auth.quickRegister') }} →
@@ -132,7 +205,6 @@
 
       <footer class="sc-am__foot">
         <span>SSL 256-bit</span>
-        <span>OAuth 2.0</span>
         <span>{{ i18n.t('smartcrop.auth.rolesNote') }}</span>
       </footer>
     </div>

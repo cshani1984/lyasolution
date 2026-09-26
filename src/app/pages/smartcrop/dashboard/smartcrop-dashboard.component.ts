@@ -630,8 +630,15 @@ export class SmartcropDashboardComponent implements OnInit {
   }
 
   async signOut(): Promise<void> {
-    await this.auth.signOut();
-    await this.router.navigateByUrl('/smartcrop');
+    try {
+      await this.auth.signOut();
+    } finally {
+      this.photosService.photos.set([]);
+      await this.router.navigate(['/smartcrop'], {
+        queryParams: { login: '1' },
+        replaceUrl: true,
+      });
+    }
   }
 
   toggleLang(): void {
