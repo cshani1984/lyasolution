@@ -1,6 +1,6 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { DecimalPipe } from '@angular/common';
+import { DecimalPipe, NgStyle } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import type { CropData, CropSaveResult, DetectedType, ShopCustomer, SmartcropPhoto } from '../../../core/models/smartcrop.model';
 import { I18nService } from '../../../core/services/i18n.service';
@@ -15,6 +15,7 @@ import { SmartcropStudioTutorialComponent } from '../components/studio-tutorial/
 import { SmartcropQuotaExceededModalComponent } from '../components/quota-exceeded-modal/quota-exceeded-modal.component';
 import { FooterComponent } from '../../../layout/footer/footer.component';
 import { CROP_LOSS_WARN_PERCENT, HEAD_TOP_PADDING_RATIO, confidenceTone } from '../../../core/smartcrop/crop-engine.math';
+import { heatmapGradientStyle, LOW_FOCUS_THRESHOLD } from '../../../core/smartcrop/focus-heatmap';
 import { DEFAULT_SUPPORT_WA } from '../../../core/smartcrop/subscriptions';
 import {
   findPrintSize,
@@ -37,6 +38,7 @@ const ZOOM_STEP = 1.08;
     FormsModule,
     RouterLink,
     DecimalPipe,
+    NgStyle,
     SmartcropCropModalComponent,
     SmartcropBatchActionBarComponent,
     SmartcropFileUploaderComponent,
@@ -75,6 +77,7 @@ export class SmartcropDashboardComponent implements OnInit {
   readonly customerQuery = signal('');
   readonly autoHorizon = signal(true);
   readonly showGrid = signal(false);
+  readonly showHeatmap = signal(false);
 
   readonly photos = computed(() => this.photosService.photos());
 
@@ -179,6 +182,32 @@ export class SmartcropDashboardComponent implements OnInit {
   readonly headroomMeterWidth = computed(() => Math.min(100, this.autoHeadroomPct() * 3.3));
   readonly safetyMeterWidth = computed(() => Math.min(100, this.autoSafetyPct() * 8));
   readonly faceCenterMeterWidth = computed(() => this.autoFaceCenterPct() ?? 0);
+
+  readonly focusScore = computed(() => {
+    const m = this.activeMetrics();
+    if (m?.focusScore != null) return Math.round(m.focusScore);
+    return null;
+  });
+
+  readonly isLowFocus = computed(() => {
+    const m = this.activeMetrics();
+    if (m?.isLowFocus != null) return m.isLowFocus;
+    const s = this.focusScore();
+    return s != null && s < LOW_FOCUS_THRESHOLD;
+  });
+
+  readonly heatmapStyle = computed(() => {
+    const photo = this.activePhoto();
+    const crop = photo?.crop_data;
+    if (!crop?.focalPoint) return heatmapGradientStyle({ xPercent: 48, yPercent: 38 });
+    // Focal is in source image space; approximate % within crop frame for overlay
+    const relX = crop.width ? ((crop.focalPoint.x - crop.x) / crop.width) * 100 : 50;
+    const relY = crop.height ? ((crop.focalPoint.y - crop.y) / crop.height) * 100 : 40;
+    return heatmapGradientStyle({
+      xPercent: Math.max(5, Math.min(95, relX)),
+      yPercent: Math.max(5, Math.min(95, relY)),
+    });
+  });
 
   readonly confidenceClass = computed(() => {
     const m = this.activeMetrics();
@@ -317,6 +346,10 @@ export class SmartcropDashboardComponent implements OnInit {
 
   toggleGrid(): void {
     this.showGrid.update((v) => !v);
+  }
+
+  toggleHeatmap(): void {
+    this.showHeatmap.update((v) => !v);
   }
 
   /** Notes: Move the crop window on the original (image appears to pan opposite). */

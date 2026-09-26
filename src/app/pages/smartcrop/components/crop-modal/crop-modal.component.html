@@ -39,15 +39,8 @@
 
       <div class="sc-modal__stage" [class.is-ai]="aiRunning() || generativeBusy">
         @if (aiRunning() || generativeBusy) {
-          <div class="sc-modal__ai-overlay" aria-live="polite">
+          <div class="sc-modal__ai-overlay" aria-live="polite" [attr.aria-label]="i18n.t('smartcrop.studio.aiWorking')">
             <span class="sc-modal__spinner" aria-hidden="true"></span>
-            <p>
-              {{
-                generativeBusy
-                  ? i18n.t('smartcrop.generative.working')
-                  : i18n.t('smartcrop.studio.aiWorking')
-              }}
-            </p>
           </div>
         }
         @if (loadFailed()) {

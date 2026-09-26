@@ -2,14 +2,20 @@
   <header class="sc-studio__top">
     <div class="sc-studio__brand">
       <a routerLink="/smartcrop" class="sc-studio__logo-link" [attr.aria-label]="i18n.t('nav.home')">
-        <img src="/smartcrop-logo.png" alt="SmartCrop" width="34" height="34" />
-        <strong>SmartCrop</strong>
+        <span class="sc-studio__logo-mark" aria-hidden="true">
+          <span class="material-symbols-outlined">photo_camera</span>
+        </span>
+        <strong>CropFlow</strong>
       </a>
       <span class="sc-studio__pill sc-studio__pill--green" [title]="i18n.t('smartcrop.studio.proHint')">PRO</span>
-      <span class="sc-studio__pill sc-studio__pill--soft" [title]="whatsappBadgeTitle()">{{ whatsappBadge() }}</span>
+      <span class="sc-studio__pill sc-studio__pill--live" [title]="whatsappBadgeTitle()">
+        <i class="sc-studio__live-dot" aria-hidden="true"></i>
+        {{ whatsappBadge() }}
+      </span>
     </div>
 
     <div class="sc-studio__store">
+      <span class="material-symbols-outlined" aria-hidden="true">storefront</span>
       <span>{{ userLabel() }}</span>
     </div>
 
@@ -86,7 +92,7 @@
         <div class="sc-studio__canvas">
           <div class="sc-studio__canvas-head">
             <div class="sc-studio__canvas-brand">
-              <strong>CropFlow AI</strong>
+              <i class="sc-studio__live-dot sc-studio__live-dot--lg" aria-hidden="true"></i>
               <span>{{ i18n.t('smartcrop.studio.liveCompare') }}</span>
             </div>
             <div class="sc-studio__mode-pills" role="group" [attr.aria-label]="i18n.t('smartcrop.compare.title')">
@@ -96,6 +102,7 @@
                 [class.is-active]="!showOriginal() && !compareMode()"
                 (click)="showOriginal.set(false); compareMode.set(false)"
               >
+                <span class="material-symbols-outlined" aria-hidden="true">auto_awesome</span>
                 {{ i18n.t('smartcrop.studio.smartAiCrop') }}
               </button>
               <button
@@ -104,6 +111,7 @@
                 [class.is-active]="showOriginal()"
                 (click)="showOriginal.set(true); compareMode.set(false)"
               >
+                <span class="material-symbols-outlined" aria-hidden="true">warning</span>
                 {{ i18n.t('smartcrop.studio.regularCropWarn') }}
               </button>
               <button
@@ -135,6 +143,9 @@
                 @if (previewUrl()) {
                   <img [src]="previewUrl()!" [alt]="photo.target_size_name" />
                 }
+                @if (showHeatmap()) {
+                  <div class="sc-studio__heatmap" [ngStyle]="heatmapStyle()" aria-hidden="true"></div>
+                }
                 <div class="sc-studio__crop-guide" [class.is-grid]="showGrid()" aria-hidden="true">
                   <span class="sc-studio__crop-size">{{ photo.target_size_name }}</span>
                 </div>
@@ -152,12 +163,20 @@
                   }
                   <div class="sc-studio__ai-tag sc-studio__ai-tag--c">{{ i18n.t('smartcrop.studio.focusLock') }}</div>
                   <div class="sc-studio__ai-tag sc-studio__ai-tag--bleed">{{ i18n.t('smartcrop.studio.bleedSafe') }}</div>
+                  @if (focusScore() != null) {
+                    <div
+                      class="sc-studio__ai-tag sc-studio__ai-tag--focus"
+                      [class.is-warn]="isLowFocus()"
+                    >
+                      {{ i18n.t('smartcrop.studio.focusQuality') }}:
+                      {{ focusScore() }}%
+                      {{ isLowFocus() ? i18n.t('smartcrop.studio.focusBlurry') : i18n.t('smartcrop.studio.focusSharp') }}
+                    </div>
+                  }
                 }
                 @if (aiBusy() || generativeBusy()) {
-                  <div class="sc-studio__img-busy" role="status" aria-live="polite">
+                  <div class="sc-studio__img-busy" role="status" aria-live="polite" [attr.aria-label]="i18n.t('smartcrop.studio.aiWorking')">
                     <span class="sc-studio__spinner" aria-hidden="true"></span>
-                    <strong>{{ i18n.t('smartcrop.studio.aiWorkingShort') }}</strong>
-                    <p>{{ generativeBusy() ? i18n.t('smartcrop.generative.working') : i18n.t('smartcrop.studio.aiWorking') }}</p>
                   </div>
                 }
               </div>
@@ -166,20 +185,43 @@
 
           <div class="sc-studio__adjust" role="toolbar" [attr.aria-label]="i18n.t('smartcrop.studio.quickAdjust')">
             <div class="sc-studio__adjust-btns">
-              <button type="button" class="sc-studio__ico" (click)="panCrop('left')" [disabled]="!activePhoto() || busy() || showOriginal() || compareMode()" [attr.title]="i18n.t('smartcrop.studio.panLeft')">←</button>
-              <button type="button" class="sc-studio__ico" (click)="panCrop('right')" [disabled]="!activePhoto() || busy() || showOriginal() || compareMode()" [attr.title]="i18n.t('smartcrop.studio.panRight')">→</button>
-              <button type="button" class="sc-studio__ico" (click)="panCrop('up')" [disabled]="!activePhoto() || busy() || showOriginal() || compareMode()" [attr.title]="i18n.t('smartcrop.studio.panUp')">↑</button>
-              <button type="button" class="sc-studio__ico" (click)="panCrop('down')" [disabled]="!activePhoto() || busy() || showOriginal() || compareMode()" [attr.title]="i18n.t('smartcrop.studio.panDown')">↓</button>
+              <span class="sc-studio__adjust-label">{{ i18n.t('smartcrop.studio.quickAdjust') }}</span>
+              <button type="button" class="sc-studio__ico" (click)="panCrop('up')" [disabled]="!activePhoto() || busy() || showOriginal() || compareMode()" [attr.title]="i18n.t('smartcrop.studio.panUp')">
+                <span class="material-symbols-outlined">arrow_upward</span>
+              </button>
+              <button type="button" class="sc-studio__ico" (click)="panCrop('down')" [disabled]="!activePhoto() || busy() || showOriginal() || compareMode()" [attr.title]="i18n.t('smartcrop.studio.panDown')">
+                <span class="material-symbols-outlined">arrow_downward</span>
+              </button>
+              <button type="button" class="sc-studio__ico" (click)="panCrop('left')" [disabled]="!activePhoto() || busy() || showOriginal() || compareMode()" [attr.title]="i18n.t('smartcrop.studio.panLeft')">
+                <span class="material-symbols-outlined">arrow_back</span>
+              </button>
+              <button type="button" class="sc-studio__ico" (click)="panCrop('right')" [disabled]="!activePhoto() || busy() || showOriginal() || compareMode()" [attr.title]="i18n.t('smartcrop.studio.panRight')">
+                <span class="material-symbols-outlined">arrow_forward</span>
+              </button>
               <span class="sc-studio__adjust-sep" aria-hidden="true"></span>
-              <button type="button" class="sc-studio__ico" (click)="zoomCrop('in')" [disabled]="!activePhoto() || busy() || showOriginal() || compareMode()" [attr.title]="i18n.t('smartcrop.studio.zoomIn')">＋</button>
-              <button type="button" class="sc-studio__ico" (click)="zoomCrop('out')" [disabled]="!activePhoto() || busy() || showOriginal() || compareMode()" [attr.title]="i18n.t('smartcrop.studio.zoomOut')">－</button>
+              <button type="button" class="sc-studio__ico" (click)="zoomCrop('in')" [disabled]="!activePhoto() || busy() || showOriginal() || compareMode()" [attr.title]="i18n.t('smartcrop.studio.zoomIn')">
+                <span class="material-symbols-outlined">zoom_in</span>
+              </button>
+              <button type="button" class="sc-studio__ico" (click)="zoomCrop('out')" [disabled]="!activePhoto() || busy() || showOriginal() || compareMode()" [attr.title]="i18n.t('smartcrop.studio.zoomOut')">
+                <span class="material-symbols-outlined">zoom_out</span>
+              </button>
               <span class="sc-studio__adjust-sep" aria-hidden="true"></span>
+              <button
+                type="button"
+                class="sc-studio__tool-chip"
+                [class.is-active]="showHeatmap()"
+                (click)="toggleHeatmap()"
+              >
+                <span class="material-symbols-outlined" aria-hidden="true">blur_on</span>
+                {{ i18n.t('smartcrop.studio.heatmap') }}
+              </button>
               <button
                 type="button"
                 class="sc-studio__tool-chip"
                 [class.is-active]="showGrid()"
                 (click)="toggleGrid()"
               >
+                <span class="material-symbols-outlined" aria-hidden="true">grid_3x3</span>
                 {{ i18n.t('smartcrop.studio.grid') }}
               </button>
               <button type="button" class="sc-studio__tool-chip" (click)="openCrop()" [disabled]="busy()">
@@ -197,15 +239,16 @@
                 {{ i18n.t('smartcrop.generative.action') }}
               </button>
             </div>
+            @if (isLowFocus() && activeMetrics()?.focusWarning) {
+              <p class="sc-studio__focus-warn">{{ activeMetrics()!.focusWarning }}</p>
+            }
           </div>
         </div>
       } @else {
         <div class="sc-studio__empty">
           @if (aiBusy()) {
-            <div class="sc-studio__img-busy sc-studio__img-busy--empty" role="status" aria-live="polite">
+            <div class="sc-studio__img-busy sc-studio__img-busy--empty" role="status" aria-live="polite" [attr.aria-label]="i18n.t('smartcrop.studio.aiWorking')">
               <span class="sc-studio__spinner" aria-hidden="true"></span>
-              <strong>{{ i18n.t('smartcrop.studio.aiWorkingShort') }}</strong>
-              <p>{{ i18n.t('smartcrop.studio.aiWorking') }}</p>
             </div>
           } @else {
             <p>{{ i18n.t('smartcrop.dash.empty') }}</p>

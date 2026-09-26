@@ -69,6 +69,12 @@ export interface CropMetrics {
   shouldRecommendGenerativeFill?: boolean;
   /** Hebrew/EN photographer note for admin UI. */
   photographerNote?: string;
+  /** Laplacian sharpness 0–100 for subject region. */
+  focusScore?: number;
+  /** True when focusScore < 40 — soft print risk. */
+  isLowFocus?: boolean;
+  /** Warning copy when isLowFocus. */
+  focusWarning?: string;
 }
 
 export interface CropData {

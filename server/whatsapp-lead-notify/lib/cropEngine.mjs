@@ -185,6 +185,7 @@ export async function processSmartCrop(inputBuffer, opts = {}) {
 
   const focalPoint = analysis.focalPoint;
   const correctionDelta = calculateCorrectionDelta(imgW, imgH, focalPoint);
+  const focus = await analyzeBufferFocus(inputBuffer, analysis.subjectBox ?? cropBox);
   const metrics = {
     detectedType: analysis.detectedType,
     confidenceScore: round1(analysis.confidenceScore),
@@ -201,6 +202,11 @@ export async function processSmartCrop(inputBuffer, opts = {}) {
     compositionMode,
     shouldRecommendGenerativeFill,
     photographerNote,
+    focusScore: focus.focusScore,
+    isLowFocus: focus.isLowFocus,
+    focusWarning: focus.isLowFocus
+      ? '⚠️ פוקוס נמוך: התמונה עלולה לצאת מטושטשת בהדפסה'
+      : undefined,
   };
 
   const cropData = {
@@ -1020,6 +1026,70 @@ function scaleBox(box, sw, sh, imgW, imgH) {
 /** Notes: Clamp numeric range helper. */
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
+}
+
+/**
+ * Notes: Laplacian variance focus score (0–100) on a subject / crop region via Sharp.
+ * @param {Buffer} inputBuffer
+ * @param {{ x: number, y: number, width: number, height: number } | null | undefined} region
+ */
+async function analyzeBufferFocus(inputBuffer, region) {
+  try {
+    const meta = await sharp(inputBuffer).rotate().metadata();
+    const imgW = meta.width ?? 0;
+    const imgH = meta.height ?? 0;
+    if (!imgW || !imgH) return { focusScore: 50, isLowFocus: false };
+
+    const box =
+      region && region.width > 8 && region.height > 8
+        ? {
+            left: Math.max(0, Math.floor(region.x)),
+            top: Math.max(0, Math.floor(region.y)),
+            width: Math.min(imgW, Math.floor(region.width)),
+            height: Math.min(imgH, Math.floor(region.height)),
+          }
+        : {
+            left: Math.floor(imgW * 0.25),
+            top: Math.floor(imgH * 0.25),
+            width: Math.floor(imgW * 0.5),
+            height: Math.floor(imgH * 0.5),
+          };
+
+    const maxSide = 160;
+    const scale = Math.min(1, maxSide / Math.max(box.width, box.height, 1));
+    const tw = Math.max(8, Math.floor(box.width * scale));
+    const th = Math.max(8, Math.floor(box.height * scale));
+
+    const { data, info } = await sharp(inputBuffer)
+      .rotate()
+      .extract(box)
+      .resize(tw, th, { fit: 'fill' })
+      .greyscale()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+
+    const w = info.width;
+    const h = info.height;
+    let sum = 0;
+    let sumSq = 0;
+    let n = 0;
+    for (let y = 1; y < h - 1; y++) {
+      for (let x = 1; x < w - 1; x++) {
+        const i = y * w + x;
+        const lap = -4 * data[i] + data[i - 1] + data[i + 1] + data[i - w] + data[i + w];
+        sum += lap;
+        sumSq += lap * lap;
+        n++;
+      }
+    }
+    if (!n) return { focusScore: 50, isLowFocus: false };
+    const mean = sum / n;
+    const variance = Math.max(0, sumSq / n - mean * mean);
+    const score = Math.max(0, Math.min(100, Math.round(((Math.log1p(variance) / Math.log1p(2500)) * 100) * 10) / 10));
+    return { focusScore: score, isLowFocus: score < 40 };
+  } catch {
+    return { focusScore: 50, isLowFocus: false };
+  }
 }
 
 /** Notes: One-decimal display rounding for UI badges. */

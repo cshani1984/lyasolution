@@ -26,6 +26,7 @@ import {
   CROP_LOSS_WARN_PERCENT,
 } from './crop-engine.math';
 import { orientAspectRatio } from './print-sizes';
+import { analyzeBitmapFocus } from './focus-heatmap';
 
 const WASM_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm';
 const FACE_MODEL =
@@ -146,6 +147,7 @@ async function smartCropFromBitmap(
   });
 
   const correctionDelta = calculateCorrectionDelta(imgW, imgH, analysis.focalPoint);
+  const focus = await analyzeBitmapFocus(bitmap, analysis.subjectBox ?? cropBox);
   const metrics: CropMetrics = {
     detectedType: analysis.detectedType,
     confidenceScore: round1(analysis.confidenceScore),
@@ -159,6 +161,9 @@ async function smartCropFromBitmap(
     safetyMarginPercentage: framed.safetyMarginPercentage,
     shouldRecommendGenerativeFill,
     photographerNote,
+    focusScore: focus.focusScore,
+    isLowFocus: focus.isLowFocus,
+    focusWarning: focus.isLowFocus ? focus.focusWarningHe : undefined,
   };
 
   const outBlob = await renderCropBlob(bitmap, cropBox, orientedAspect);

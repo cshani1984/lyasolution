@@ -127,33 +127,15 @@
   z-index: 6;
   display: grid;
   place-content: center;
-  justify-items: center;
-  gap: 0.5rem;
-  padding: 1rem;
-  text-align: center;
   border-radius: 0.75rem;
-  background: rgba(15, 23, 42, 0.58);
-  color: #fff;
-  backdrop-filter: blur(2px);
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(1.5px);
   pointer-events: none;
 }
 
-.sc-pcc__busy strong {
-  font-size: 0.95rem;
-}
-
-.sc-pcc__busy p {
-  margin: 0;
-  max-width: 16rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-  line-height: 1.35;
-  color: rgba(255, 255, 255, 0.92);
-}
-
 .sc-pcc__spinner {
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 2.75rem;
+  height: 2.75rem;
   border: 3px solid rgba(255, 255, 255, 0.22);
   border-top-color: #fff;
   border-radius: 999px;
