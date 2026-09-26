@@ -82,7 +82,34 @@ export class SmartcropPhotosService {
       this.error.set(error.message);
       return;
     }
-    this.photos.set((data as SmartcropPhoto[]) ?? []);
+    const remote = (data as SmartcropPhoto[]) ?? [];
+    const remoteIds = new Set(remote.map((r) => r.id));
+    // Keep in-session uploads (blob/data URLs) so size changes / refreshes don't wipe them.
+    const localOnly = this.photos().filter(
+      (p) =>
+        !remoteIds.has(p.id) &&
+        (p.original_url?.startsWith('blob:') ||
+          p.original_url?.startsWith('data:') ||
+          p.cropped_url?.startsWith('blob:') ||
+          p.id.startsWith('demo-')),
+    );
+    this.photos.set([...localOnly, ...remote]);
+  }
+
+  /** Notes: Patch one photo in memory without a full list reload. */
+  patchPhoto(id: string, patch: Partial<SmartcropPhoto>): void {
+    this.photos.update((list) => list.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  }
+
+  /** Notes: True when the photo only exists in this browser session. */
+  isLocalOnly(photo: SmartcropPhoto): boolean {
+    const url = photo.original_url || '';
+    return (
+      url.startsWith('blob:') ||
+      url.startsWith('data:') ||
+      photo.id.startsWith('demo-') ||
+      photo.id.startsWith('local-')
+    );
   }
 
   async loadOrders(): Promise<void> {
@@ -119,10 +146,23 @@ export class SmartcropPhotosService {
       cropped_url: string | null;
     }>,
   ): Promise<{ error: Error | null }> {
+    // Always update local state first so UI never blanks while waiting on network.
+    this.patchPhoto(id, patch as Partial<SmartcropPhoto>);
+    const existing = this.photos().find((p) => p.id === id);
+    if (!existing || this.isLocalOnly(existing) || !this.supabase.isConfigured()) {
+      return { error: null };
+    }
     const client = this.supabase.requireClient();
-    const { error } = await client.from('photos').update(patch).eq('id', id);
+    // Never persist ephemeral blob:/data: URLs to Supabase.
+    const dbPatch = { ...patch };
+    if (
+      dbPatch.cropped_url?.startsWith('blob:') ||
+      dbPatch.cropped_url?.startsWith('data:')
+    ) {
+      delete dbPatch.cropped_url;
+    }
+    const { error } = await client.from('photos').update(dbPatch).eq('id', id);
     if (error) return { error: new Error(error.message) };
-    await this.loadPhotos();
     return { error: null };
   }
 
@@ -215,6 +255,10 @@ export class SmartcropPhotosService {
       order_id: null,
       user_id: user.id,
       sender_phone: senderPhone,
+      customer_name: this.auth.profile()?.full_name ?? null,
+      caption_text: `שלום, אשמח להדפיס תמונה זו בגודל ${size?.name ?? '10x15'}`,
+      parsed_summary: `${size?.name ?? '10x15'} | 1X`,
+      parse_confidence: 88,
       original_url: originalUrl,
       cropped_url: croppedUrl,
       size_id: size?.id ?? null,
@@ -241,30 +285,14 @@ export class SmartcropPhotosService {
       );
       const croppedUrl = URL.createObjectURL(result.blob);
       const status = photoStatusFromAutoCrop(result.cropData.metrics);
-      if (this.supabase.isConfigured() && !photo.id.startsWith('demo-') && !photo.original_url.startsWith('blob:')) {
-        await this.updatePhoto(photo.id, {
-          size_id: size.id,
-          target_size_name: size.name,
-          crop_data: result.cropData,
-          cropped_url: croppedUrl,
-          status,
-        });
-      } else {
-        this.photos.update((list) =>
-          list.map((p) =>
-            p.id === photo.id
-              ? {
-                  ...p,
-                  size_id: size.id,
-                  target_size_name: size.name,
-                  crop_data: result.cropData,
-                  cropped_url: croppedUrl,
-                  status,
-                }
-              : p,
-          ),
-        );
-      }
+      // In-place update only — never replace the whole photos list.
+      await this.updatePhoto(photo.id, {
+        size_id: size.id,
+        target_size_name: size.name,
+        crop_data: result.cropData,
+        cropped_url: croppedUrl,
+        status,
+      });
       return { error: null };
     } catch (e) {
       return { error: e instanceof Error ? e : new Error(String(e)) };

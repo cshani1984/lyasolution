@@ -41,11 +41,26 @@ export function createDemoPhotos(): SmartcropPhoto[] {
   return items.map((item, i) => {
     const size = findPrintSize(DEMO_PRINT_SIZES, item.sizeCode) ?? DEMO_PRINT_SIZES[0];
     const url = `${base}/${item.file}`;
+    const names = ['ילנה רוסטובה', 'דני כהן', 'נועה לוי', 'איתי מזרחי', 'מיכל אברהם', 'יוסי פרץ'];
+    const captions = [
+      `שלום, אשמח להדפיס תמונה זו בגודל ${size.name} על נייר פוטו מבריק`,
+      `בבקשה ${size.name} מבריק, 2 עותקים`,
+      `היי תדפיסו ב-${size.name} מט`,
+      `גודל ${size.name} בבקשה`,
+      `תמונה להדפסה ${size.name}`,
+      `${size.name} על נייר לוסטר תודה`,
+    ];
     return {
       id: `demo-${i + 1}`,
       order_id: 'demo-order',
       user_id: 'demo-user',
       sender_phone: item.phone,
+      customer_name: names[i] ?? null,
+      caption_text: captions[i] ?? null,
+      parsed_summary: `${size.name} | מבריק | 1X`,
+      parse_confidence: 92 - i * 3,
+      paper_type: 'glossy',
+      copies: 1,
       original_url: url,
       cropped_url: url,
       size_id: size.id,

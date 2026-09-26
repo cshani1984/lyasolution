@@ -1,9 +1,9 @@
 export const environment = {
   production: false,
   /** Supabase → Project Settings → API → Project URL */
-  supabaseUrl: 'https://YOUR_PROJECT_REF.supabase.co',
+  supabaseUrl: 'https://pntibywmzseguynujsle.supabase.co',
   /** Project Settings → API → anon public key — required or the contact form will not send. */
-  supabaseAnonKey: '',
+  supabaseAnonKey: 'sb_publishable_i3B-cBoAdEcGwh50-k0X6w_Z4s3Tecp',
   whatsappNotifyApiUrl: '',
   whatsappNotifyApiKey: '',
   /** POST /api/cv/enhance on lead-notify server — e.g. http://localhost:3840/api/cv/enhance */

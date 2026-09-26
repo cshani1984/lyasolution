@@ -70,6 +70,12 @@ export class SmartcropDashboardComponent implements OnInit {
   readonly uploadSizeName = signal(defaultPrintSize().name);
   /** null = all customers */
   readonly activeCustomerPhone = signal<string | null>(null);
+  readonly customerQuery = signal('');
+  readonly headroomPct = signal(15);
+  readonly faceCenterPct = signal(84);
+  readonly autoHorizon = signal(true);
+  readonly showGrid = signal(false);
+  readonly showHeatmap = signal(false);
 
   readonly photos = computed(() => this.photosService.photos());
 
@@ -91,7 +97,16 @@ export class SmartcropDashboardComponent implements OnInit {
       if (!row.last_order_at || p.created_at > row.last_order_at) row.last_order_at = p.created_at;
       map.set(phone, row);
     }
-    return [...map.values()].sort((a, b) =>
+    const q = this.customerQuery().trim().toLowerCase();
+    let list = [...map.values()];
+    if (q) {
+      list = list.filter(
+        (c) =>
+          c.phone.toLowerCase().includes(q) ||
+          (c.full_name || '').toLowerCase().includes(q),
+      );
+    }
+    return list.sort((a, b) =>
       String(b.last_order_at ?? '').localeCompare(String(a.last_order_at ?? '')),
     );
   });
@@ -147,6 +162,23 @@ export class SmartcropDashboardComponent implements OnInit {
     this.filteredPhotos().filter((p) => p.status === 'approved' || p.status === 'printed').length,
   );
   readonly selectedCount = computed(() => this.selectedIds().size);
+
+  /** Inbound WhatsApp caption for the active photo (with a readable fallback). */
+  readonly whatsappMessage = computed(() => {
+    const p = this.activePhoto();
+    if (!p) return null;
+    const text = (p.caption_text || '').trim();
+    if (text) return text;
+    if (p.parsed_summary?.trim()) return p.parsed_summary.trim();
+    return null;
+  });
+
+  readonly whatsappOrderRef = computed(() => {
+    const p = this.activePhoto();
+    if (!p) return '';
+    const short = (p.order_id || p.id).replace(/-/g, '').slice(0, 8).toUpperCase();
+    return `#CF-${short.slice(0, 4)}`;
+  });
 
   readonly previewUrl = computed(() => {
     const p = this.activePhoto();
@@ -226,7 +258,7 @@ export class SmartcropDashboardComponent implements OnInit {
   selectPhoto(photo: SmartcropPhoto): void {
     this.activeId.set(photo.id);
     this.showOriginal.set(false);
-    this.compareMode.set(true);
+    this.compareMode.set(false);
   }
 
   toggleSelect(photoId: string, event: Event): void {
@@ -251,34 +283,53 @@ export class SmartcropDashboardComponent implements OnInit {
     this.compareMode.update((v) => !v);
   }
 
+  toggleGrid(): void {
+    this.showGrid.update((v) => !v);
+  }
+
+  toggleHeatmap(): void {
+    this.showHeatmap.update((v) => !v);
+    this.compareMode.set(this.showHeatmap());
+  }
+
   async selectSize(sizeId: string): Promise<void> {
     const photo = this.activePhoto();
     const size = this.photosService.sizes().find((s) => s.id === sizeId);
     if (!photo || !size) return;
+    if (photo.size_id === size.id && photo.target_size_name === size.name) return;
+
     this.busy.set(true);
     this.aiBusy.set(true);
     this.toast.set(this.i18n.t('smartcrop.studio.aiWorking'));
-    if (this.api.isConfigured()) {
-      await this.api.batchUpdate({ photoIds: [photo.id], sizeId: size.id });
-      await this.photosService.loadPhotos();
-    } else {
-      await this.photosService.recropPhotoWithAi(photo, size);
+    try {
+      // Always recrop in place — never reload the photo list (that wiped blob uploads).
+      const err = await this.photosService.recropPhotoWithAi(photo, size);
+      if (err.error) {
+        this.toast.set(err.error.message);
+        return;
+      }
+      if (this.api.isConfigured() && !this.photosService.isLocalOnly(photo)) {
+        await this.api.batchUpdate({ photoIds: [photo.id], sizeId: size.id });
+      }
+      this.compareMode.set(false);
+      this.showOriginal.set(false);
+      this.toast.set(this.i18n.t('smartcrop.dash.simulated'));
+    } catch (e) {
+      this.toast.set(e instanceof Error ? e.message : 'Size change failed');
+    } finally {
+      this.busy.set(false);
+      this.aiBusy.set(false);
     }
-    this.busy.set(false);
-    this.aiBusy.set(false);
-    this.compareMode.set(true);
-    this.toast.set(this.i18n.t('smartcrop.dash.simulated'));
   }
 
   /** Notes: Size changed inside crop editor — update photo metadata immediately. */
   onModalSizeChanged(ev: { sizeId: string; sizeName: string }): void {
     const photo = this.activePhoto();
     if (!photo) return;
-    this.photosService.photos.update((list) =>
-      list.map((p) =>
-        p.id === photo.id ? { ...p, size_id: ev.sizeId, target_size_name: ev.sizeName } : p,
-      ),
-    );
+    this.photosService.patchPhoto(photo.id, {
+      size_id: ev.sizeId,
+      target_size_name: ev.sizeName,
+    });
   }
 
   openCrop(): void {
@@ -351,19 +402,25 @@ export class SmartcropDashboardComponent implements OnInit {
     const ids = [...this.selectedIds()];
     if (!size || !ids.length) return;
     this.busy.set(true);
+    this.aiBusy.set(true);
     this.toast.set(this.i18n.t('smartcrop.studio.aiWorking'));
-    if (this.api.isConfigured()) {
-      await this.api.batchUpdate({ photoIds: ids, sizeId });
-      await this.photosService.loadPhotos();
-    } else {
+    try {
+      const remoteIds: string[] = [];
       for (const id of ids) {
         const photo = this.photos().find((p) => p.id === id);
-        if (photo) await this.photosService.recropPhotoWithAi(photo, size);
+        if (!photo) continue;
+        await this.photosService.recropPhotoWithAi(photo, size);
+        if (!this.photosService.isLocalOnly(photo)) remoteIds.push(id);
       }
+      if (this.api.isConfigured() && remoteIds.length) {
+        await this.api.batchUpdate({ photoIds: remoteIds, sizeId });
+      }
+      this.toast.set(this.i18n.t('smartcrop.dash.simulated'));
+    } finally {
+      this.busy.set(false);
+      this.aiBusy.set(false);
+      this.clearSelection();
     }
-    this.busy.set(false);
-    this.clearSelection();
-    this.toast.set(this.i18n.t('smartcrop.dash.simulated'));
   }
 
   async batchDelete(): Promise<void> {
@@ -454,29 +511,15 @@ export class SmartcropDashboardComponent implements OnInit {
     const photo = this.activePhoto();
     if (!photo) return;
     this.busy.set(true);
-    if (this.api.isConfigured()) {
-      await this.api.processCrop({
-        photoId: photo.id,
-        cropData: result.cropData,
-        sizeId: result.sizeId,
-      });
-      await this.photosService.loadPhotos();
-    } else {
-      this.photosService.photos.update((list) =>
-        list.map((p) =>
-          p.id === photo.id
-            ? {
-                ...p,
-                crop_data: result.cropData,
-                cropped_url: result.objectUrl ?? p.cropped_url,
-                size_id: result.sizeId ?? p.size_id,
-                target_size_name: result.sizeName ?? p.target_size_name,
-                status: 'pending' as const,
-              }
-            : p,
-        ),
-      );
-      if (!photo.original_url.startsWith('blob:')) {
+    try {
+      if (this.api.isConfigured() && !this.photosService.isLocalOnly(photo)) {
+        await this.api.processCrop({
+          photoId: photo.id,
+          cropData: result.cropData,
+          sizeId: result.sizeId,
+        });
+        await this.photosService.loadPhotos();
+      } else {
         await this.photosService.updatePhoto(photo.id, {
           crop_data: result.cropData,
           cropped_url: result.objectUrl ?? photo.cropped_url,
@@ -485,9 +528,10 @@ export class SmartcropDashboardComponent implements OnInit {
           status: 'pending',
         });
       }
+      this.cropOpen.set(false);
+    } finally {
+      this.busy.set(false);
     }
-    this.cropOpen.set(false);
-    this.busy.set(false);
   }
 
   async resetAiCrop(): Promise<void> {
@@ -497,26 +541,24 @@ export class SmartcropDashboardComponent implements OnInit {
     this.aiBusy.set(true);
     this.toast.set(this.i18n.t('smartcrop.studio.aiWorking'));
     try {
-      if (this.api.isConfigured()) {
+      const size =
+        this.photosService.sizes().find((s) => s.id === photo.size_id || s.name === photo.target_size_name) ??
+        this.photosService.sizes()[0];
+      if (this.api.isConfigured() && !this.photosService.isLocalOnly(photo)) {
         await this.api.processCrop({ photoId: photo.id, resetToAi: true });
         await this.photosService.loadPhotos();
+      } else if (size) {
+        await this.photosService.recropPhotoWithAi(photo, size);
       } else {
-        const size =
-          this.photosService.sizes().find((s) => s.id === photo.size_id || s.name === photo.target_size_name) ??
-          this.photosService.sizes()[0];
-        if (size) {
-          await this.photosService.recropPhotoWithAi(photo, size);
-        } else {
-          const result = await smartCropFromUrl(photo.original_url, this.activeAspect());
-          const url = URL.createObjectURL(result.blob);
-          this.photosService.photos.update((list) =>
-            list.map((p) =>
-              p.id === photo.id ? { ...p, cropped_url: url, crop_data: result.cropData } : p,
-            ),
-          );
-        }
+        const result = await smartCropFromUrl(photo.original_url, this.activeAspect());
+        const url = URL.createObjectURL(result.blob);
+        this.photosService.patchPhoto(photo.id, {
+          cropped_url: url,
+          crop_data: result.cropData,
+        });
       }
-      this.compareMode.set(true);
+      this.compareMode.set(false);
+      this.showOriginal.set(false);
       this.toast.set(this.i18n.t('smartcrop.crop.aiDone'));
     } catch (e) {
       this.toast.set(e instanceof Error ? e.message : 'AI crop failed');
@@ -530,7 +572,7 @@ export class SmartcropDashboardComponent implements OnInit {
   async runGenerativeFill(): Promise<void> {
     const photo = this.activePhoto();
     if (!photo) return;
-    if (!this.api.isConfigured()) {
+    if (!this.api.isConfigured() || this.photosService.isLocalOnly(photo)) {
       this.toast.set(this.i18n.t('smartcrop.generative.needApi'));
       return;
     }
@@ -554,7 +596,8 @@ export class SmartcropDashboardComponent implements OnInit {
         return;
       }
       await this.photosService.loadPhotos();
-      this.compareMode.set(true);
+      this.compareMode.set(false);
+      this.showOriginal.set(false);
       this.cropOpen.set(false);
       this.toast.set(
         result.usedClipdrop
@@ -574,6 +617,18 @@ export class SmartcropDashboardComponent implements OnInit {
     await this.runGenerativeFill();
   }
 
+  downloadActive(): void {
+    const photo = this.activePhoto();
+    const url = photo?.cropped_url || photo?.original_url;
+    if (!url) return;
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `smartcrop-${photo.target_size_name || 'print'}.jpg`;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.click();
+  }
+
   async signOut(): Promise<void> {
     await this.auth.signOut();
     await this.router.navigateByUrl('/smartcrop');
@@ -588,6 +643,11 @@ export class SmartcropDashboardComponent implements OnInit {
     return 'is-warn';
   }
 
+  statusLabel(status: string): string {
+    if (status === 'approved' || status === 'printed') return this.i18n.t('smartcrop.studio.approved');
+    return this.i18n.t('smartcrop.studio.pending');
+  }
+
   isSizeSelected(size: { id: string; name: string }): boolean {
     const photo = this.activePhoto();
     if (!photo) return false;
@@ -600,6 +660,20 @@ export class SmartcropDashboardComponent implements OnInit {
 
   isSelected(photoId: string): boolean {
     return this.selectedIds().has(photoId);
+  }
+
+  sizeRatioLabel(size: { width_cm: number; height_cm: number }): string {
+    let w = Math.round(size.width_cm);
+    let h = Math.round(size.height_cm);
+    if (!w || !h) return '';
+    let a = w;
+    let b = h;
+    while (b) {
+      const t = b;
+      b = a % b;
+      a = t;
+    }
+    return `${w / a}:${h / a}`;
   }
 
   detectionLabel(type: DetectedType | undefined): string {
