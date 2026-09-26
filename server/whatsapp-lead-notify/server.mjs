@@ -152,9 +152,13 @@ function checkApiKey(req, res) {
 
 const clientReady = false;
 
+/** Bump when SmartCrop routes change — use to confirm Render is on latest build. */
+const API_BUILD = 'smartcrop-upload-2026-03-26';
+
 app.get('/health', (_req, res) => {
   res.json({
     ok: true,
+    apiBuild: API_BUILD,
     whatsappReady: clientReady,
     whatsappQrAvailable: false,
     gmailConfigured: isGmailConfigured(),
@@ -162,6 +166,13 @@ app.get('/health', (_req, res) => {
     supabaseAdminConfigured: isSupabaseAdminConfigured(),
     clipdropConfigured: isClipdropConfigured(),
     apiKeyRequired: IS_PRODUCTION || Boolean(API_KEY),
+    routes: [
+      'POST /api/photos/upload',
+      'POST /api/photos/process',
+      'POST /api/photos/generative-fill',
+      'POST /api/crop/process',
+      'POST /api/whatsapp/webhook',
+    ],
   });
 });
 
