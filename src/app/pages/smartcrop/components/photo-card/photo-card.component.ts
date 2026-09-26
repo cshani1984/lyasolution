@@ -20,8 +20,7 @@ export class SmartcropPhotoCardComponent {
   @Output() readonly remove = new EventEmitter<void>();
   @Output() readonly togglePreview = new EventEmitter<void>();
 
-  previewUrl(): string {
-    if (this.showOriginal) return this.photo.original_url;
+  croppedUrl(): string {
     return this.photo.cropped_url || this.photo.original_url;
   }
 }

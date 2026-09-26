@@ -37,11 +37,17 @@
         <button type="button" class="sc-modal__close" (click)="closed.emit()" [attr.aria-label]="i18n.t('smartcrop.crop.close')">×</button>
       </header>
 
-      <div class="sc-modal__stage" [class.is-ai]="aiRunning()">
-        @if (aiRunning()) {
+      <div class="sc-modal__stage" [class.is-ai]="aiRunning() || generativeBusy">
+        @if (aiRunning() || generativeBusy) {
           <div class="sc-modal__ai-overlay" aria-live="polite">
             <span class="sc-modal__spinner" aria-hidden="true"></span>
-            <p>{{ i18n.t('smartcrop.studio.aiWorking') }}</p>
+            <p>
+              {{
+                generativeBusy
+                  ? i18n.t('smartcrop.generative.working')
+                  : i18n.t('smartcrop.studio.aiWorking')
+              }}
+            </p>
           </div>
         }
         @if (loadFailed()) {
@@ -83,17 +89,18 @@
             step="0.01"
             [value]="transform().scale ?? 1"
             (input)="onZoomInput($event)"
+            [disabled]="aiRunning() || generativeBusy"
           />
         </label>
         <div class="sc-modal__rotate">
-          <button type="button" class="btn btn--ghost" (click)="rotateLeft()" [attr.aria-label]="i18n.t('smartcrop.crop.rotateLeft')">↺</button>
-          <button type="button" class="btn btn--ghost" (click)="rotateRight()" [attr.aria-label]="i18n.t('smartcrop.crop.rotateRight')">↻</button>
+          <button type="button" class="btn btn--ghost" (click)="rotateLeft()" [disabled]="aiRunning() || generativeBusy" [attr.aria-label]="i18n.t('smartcrop.crop.rotateLeft')">↺</button>
+          <button type="button" class="btn btn--ghost" (click)="rotateRight()" [disabled]="aiRunning() || generativeBusy" [attr.aria-label]="i18n.t('smartcrop.crop.rotateRight')">↻</button>
         </div>
         <button
           type="button"
           class="btn btn--ghost sc-modal__ai"
           (click)="runAiGenerate()"
-          [disabled]="aiRunning() || loadFailed()"
+          [disabled]="aiRunning() || generativeBusy || loadFailed()"
           [attr.aria-busy]="aiRunning()"
         >
           <span class="sc-modal__ai-label">{{ i18n.t('smartcrop.crop.aiGenerate') }}</span>
@@ -101,10 +108,24 @@
             <span class="sc-modal__ai-dot" aria-hidden="true"></span>
           }
         </button>
-        <button type="button" class="btn btn--ghost" (click)="approved.emit()" [disabled]="aiRunning()">
+        <button
+          type="button"
+          class="btn btn--ghost sc-modal__gf"
+          [class.is-pulse]="recommendGenerativeFill()"
+          (click)="onGenerativeFill()"
+          [disabled]="aiRunning() || generativeBusy || loadFailed()"
+          [attr.aria-busy]="generativeBusy"
+          [title]="i18n.t('smartcrop.generative.aiBody')"
+        >
+          <span>✨ {{ i18n.t('smartcrop.generative.action') }}</span>
+          @if (generativeBusy) {
+            <span class="sc-modal__ai-dot" aria-hidden="true"></span>
+          }
+        </button>
+        <button type="button" class="btn btn--ghost" (click)="approved.emit()" [disabled]="aiRunning() || generativeBusy">
           {{ i18n.t('smartcrop.crop.approve') }}
         </button>
-        <button type="button" class="btn btn--primary" (click)="save()" [disabled]="aiRunning() || (!ready() && !loadFailed())">
+        <button type="button" class="btn btn--primary" (click)="save()" [disabled]="aiRunning() || generativeBusy || (!ready() && !loadFailed())">
           {{ i18n.t('smartcrop.crop.save') }}
         </button>
       </div>

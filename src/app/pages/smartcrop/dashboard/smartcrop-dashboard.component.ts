@@ -555,6 +555,7 @@ export class SmartcropDashboardComponent implements OnInit {
       }
       await this.photosService.loadPhotos();
       this.compareMode.set(true);
+      this.cropOpen.set(false);
       this.toast.set(
         result.usedClipdrop
           ? this.i18n.t('smartcrop.generative.done')
@@ -566,6 +567,11 @@ export class SmartcropDashboardComponent implements OnInit {
       this.generativeBusy.set(false);
       this.busy.set(false);
     }
+  }
+
+  /** Notes: Generative Fill launched from the crop editor popup. */
+  async onModalGenerativeFill(): Promise<void> {
+    await this.runGenerativeFill();
   }
 
   async signOut(): Promise<void> {

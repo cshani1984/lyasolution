@@ -91,9 +91,12 @@ app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS ?? '1') || 1);
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 /** Twilio WhatsApp webhooks post application/x-www-form-urlencoded */
-app.use(express.urlencoded({ extended: false }));
-/** 25mb allows generative-fill / process with large media_base64 payloads */
-app.use(express.json({ limit: '25mb' }));
+app.use(express.urlencoded({ extended: false, limit: '100mb' }));
+/**
+ * Notes: Generative-fill / process send large media_base64 (data URLs).
+ * Base64 is ~4/3 of binary size — 25mb was too low for high-res JPEGs (HTTP 413).
+ */
+app.use(express.json({ limit: '100mb' }));
 
 const NOTIFY_MAX_PER_IP = Math.max(1, Number(process.env.NOTIFY_MAX_PER_IP) || 30);
 const NOTIFY_WINDOW_MS = Math.max(60_000, Number(process.env.NOTIFY_WINDOW_MS) || 15 * 60 * 1000);
@@ -317,6 +320,20 @@ app.post('/api/notify-lead', notifyRateLimiter, async (req, res) => {
     ...(whatsappError && { whatsappError }),
     ...(emailError && { emailError }),
   });
+});
+
+/** Notes: Surface express body-parser 413 with JSON + CORS (not HTML). */
+app.use((err, _req, res, next) => {
+  if (err?.type === 'entity.too.large' || err?.status === 413 || err?.statusCode === 413) {
+    logErr('payload too large', { limit: err?.limit, length: err?.length });
+    res.status(413).json({
+      ok: false,
+      error: 'Payload Too Large',
+      message: 'Image too large. Send media_url or a smaller media_base64 (max ~100MB).',
+    });
+    return;
+  }
+  next(err);
 });
 
 app.listen(PORT, () => {

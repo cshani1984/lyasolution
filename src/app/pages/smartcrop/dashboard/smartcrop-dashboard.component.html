@@ -267,11 +267,13 @@
   [photo]="activePhoto()"
   [sizes]="photosService.sizes()"
   [aspectRatio]="activeAspect()"
+  [generativeBusy]="generativeBusy()"
   (closed)="cropOpen.set(false)"
   (saved)="saveCrop($event)"
   (resetAi)="resetAiCrop()"
   (approved)="approveActive()"
   (sizeChanged)="onModalSizeChanged($event)"
+  (generativeFill)="onModalGenerativeFill()"
 />
 
 <app-smartcrop-phone-verification-modal

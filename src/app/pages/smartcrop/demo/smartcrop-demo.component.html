@@ -137,10 +137,12 @@
     [photo]="editingPhoto()"
     [sizes]="sizes"
     [aspectRatio]="editingAspect()"
+    [generativeBusy]="generativeBusy()"
     (closed)="editingPhoto.set(null)"
     (saved)="saveCrop($event)"
     (resetAi)="resetAiCrop()"
     (sizeChanged)="onModalSizeChanged($event)"
+    (generativeFill)="onModalGenerativeFill()"
   />
 
   <app-smartcrop-quota-exceeded-modal

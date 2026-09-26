@@ -58,6 +58,8 @@ export class SmartcropCropModalComponent implements OnChanges, OnDestroy {
   /** Fallback when sizes list is empty. */
   @Input() aspectRatio = 2 / 3;
   @Input() open = false;
+  /** Parent is running Clipdrop Generative Fill. */
+  @Input() generativeBusy = false;
 
   @Output() readonly closed = new EventEmitter<void>();
   @Output() readonly saved = new EventEmitter<CropSaveResult>();
@@ -66,6 +68,8 @@ export class SmartcropCropModalComponent implements OnChanges, OnDestroy {
   @Output() readonly approved = new EventEmitter<void>();
   /** Notes: Print size changed in the editor — parent should update photo + aspect. */
   @Output() readonly sizeChanged = new EventEmitter<{ sizeId: string; sizeName: string }>();
+  /** Notes: Generative Fill — extend frames / background via Clipdrop Uncrop. */
+  @Output() readonly generativeFill = new EventEmitter<void>();
 
   readonly selectedSizeId = signal<string>('');
   readonly transform = signal<ImageTransform>({ scale: 1, rotate: 0 });
@@ -373,11 +377,27 @@ export class SmartcropCropModalComponent implements OnChanges, OnDestroy {
 
   @HostListener('document:keydown.escape')
   onEsc(): void {
-    if (this.open && !this.aiRunning()) this.closed.emit();
+    if (this.open && !this.aiRunning() && !this.generativeBusy) this.closed.emit();
+  }
+
+  /** Notes: Deep crop / truncation → pulse the Generative Fill button. */
+  recommendGenerativeFill(): boolean {
+    const photo = this.photo;
+    if (!photo) return false;
+    if (photo.generative_fill_url) return false;
+    if (photo.recommend_generative_fill) return true;
+    const m = this.aiMetrics ?? photo.crop_data?.metrics;
+    if (m?.shouldRecommendGenerativeFill) return true;
+    return (m?.cropLossPercentage ?? 0) > 25;
+  }
+
+  onGenerativeFill(): void {
+    if (this.aiRunning() || this.generativeBusy || this.loadFailed()) return;
+    this.generativeFill.emit();
   }
 
   async save(): Promise<void> {
-    if (this.aiRunning()) return;
+    if (this.aiRunning() || this.generativeBusy) return;
     let event = this.lastCrop;
     if (this.cropperCmp) {
       try {

@@ -274,6 +274,12 @@ export class SmartcropApiService {
       };
     }
     if (!res.ok || !data['ok']) {
+      if (res.status === 413) {
+        return {
+          ok: false,
+          error: String(data['message'] ?? data['error'] ?? 'Payload Too Large'),
+        };
+      }
       return { ok: false, error: String(data['error'] ?? res.statusText) };
     }
     return {

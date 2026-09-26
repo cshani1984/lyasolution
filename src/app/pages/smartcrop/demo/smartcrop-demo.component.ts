@@ -227,9 +227,9 @@ export class SmartcropDemoComponent implements OnInit, OnDestroy {
     this.aiBusy.set(true);
     this.toast.set(this.i18n.t('smartcrop.studio.aiWorking'));
     try {
-      const media_base64 = await this.urlToDataUrl(photo.original_url);
+      const media = await this.mediaForApi(photo.original_url);
       const result = await this.api.processPhoto({
-        media_base64,
+        ...media,
         aspectRatio: this.compareAspectFor(photo),
       });
       if (!result.ok || !result.croppedBase64) {
@@ -266,9 +266,9 @@ export class SmartcropDemoComponent implements OnInit, OnDestroy {
         return;
       }
 
-      const media_base64 = await this.urlToDataUrl(photo.original_url);
+      const media = await this.mediaForApi(photo.original_url);
       const result = await this.api.generativeFill({
-        media_base64,
+        ...media,
         aspectRatio: this.compareAspectFor(photo),
         demoMode: true,
         simulateUsed: this.aiUsed(),
@@ -307,6 +307,18 @@ export class SmartcropDemoComponent implements OnInit, OnDestroy {
     } finally {
       this.generativeBusy.set(false);
       this.busy.set(false);
+    }
+  }
+
+  /** Notes: Generative Fill from crop editor — extend frames/background for current edit. */
+  async onModalGenerativeFill(): Promise<void> {
+    const photo = this.editingPhoto();
+    if (!photo) return;
+    await this.runGenerativeFill(photo);
+    const updated = this.photos().find((p) => p.id === photo.id);
+    if (updated?.generative_fill_url) {
+      this.editingPhoto.set(null);
+      this.comparePhoto.set(updated);
     }
   }
 
@@ -468,6 +480,48 @@ export class SmartcropDemoComponent implements OnInit, OnDestroy {
       reader.onload = () => resolve(String(reader.result));
       reader.onerror = () => reject(reader.error);
       reader.readAsDataURL(blob);
+    });
+  }
+
+  /**
+   * Notes: Prefer media_url for http(s) to avoid 413 on huge base64 JSON.
+   * Local/data URLs are JPEG-compressed (max edge 2048) before send.
+   */
+  private async mediaForApi(
+    url: string,
+  ): Promise<{ media_url: string } | { media_base64: string }> {
+    if (/^https?:\/\//i.test(url)) {
+      return { media_url: url };
+    }
+    const dataUrl = await this.urlToDataUrl(url);
+    return { media_base64: await this.compressDataUrl(dataUrl) };
+  }
+
+  private async compressDataUrl(
+    dataUrl: string,
+    maxEdge = 2048,
+    quality = 0.85,
+  ): Promise<string> {
+    if (!dataUrl.startsWith('data:image/')) return dataUrl;
+    return await new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width * scale));
+        const h = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(dataUrl);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
     });
   }
 

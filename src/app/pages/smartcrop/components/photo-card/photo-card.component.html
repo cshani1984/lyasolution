@@ -4,13 +4,26 @@
   </label>
 
   <div class="sc-card__media">
-    <img [src]="previewUrl()" [alt]="photo.target_size_name" loading="lazy" />
+    <img
+      class="sc-card__img"
+      [class.is-shown]="!showOriginal"
+      [src]="croppedUrl()"
+      [alt]="photo.target_size_name"
+      loading="lazy"
+    />
+    <img
+      class="sc-card__img"
+      [class.is-shown]="showOriginal"
+      [src]="photo.original_url"
+      [alt]="photo.target_size_name"
+      loading="lazy"
+    />
     <span class="sc-card__badge">{{ photo.target_size_name }} cm</span>
     <span class="sc-card__status" [attr.data-status]="photo.status">{{ photo.status }}</span>
   </div>
 
   <div class="sc-card__actions">
-    <button type="button" class="sc-card__btn" (click)="togglePreview.emit()">
+    <button type="button" class="sc-card__btn sc-card__btn--preview" (click)="togglePreview.emit()">
       {{ showOriginal ? i18n.t('smartcrop.card.crop') : i18n.t('smartcrop.card.original') }}
     </button>
     <button type="button" class="sc-card__btn sc-card__btn--icon" (click)="edit.emit()" [attr.aria-label]="i18n.t('smartcrop.card.edit')">
