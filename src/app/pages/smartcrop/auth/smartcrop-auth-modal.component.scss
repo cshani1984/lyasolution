@@ -252,6 +252,9 @@
   border: 1px solid rgba(30, 36, 48, 0.14);
   background: #fff;
   transition: border-color 0.15s ease;
+  /* Always: [IL +972] then number — never flip in Hebrew RTL */
+  direction: ltr;
+  unicode-bidi: isolate;
 }
 
 .sc-am__phone.is-valid {
@@ -263,12 +266,14 @@
   align-items: center;
   gap: 0.35rem;
   flex: 0 0 auto;
+  order: 0;
   padding: 0 0.55rem;
-  border-inline-end: 1px solid rgba(30, 36, 48, 0.1);
+  border-right: 1px solid rgba(30, 36, 48, 0.1);
   font-size: 0.85rem;
   font-weight: 700;
   color: #1e2430;
   user-select: none;
+  direction: ltr;
 }
 
 .sc-am__cc-code {
@@ -285,6 +290,7 @@
 .sc-am__phone-input {
   flex: 1;
   min-width: 0;
+  order: 1;
   font: inherit;
   font-size: 1rem;
   font-weight: 600;
@@ -294,7 +300,7 @@
   padding: 0.65rem 0.75rem;
   background: #fff;
   direction: ltr;
-  text-align: start;
+  text-align: left;
 }
 
 .sc-am__phone-input:disabled {
@@ -304,6 +310,7 @@
 
 .sc-am__ok {
   flex: 0 0 1.55rem;
+  order: 2;
   width: 1.55rem;
   height: 1.55rem;
   margin: auto 0.25rem;

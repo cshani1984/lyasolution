@@ -59,7 +59,7 @@
             <p class="sc-am__err">{{ i18n.t('smartcrop.login.noSupabase') }}</p>
           } @else if (tab() === 'login') {
             <label class="sc-am__phone-label">{{ i18n.t('smartcrop.auth.ownerPhone') }}</label>
-            <div class="sc-am__phone" [class.is-valid]="phoneValid()">
+            <div class="sc-am__phone" dir="ltr" [class.is-valid]="phoneValid()">
               <div class="sc-am__cc" aria-hidden="true">
                 <span class="sc-am__cc-code">IL</span>
                 <strong>+972</strong>
@@ -144,7 +144,7 @@
             </label>
 
             <label class="sc-am__phone-label">{{ i18n.t('smartcrop.auth.ownerPhone') }}</label>
-            <div class="sc-am__phone" [class.is-valid]="phoneValid()">
+            <div class="sc-am__phone" dir="ltr" [class.is-valid]="phoneValid()">
               <div class="sc-am__cc" aria-hidden="true">
                 <span class="sc-am__cc-code">IL</span>
                 <strong>+972</strong>
