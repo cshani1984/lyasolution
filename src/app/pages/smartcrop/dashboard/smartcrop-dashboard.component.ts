@@ -75,7 +75,6 @@ export class SmartcropDashboardComponent implements OnInit, OnDestroy {
   /** null = all customers */
   readonly activeCustomerPhone = signal<string | null>(null);
   readonly customerQuery = signal('');
-  readonly autoHorizon = signal(true);
   readonly showGrid = signal(false);
   readonly showHeatmap = signal(false);
   /** Blind center-crop preview URL for “regular crop” mode (revoked on replace). */
@@ -209,10 +208,62 @@ export class SmartcropDashboardComponent implements OnInit, OnDestroy {
     return d != null ? Math.round(d * 10) / 10 : null;
   });
 
-  /** Readonly meter fill widths (visual only — not interactive sliders). */
-  readonly headroomMeterWidth = computed(() => Math.min(100, this.autoHeadroomPct() * 3.3));
-  readonly safetyMeterWidth = computed(() => Math.min(100, this.autoSafetyPct() * 8));
-  readonly faceCenterMeterWidth = computed(() => this.autoFaceCenterPct() ?? 0);
+  /** Compact chips for step 2 — what AI found/applied (no sliders). */
+  readonly aiFindingTags = computed((): { id: string; label: string; tone: string }[] => {
+    const m = this.activeMetrics();
+    const tags: { id: string; label: string; tone: string }[] = [];
+    if (!m) return tags;
+
+    if (m.detectedType) {
+      const typeLabel = this.detectionLabel(m.detectedType);
+      const conf =
+        m.confidenceScore != null ? ` (${Math.round(m.confidenceScore * 10) / 10}%)` : '';
+      tags.push({ id: 'type', label: `${typeLabel}${conf}`, tone: 'is-purple' });
+    }
+    if (m.headPaddingApplied && this.autoHeadroomPct() > 0) {
+      tags.push({
+        id: 'headroom',
+        label: `${this.i18n.t('smartcrop.studio.headroomTag')} +${this.autoHeadroomPct()}%`,
+        tone: 'is-green',
+      });
+    }
+    if (this.autoSafetyPct() > 0) {
+      tags.push({
+        id: 'bleed',
+        label: `${this.i18n.t('smartcrop.studio.bleedSafe')} +${this.autoSafetyPct()}%`,
+        tone: 'is-green',
+      });
+    }
+    if (this.autoFaceCenterPct() != null) {
+      tags.push({
+        id: 'face',
+        label: `${this.i18n.t('smartcrop.studio.faceCenter')} ${this.autoFaceCenterPct()}%`,
+        tone: 'is-purple',
+      });
+    }
+    if (this.autoFaceShiftPct() != null && this.autoFaceShiftPct()! > 0) {
+      tags.push({
+        id: 'shift',
+        label: `${this.i18n.t('smartcrop.metrics.correction')} Δ${this.autoFaceShiftPct()}%`,
+        tone: 'is-muted',
+      });
+    }
+    if (this.focusScore() != null) {
+      tags.push({
+        id: 'focus',
+        label: `${this.i18n.t('smartcrop.studio.focusQuality')}: ${this.focusScore()}%`,
+        tone: this.isLowFocus() ? 'is-warn' : 'is-green',
+      });
+    }
+    if (m.usedSmartShift) {
+      tags.push({
+        id: 'smart',
+        label: this.i18n.t('smartcrop.studio.focusLock'),
+        tone: 'is-purple',
+      });
+    }
+    return tags;
+  });
 
   readonly focusScore = computed(() => {
     const m = this.activeMetrics();

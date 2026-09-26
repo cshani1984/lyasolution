@@ -2,10 +2,8 @@
   <header class="sc-studio__top">
     <div class="sc-studio__brand">
       <a routerLink="/smartcrop" class="sc-studio__logo-link" [attr.aria-label]="i18n.t('nav.home')">
-        <span class="sc-studio__logo-mark" aria-hidden="true">
-          <span class="material-symbols-outlined">photo_camera</span>
-        </span>
-        <strong>SmartCrop</strong>
+        <img src="/smartcrop-logo.png" alt="SmartCrop" width="32" height="32" />
+        <span>SmartCrop</span>
       </a>
       <span class="sc-studio__pill sc-studio__pill--green" [title]="i18n.t('smartcrop.studio.proHint')">PRO</span>
       <span class="sc-studio__pill sc-studio__pill--live" [title]="whatsappBadgeTitle()">
@@ -73,9 +71,6 @@
           @if (activeSizeLabel()) {
             <small>{{ activeSizeLabel() }}</small>
           }
-        </span>
-        <span class="sc-studio__wa-badge sc-studio__wa-badge--dpi">
-          {{ i18n.t('smartcrop.studio.waPrintQuality') }}
         </span>
         @if (waPhoto.parse_confidence != null) {
           <span class="sc-studio__wa-badge sc-studio__wa-badge--conf">
@@ -298,53 +293,16 @@
 
       <div class="sc-studio__step">
         <h3><span>2</span> {{ i18n.t('smartcrop.studio.stepAi') }}</h3>
-        <div class="sc-studio__meters">
-          <div class="sc-studio__meter">
-            <div class="sc-studio__meter-top">
-              <span>{{ i18n.t('smartcrop.studio.headroom') }}</span>
-              <strong class="is-green">{{ autoHeadroomPct() > 0 ? '+' + autoHeadroomPct() + '%' : '—' }}</strong>
+        <div class="sc-studio__ai-findings">
+          @if (aiFindingTags().length) {
+            <div class="sc-studio__ai-tags" role="list">
+              @for (tag of aiFindingTags(); track tag.id) {
+                <span class="sc-studio__ai-chip" [class]="tag.tone" role="listitem">{{ tag.label }}</span>
+              }
             </div>
-            <div class="sc-studio__meter-track" aria-hidden="true">
-              <i class="is-green" [style.width.%]="headroomMeterWidth()"></i>
-            </div>
-            <em>{{ autoHeadroomPct() > 0 ? i18n.t('smartcrop.studio.headroomSafe') : i18n.t('smartcrop.studio.autoNotNeeded') }}</em>
-          </div>
-
-          <div class="sc-studio__meter">
-            <div class="sc-studio__meter-top">
-              <span>{{ i18n.t('smartcrop.studio.faceCenter') }}</span>
-              <strong>{{ autoFaceCenterPct() != null ? autoFaceCenterPct() + '%' : '—' }}</strong>
-            </div>
-            <div class="sc-studio__meter-track" aria-hidden="true">
-              <i [style.width.%]="faceCenterMeterWidth()"></i>
-            </div>
-            <em>{{ i18n.t('smartcrop.studio.faceEyesFocus') }}</em>
-          </div>
-
-          @if (autoSafetyPct() > 0) {
-            <div class="sc-studio__meter">
-              <div class="sc-studio__meter-top">
-                <span>{{ i18n.t('smartcrop.metrics.safetyMargin') }}</span>
-                <strong class="is-green">+{{ autoSafetyPct() }}%</strong>
-              </div>
-              <div class="sc-studio__meter-track" aria-hidden="true">
-                <i class="is-green" [style.width.%]="safetyMeterWidth()"></i>
-              </div>
-              <em>{{ i18n.t('smartcrop.studio.autoApplied') }}</em>
-            </div>
+          } @else {
+            <p class="sc-studio__ai-empty">{{ i18n.t('smartcrop.studio.aiNoFindings') }}</p>
           }
-
-          @if (autoFaceShiftPct() != null) {
-            <div class="sc-studio__meter-note">
-              {{ i18n.t('smartcrop.metrics.correction') }}: Δ {{ autoFaceShiftPct() }}%
-              · {{ i18n.t('smartcrop.studio.autoApplied') }}
-            </div>
-          }
-
-          <label class="sc-studio__toggle">
-            <input type="checkbox" [ngModel]="autoHorizon()" (ngModelChange)="autoHorizon.set($event)" />
-            <span>{{ i18n.t('smartcrop.studio.autoHorizon') }}</span>
-          </label>
         </div>
       </div>
 

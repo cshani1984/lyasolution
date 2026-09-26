@@ -902,6 +902,61 @@
   border: 1px solid rgba(30, 36, 48, 0.08);
 }
 
+.sc-studio__ai-findings {
+  padding: 0.75rem 0.85rem;
+  border-radius: 12px;
+  background: #f7f8fb;
+  border: 1px solid rgba(30, 36, 48, 0.08);
+}
+
+.sc-studio__ai-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.sc-studio__ai-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+  border: 1px solid transparent;
+}
+
+.sc-studio__ai-chip.is-purple {
+  color: #4c1d95;
+  background: rgba(98, 54, 255, 0.1);
+  border-color: rgba(98, 54, 255, 0.18);
+}
+
+.sc-studio__ai-chip.is-green {
+  color: #065f46;
+  background: rgba(0, 168, 107, 0.12);
+  border-color: rgba(0, 168, 107, 0.2);
+}
+
+.sc-studio__ai-chip.is-warn {
+  color: #92400e;
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.28);
+}
+
+.sc-studio__ai-chip.is-muted {
+  color: #4b5563;
+  background: rgba(30, 36, 48, 0.06);
+  border-color: rgba(30, 36, 48, 0.1);
+}
+
+.sc-studio__ai-empty {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #6b7280;
+}
+
 .sc-studio__meter {
   display: grid;
   gap: 0.28rem;
