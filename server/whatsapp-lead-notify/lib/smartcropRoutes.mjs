@@ -100,21 +100,73 @@ const upload = multer({
  * Multi-tenant: each studio is identified by profiles.phone after login/register.
  * Priority:
  *   1) explicit user_id (browser upload while logged in)
- *   2) WhatsApp "To" matches a studio profile phone (dedicated business line)
- *   3) WhatsApp "From" matches a studio profile phone (sandbox / shop forward)
- *   4) Auth user with same phone (profiles.phone missing / format drift) + backfill
- * No global SMARTCROP_SHOP_PHONE — that would pin every order to one shop.
+ *   2) non-Twilio phone among To/From (studio line or studio sender)
+ *   3) remaining phone (fallback)
+ * Never match the Twilio WhatsApp channel number itself (sandbox +14155238886, etc.).
  */
 async function resolveShopUserId(supabase, { userId, shopPhone, fromPhone }) {
   if (userId) return userId;
 
-  // Dedicated Twilio WA: To = studio (whatsapp:+972…). Prefer To, then From.
-  for (const phone of [shopPhone, fromPhone]) {
+  const ordered = studioLookupPhones(shopPhone, fromPhone);
+  for (const phone of ordered) {
     const id = await findUserIdByStudioPhone(supabase, phone);
     if (id) return id;
   }
 
   return null;
+}
+
+/**
+ * Notes: Twilio channel numbers from env (sandbox or production WA sender).
+ * Digits only for comparison.
+ * @returns {Set<string>}
+ */
+function twilioChannelDigitSet() {
+  const raw = [
+    process.env.TWILIO_WHATSAPP_NUMBER,
+    process.env.TWILIO_PHONE_NUMBER,
+    // Classic Twilio WhatsApp sandbox — never a SmartCrop studio
+    'whatsapp:+14155238886',
+    '+14155238886',
+  ];
+  const out = new Set();
+  for (const r of raw) {
+    const d = phoneDigits(normalizePhoneE164(String(r ?? '')) || String(r ?? ''));
+    if (d.length >= 8) out.add(d);
+  }
+  return out;
+}
+
+/**
+ * Notes: Prefer the human/studio phone; skip Twilio sandbox / channel number.
+ * Supports both orientations:
+ *   From=+972… To=+14155…  (studio sends photo into sandbox) ← desired
+ *   From=+14155… To=+972…  (logs / misread From-To) ← still works
+ * @param {string} shopPhone  Twilio "To"
+ * @param {string} fromPhone  Twilio "From"
+ * @returns {string[]}
+ */
+function studioLookupPhones(shopPhone, fromPhone) {
+  const channel = twilioChannelDigitSet();
+  const isChannel = (p) => {
+    const d = phoneDigits(p);
+    return Boolean(d && channel.has(d));
+  };
+  const phones = [shopPhone, fromPhone].filter((p) => p && phoneDigits(p).length >= 8);
+  const human = phones.filter((p) => !isChannel(p));
+  const twilioOnly = phones.filter((p) => isChannel(p));
+  // Dedupe by digits
+  const seen = new Set();
+  const out = [];
+  for (const p of [...human, ...twilioOnly]) {
+    const d = phoneDigits(p);
+    if (seen.has(d)) continue;
+    seen.add(d);
+    // Never look up studio by Twilio channel number
+    if (isChannel(p)) continue;
+    out.push(p);
+  }
+  return out;
 }
 
 /**
@@ -647,6 +699,7 @@ export function registerSmartcropRoutes(app, ctx) {
           mediaContentType: parsed.MediaContentType0 || null,
           senderPhone: parsed.senderPhone,
           shopPhone: parsed.shopPhone,
+          studioLookup: studioLookupPhones(parsed.shopPhone, parsed.senderPhone),
         });
 
         let reply =
@@ -722,7 +775,7 @@ export function registerSmartcropRoutes(app, ctx) {
         let friendly = 'אירעה שגיאה בעיבוד. נסו שוב.';
         if (err?.status === 404) {
           friendly =
-            'לא מצאנו סטודיו רשום למספר זה. היכנסו ל-SmartCrop עם אותו מספר WhatsApp שממנו שלחתם, ואז שלחו שוב תמונה.';
+            'לא מצאנו סטודיו. בסנדבוקס: שלחו תמונה מ-+972… אל מספר Twilio (+14155238886), אחרי login ל-SmartCrop עם אותו +972. בדקו ש-profiles.phone ב-Supabase תואם.';
         } else if (/Storage upload failed|Bucket not found|not found/i.test(detail)) {
           friendly =
             'שגיאת אחסון תמונות (Storage). ודאו שקיים bucket בשם photo-prints ב-Supabase.';
