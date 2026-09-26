@@ -202,11 +202,17 @@ export class SmartcropAuthService {
     const phone = this.toE164(u?.phone?.trim() || '');
     if (!u || !phone) return;
     const profile = this.profile() ?? (await this.loadProfile(u.id));
-    if (this.toE164(profile?.phone || '') === phone) {
-      await this.linkPhotosByPhone(phone);
+    const existing = this.toE164(profile?.phone || '');
+    if (existing === phone) {
+      // Still rewrite canonical E.164 if DB has local 05… form
+      if (profile?.phone && profile.phone !== phone) {
+        await this.updatePhone(phone);
+      } else {
+        await this.linkPhotosByPhone(phone);
+      }
       return;
     }
-    if (profile?.phone && this.toE164(profile.phone) !== phone) {
+    if (existing && existing !== phone) {
       await this.linkPhotosByPhone(phone);
       return;
     }

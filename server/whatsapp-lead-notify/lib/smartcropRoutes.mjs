@@ -107,7 +107,8 @@ const upload = multer({
 async function resolveShopUserId(supabase, { userId, shopPhone, fromPhone }) {
   if (userId) return userId;
 
-  for (const phone of [shopPhone, fromPhone]) {
+  // Sandbox: From is the studio phone; To is Twilio (+1415…). Prefer From first.
+  for (const phone of [fromPhone, shopPhone]) {
     const id = await findUserIdByStudioPhone(supabase, phone);
     if (id) return id;
   }
@@ -116,7 +117,8 @@ async function resolveShopUserId(supabase, { userId, shopPhone, fromPhone }) {
 }
 
 /**
- * Notes: Match studio by phone — exact candidates, then digit-suffix, then Auth phone.
+ * Notes: Match studio by phone — exact eq (avoids PostgREST '+' encoding bugs),
+ * digit-suffix soft match, then Auth admin phone (+ identities).
  * @param {import('@supabase/supabase-js').SupabaseClient} supabase
  * @param {string | null | undefined} rawPhone
  * @returns {Promise<string | null>}
@@ -124,37 +126,59 @@ async function resolveShopUserId(supabase, { userId, shopPhone, fromPhone }) {
 async function findUserIdByStudioPhone(supabase, rawPhone) {
   const candidates = phoneLookupCandidates(String(rawPhone ?? ''));
   if (!candidates.length) return null;
+  const canonical = normalizePhoneE164(String(rawPhone ?? '')) || candidates[0];
 
-  const orFilter = candidates
-    .map((c) => `phone.eq."${String(c).replace(/"/g, '')}"`)
-    .join(',');
-  const { data: exactRows } = await supabase.from('profiles').select('id, phone').or(orFilter).limit(1);
-  const exact = exactRows?.[0];
-  if (exact?.id) {
-    await backfillProfilePhone(supabase, exact.id, candidates[0]);
-    return exact.id;
+  // Exact match per candidate — .eq encodes '+' correctly; .or("phone.eq.+972…") often breaks.
+  for (const c of candidates) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, phone')
+      .eq('phone', c)
+      .limit(1)
+      .maybeSingle();
+    if (error) {
+      // continue — try other candidates
+      continue;
+    }
+    if (data?.id) {
+      await backfillProfilePhone(supabase, data.id, canonical);
+      return data.id;
+    }
   }
 
   // Soft match: last 9 digits (handles +972 / 0 / spacing leftovers in DB)
-  const digits = normalizePhoneE164(String(rawPhone ?? '')).replace(/\D/g, '');
+  const digits = canonical.replace(/\D/g, '');
   const tail = digits.slice(-9);
   if (tail.length === 9) {
     const { data: rows } = await supabase
       .from('profiles')
       .select('id, phone')
       .not('phone', 'is', null)
-      .limit(300);
+      .like('phone', `%${tail}`)
+      .limit(20);
     const hit = (rows ?? []).find((r) => String(r.phone).replace(/\D/g, '').endsWith(tail));
     if (hit?.id) {
-      await backfillProfilePhone(supabase, hit.id, candidates[0]);
+      await backfillProfilePhone(supabase, hit.id, canonical);
       return hit.id;
+    }
+
+    // Broader scan if like failed (phone stored with spaces/dashes)
+    const { data: allRows } = await supabase
+      .from('profiles')
+      .select('id, phone')
+      .not('phone', 'is', null)
+      .limit(500);
+    const soft = (allRows ?? []).find((r) => String(r.phone).replace(/\D/g, '').endsWith(tail));
+    if (soft?.id) {
+      await backfillProfilePhone(supabase, soft.id, canonical);
+      return soft.id;
     }
   }
 
   // profiles.phone empty but Auth OTP user exists with this phone
   const authId = await findAuthUserIdByPhone(supabase, candidates);
   if (authId) {
-    await backfillProfilePhone(supabase, authId, candidates[0]);
+    await backfillProfilePhone(supabase, authId, canonical);
     return authId;
   }
 
@@ -172,18 +196,24 @@ async function backfillProfilePhone(supabase, userId, e164) {
   if (!userId || !phone) return;
   const { data } = await supabase.from('profiles').select('id, phone').eq('id', userId).maybeSingle();
   if (!data) {
-    await supabase.from('profiles').upsert({ id: userId, phone }, { onConflict: 'id' });
+    const { error } = await supabase.from('profiles').upsert({ id: userId, phone }, { onConflict: 'id' });
+    if (error) console.warn('[smartcrop] backfillProfilePhone upsert', error.message);
     return;
   }
   if (normalizePhoneE164(data.phone || '') === phone) return;
   const { error } = await supabase.from('profiles').update({ phone }).eq('id', userId);
   if (error && (error.code === '23505' || /profiles_phone_key/i.test(error.message || ''))) {
-    // Phone unique on another row — leave as-is; match already succeeded by id.
+    // Phone unique on another row — clear orphan then retry once
+    await supabase.from('profiles').update({ phone: null }).eq('phone', phone).neq('id', userId);
+    await supabase.from('profiles').update({ phone }).eq('id', userId);
+  } else if (error) {
+    console.warn('[smartcrop] backfillProfilePhone update', error.message);
   }
 }
 
 /**
  * Notes: Fallback when profiles.phone was never saved after OTP (unique conflict / race).
+ * Checks auth.users.phone and phone identity_data.
  * @param {import('@supabase/supabase-js').SupabaseClient} supabase
  * @param {string[]} candidates
  * @returns {Promise<string | null>}
@@ -191,25 +221,41 @@ async function backfillProfilePhone(supabase, userId, e164) {
 async function findAuthUserIdByPhone(supabase, candidates) {
   const wanted = new Set(candidates.map((c) => normalizePhoneE164(c)).filter(Boolean));
   const wantedDigits = new Set([...wanted].map((c) => c.replace(/\D/g, '')));
+  const digitMatch = (raw) => {
+    const p = normalizePhoneE164(String(raw ?? ''));
+    if (!p) return false;
+    return wanted.has(p) || wantedDigits.has(p.replace(/\D/g, ''));
+  };
+
   try {
     let page = 1;
     const perPage = 200;
     for (;;) {
       const { data, error } = await supabase.auth.admin.listUsers({ page, perPage });
-      if (error || !data?.users?.length) break;
-      for (const u of data.users) {
-        const p = normalizePhoneE164(u.phone || '');
-        if (!p) continue;
-        if (wanted.has(p) || wantedDigits.has(p.replace(/\D/g, ''))) {
-          return u.id;
+      if (error) {
+        console.warn('[smartcrop] auth.admin.listUsers', error.message);
+        break;
+      }
+      const users = data?.users ?? [];
+      if (!users.length) break;
+      for (const u of users) {
+        if (digitMatch(u.phone)) return u.id;
+        if (digitMatch(u.user_metadata?.phone)) return u.id;
+        const identities = Array.isArray(u.identities) ? u.identities : [];
+        for (const idn of identities) {
+          const idPhone =
+            idn?.identity_data?.phone ||
+            idn?.identity_data?.phone_number ||
+            idn?.identity_data?.provider_id;
+          if (digitMatch(idPhone)) return u.id;
         }
       }
-      if (data.users.length < perPage) break;
+      if (users.length < perPage) break;
       page += 1;
-      if (page > 10) break;
+      if (page > 15) break;
     }
-  } catch {
-    // admin API unavailable — ignore
+  } catch (err) {
+    console.warn('[smartcrop] findAuthUserIdByPhone', err?.message ?? err);
   }
   return null;
 }
@@ -580,6 +626,7 @@ export function registerSmartcropRoutes(app, ctx) {
             to: parsed?.To,
             senderPhone: parsed?.senderPhone,
             shopPhone: parsed?.shopPhone,
+            fromCandidates: phoneLookupCandidates(parsed?.senderPhone || ''),
           });
         }
         const friendly =
