@@ -12,9 +12,14 @@
       </span>
     </div>
 
-    <div class="sc-studio__store">
-      <span class="material-symbols-outlined" aria-hidden="true">storefront</span>
-      <span>{{ userLabel() }}</span>
+    <div class="sc-studio__top-search">
+      <app-smartcrop-customer-search-bar
+        [customers]="customers()"
+        [selectedPhone]="activeCustomerPhone()"
+        [totalPhotos]="photos().length"
+        (selected)="selectCustomer($event)"
+        (queryChange)="customerQuery.set($event)"
+      />
     </div>
 
     <div class="sc-studio__user">
@@ -28,6 +33,10 @@
       <button type="button" class="sc-studio__signout" (click)="signOut()">{{ i18n.t('smartcrop.dash.signOut') }}</button>
     </div>
   </header>
+
+  @if (selectedCustomer(); as cust) {
+    <app-smartcrop-customer-filter-header [customer]="cust" (cleared)="selectCustomer(null)" />
+  }
 
   @if (toast()) {
     <p class="sc-studio__toast" [class.is-ai]="aiBusy()">{{ toast() }}</p>
@@ -348,13 +357,6 @@
             <em>{{ whatsappOrderRef() }}</em>
           }
         </h3>
-        <app-smartcrop-customer-search-bar
-          [customers]="customers()"
-          [selectedPhone]="activeCustomerPhone()"
-          [totalPhotos]="photos().length"
-          (selected)="selectCustomer($event)"
-          (queryChange)="customerQuery.set($event)"
-        />
       </div>
       <div class="sc-studio__stats">
         <span>{{ filteredPhotos().length }} {{ i18n.t('smartcrop.studio.caught') }}</span>
@@ -362,10 +364,6 @@
         <span class="is-ok">{{ approvedCount() }} {{ i18n.t('smartcrop.studio.approved') }}</span>
       </div>
     </div>
-
-    @if (selectedCustomer(); as cust) {
-      <app-smartcrop-customer-filter-header [customer]="cust" (cleared)="selectCustomer(null)" />
-    }
 
     <div class="sc-studio__thumbs">
       @for (photo of filteredPhotos(); track photo.id) {

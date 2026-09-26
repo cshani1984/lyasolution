@@ -170,7 +170,7 @@ export const SC_LANDING: Record<ScLandingLang, ScLandingCopy> = {
     chatMsg: 'שלום, רוצה להדפיס את התמונה הזו ב-10x15 על נייר מבריק! אפשרי שיהיה מוכן לעוד שעתיים?',
     orderLine: '10x15 • נייר גלוס • עותק 1',
     botMsg:
-      'היי דני! זיהינו את הבקשה: 10x15 מבריק. התמונה נסרקה ב-SmartCrop. התמונות מוכנות להדפסה, יש להיכנס לדשבורד: https://www.lya-solution.com/smartcrop/dashboard',
+      'היי דני! זיהינו את הבקשה: 10x15 מבריק. התמונה נסרקה ב-SmartCrop. התמונות מוכנות להדפסה, יש להיכנס לדשבורד',
     botMeta: '14:32 • בוט SmartCrop',
     dpiTag: 'DPI מקורי: 300',
     hotfolderTag: 'ניתוב Hotfolder מאושר',

@@ -264,8 +264,7 @@ export function buildCustomerBotReply(result) {
           ? 'לאסטר'
           : '';
   const req = paperHe ? `${result.sizeName} ${paperHe}` : result.sizeName;
-  const dashboardUrl = 'https://www.lya-solution.com/smartcrop/dashboard';
-  return `${hi} זיהינו את הבקשה: ${req}.\nהתמונה נסרקה ב-SmartCrop.\nהתמונות מוכנות להדפסה, יש להיכנס לדשבורד:\n${dashboardUrl}`;
+  return `${hi} זיהינו את הבקשה: ${req}.\nהתמונה נסרקה ב-SmartCrop.\nהתמונות מוכנות להדפסה, יש להיכנס לדשבורד`;
 }
 
 /**
