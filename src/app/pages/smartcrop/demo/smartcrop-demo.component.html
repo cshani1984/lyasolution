@@ -55,6 +55,7 @@
           [aspectRatio]="compareAspect()"
           [sizeLabel]="cmp.target_size_name"
           [generativeBusy]="generativeBusy()"
+          [processing]="aiBusy() || generativeBusy()"
           (edit)="openEdit(cmp)"
           (resetAi)="runAiOnCard(cmp)"
           (generativeFill)="runGenerativeFill(cmp)"

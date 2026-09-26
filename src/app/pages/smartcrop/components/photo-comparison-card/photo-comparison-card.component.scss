@@ -112,8 +112,58 @@
 }
 
 .sc-pcc__dual {
+  position: relative;
   display: grid;
   gap: 0.85rem;
+}
+
+.sc-pcc__dual.is-processing > .sc-pcc__card {
+  filter: brightness(0.7);
+}
+
+.sc-pcc__busy {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  text-align: center;
+  border-radius: 0.75rem;
+  background: rgba(15, 23, 42, 0.58);
+  color: #fff;
+  backdrop-filter: blur(2px);
+  pointer-events: none;
+}
+
+.sc-pcc__busy strong {
+  font-size: 0.95rem;
+}
+
+.sc-pcc__busy p {
+  margin: 0;
+  max-width: 16rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.sc-pcc__spinner {
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 3px solid rgba(255, 255, 255, 0.22);
+  border-top-color: #fff;
+  border-radius: 999px;
+  animation: sc-pcc-spin 0.75s linear infinite;
+}
+
+@keyframes sc-pcc-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (min-width: 720px) {

@@ -61,7 +61,14 @@
     </div>
   }
 
-  <div class="sc-pcc__dual" [class.has-gf]="!!photo.generative_fill_url">
+  <div class="sc-pcc__dual" [class.has-gf]="!!photo.generative_fill_url" [class.is-processing]="processing || generativeBusy">
+    @if (processing || generativeBusy) {
+      <div class="sc-pcc__busy" role="status" aria-live="polite">
+        <span class="sc-pcc__spinner" aria-hidden="true"></span>
+        <strong>{{ i18n.t('smartcrop.studio.aiWorkingShort') }}</strong>
+        <p>{{ generativeBusy ? i18n.t('smartcrop.generative.working') : i18n.t('smartcrop.studio.aiWorking') }}</p>
+      </div>
+    }
     <article class="sc-pcc__card">
       <div class="sc-pcc__card-title is-bad">
         <span>

@@ -118,19 +118,13 @@
           </div>
 
           <div class="sc-studio__stage" [class.is-busy]="aiBusy() || generativeBusy()">
-            @if (aiBusy() || generativeBusy()) {
-              <div class="sc-studio__ai-overlay">
-                <span class="sc-studio__spinner" aria-hidden="true"></span>
-                <p>{{ generativeBusy() ? i18n.t('smartcrop.generative.working') : i18n.t('smartcrop.studio.aiWorking') }}</p>
-              </div>
-            }
-
             @if (compareMode()) {
               <app-smartcrop-photo-comparison-card
                 [photo]="photo"
                 [aspectRatio]="activeAspect()"
                 [sizeLabel]="activeSizeLabel()"
                 [generativeBusy]="generativeBusy()"
+                [processing]="aiBusy() || generativeBusy()"
                 (edit)="openCrop()"
                 (resetAi)="resetAiCrop()"
                 (approve)="approveActive()"
@@ -158,6 +152,13 @@
                   }
                   <div class="sc-studio__ai-tag sc-studio__ai-tag--c">{{ i18n.t('smartcrop.studio.focusLock') }}</div>
                   <div class="sc-studio__ai-tag sc-studio__ai-tag--bleed">{{ i18n.t('smartcrop.studio.bleedSafe') }}</div>
+                }
+                @if (aiBusy() || generativeBusy()) {
+                  <div class="sc-studio__img-busy" role="status" aria-live="polite">
+                    <span class="sc-studio__spinner" aria-hidden="true"></span>
+                    <strong>{{ i18n.t('smartcrop.studio.aiWorkingShort') }}</strong>
+                    <p>{{ generativeBusy() ? i18n.t('smartcrop.generative.working') : i18n.t('smartcrop.studio.aiWorking') }}</p>
+                  </div>
                 }
               </div>
             }
@@ -200,14 +201,22 @@
         </div>
       } @else {
         <div class="sc-studio__empty">
-          <p>{{ i18n.t('smartcrop.dash.empty') }}</p>
-          <app-smartcrop-file-uploader
-            [sizes]="photosService.sizes()"
-            [busy]="busy() || aiBusy()"
-            [sizeName]="uploadSizeName()"
-            (sizeNameChange)="uploadSizeName.set($event)"
-            (filesSelected)="onUploadFiles($event)"
-          />
+          @if (aiBusy()) {
+            <div class="sc-studio__img-busy sc-studio__img-busy--empty" role="status" aria-live="polite">
+              <span class="sc-studio__spinner" aria-hidden="true"></span>
+              <strong>{{ i18n.t('smartcrop.studio.aiWorkingShort') }}</strong>
+              <p>{{ i18n.t('smartcrop.studio.aiWorking') }}</p>
+            </div>
+          } @else {
+            <p>{{ i18n.t('smartcrop.dash.empty') }}</p>
+            <app-smartcrop-file-uploader
+              [sizes]="photosService.sizes()"
+              [busy]="busy() || aiBusy()"
+              [sizeName]="uploadSizeName()"
+              (sizeNameChange)="uploadSizeName.set($event)"
+              (filesSelected)="onUploadFiles($event)"
+            />
+          }
         </div>
       }
     </section>

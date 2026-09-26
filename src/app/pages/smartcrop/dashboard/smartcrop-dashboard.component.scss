@@ -100,9 +100,9 @@
   position: relative;
 }
 
-.sc-studio__stage.is-busy .sc-studio__frame,
+.sc-studio__stage.is-busy .sc-studio__frame img,
 .sc-studio__stage.is-busy .sc-studio__compare {
-  opacity: 0.45;
+  filter: brightness(0.72);
 }
 
 .sc-studio__ai-overlay {
@@ -125,14 +125,53 @@
   font-size: 0.9rem;
 }
 
+.sc-studio__img-busy {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.55rem;
+  padding: 1rem;
+  text-align: center;
+  background: rgba(15, 23, 42, 0.62);
+  color: #fff;
+  pointer-events: none;
+  backdrop-filter: blur(2px);
+}
+
+.sc-studio__img-busy strong {
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+}
+
+.sc-studio__img-busy p {
+  margin: 0;
+  max-width: 18rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.sc-studio__img-busy--empty {
+  position: relative;
+  min-height: 16rem;
+  margin: 1rem auto;
+  max-width: 22rem;
+  border-radius: 16px;
+  pointer-events: auto;
+}
+
 .sc-studio__spinner {
-  width: 2rem;
-  height: 2rem;
+  width: 2.6rem;
+  height: 2.6rem;
   margin-inline: auto;
-  border: 3px solid rgba(255, 255, 255, 0.25);
+  border: 3px solid rgba(255, 255, 255, 0.22);
   border-top-color: #fff;
   border-radius: 999px;
-  animation: sc-spin 0.8s linear infinite;
+  animation: sc-spin 0.75s linear infinite;
 }
 
 @keyframes sc-spin {

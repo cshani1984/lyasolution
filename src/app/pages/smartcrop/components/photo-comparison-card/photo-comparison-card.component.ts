@@ -38,6 +38,8 @@ export class SmartcropPhotoComparisonCardComponent implements OnChanges, OnDestr
   @Input() sizeLabel = '';
   @Input() blindUrl: string | null = null;
   @Input() generativeBusy = false;
+  /** MediaPipe / Sharp / generative fill running — show spinner on images. */
+  @Input() processing = false;
 
   @Output() readonly edit = new EventEmitter<void>();
   @Output() readonly resetAi = new EventEmitter<void>();
