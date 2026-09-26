@@ -95,16 +95,39 @@ const upload = multer({
 
 /**
  * Notes: Resolve photo-shop (lab) account — owner of the dashboard.
- * Priority: explicit user_id → SMARTCROP_SHOP_USER_ID → profile matching To/shop phone.
+ * Multi-tenant: each studio is identified by profiles.phone after login/register.
+ * Priority:
+ *   1) explicit user_id (browser upload while logged in)
+ *   2) WhatsApp "To" matches a studio profile phone (dedicated business line)
+ *   3) WhatsApp "From" matches a studio profile phone (sandbox / shop forward)
+ * No global SMARTCROP_SHOP_PHONE — that would pin every order to one shop.
  */
-async function resolveShopUserId(supabase, { userId, shopPhone }) {
+async function resolveShopUserId(supabase, { userId, shopPhone, fromPhone }) {
   if (userId) return userId;
-  const envId = process.env.SMARTCROP_SHOP_USER_ID?.trim();
-  if (envId) return envId;
-  const phone = normalizePhoneE164(String(shopPhone ?? ''));
-  if (!phone) return null;
-  const { data } = await supabase.from('profiles').select('id').eq('phone', phone).maybeSingle();
-  return data?.id ?? null;
+
+  const toPhone = normalizePhoneE164(String(shopPhone ?? ''));
+  if (toPhone) {
+    const { data } = await supabase.from('profiles').select('id').eq('phone', toPhone).maybeSingle();
+    if (data?.id) return data.id;
+  }
+
+  const from = normalizePhoneE164(String(fromPhone ?? ''));
+  if (from) {
+    const { data } = await supabase.from('profiles').select('id').eq('phone', from).maybeSingle();
+    if (data?.id) return data.id;
+  }
+
+  return null;
+}
+
+/**
+ * Notes: True when the WhatsApp sender is the studio itself (forward / self-send).
+ */
+async function isRegisteredShopPhone(supabase, phone) {
+  const p = normalizePhoneE164(String(phone ?? ''));
+  if (!p) return false;
+  const { data } = await supabase.from('profiles').select('id').eq('phone', p).maybeSingle();
+  return Boolean(data?.id);
 }
 
 /**
@@ -160,57 +183,60 @@ async function ingestSmartcropPhoto(input) {
   const fromPhone = normalizePhoneE164(String(input.senderPhone ?? ''));
   const shopPhone = normalizePhoneE164(String(input.shopPhone ?? ''));
 
-  const isShopForward = Boolean(shopPhone && fromPhone && fromPhone === shopPhone);
+  const supabase = getSupabaseAdmin();
+
+  // Shop owns the dashboard; do NOT bind user_id to end-customer phone
+  let userId = await resolveShopUserId(supabase, {
+    userId: input.user_id || null,
+    shopPhone,
+    fromPhone,
+  });
+
+  const senderIsShop = await isRegisteredShopPhone(supabase, fromPhone);
+  // Shop forward: studio sent the WhatsApp message (sandbox or forwarded customer chat)
+  const isShopForward = Boolean(senderIsShop && userId);
   const missingCustomerIdentity = !order.customerPhone && !order.customerName;
 
-  // End-customer phone: caption wins (shop forward), else WhatsApp From.
+  // End-customer phone: caption wins (shop forward), else WhatsApp From (real customer).
   // Shop forward without name/phone → Admin folder under the shop account.
-  let customerPhone = order.customerPhone || fromPhone;
+  let customerPhone = order.customerPhone || (isShopForward ? null : fromPhone);
   let customerName = order.customerName;
   if (isShopForward && missingCustomerIdentity) {
-    customerPhone = shopPhone || fromPhone || 'admin';
+    customerPhone = 'admin';
     customerName = 'Admin';
   } else if (isShopForward && order.customerPhone) {
     customerPhone = order.customerPhone;
   }
   if (!customerName && missingCustomerIdentity && !fromPhone) {
     customerName = 'Admin';
-    customerPhone = shopPhone || 'admin';
+    customerPhone = 'admin';
   }
 
   if (!customerPhone) {
-    customerPhone = shopPhone || 'admin';
-    customerName = customerName || 'Admin';
+    customerPhone = isShopForward ? 'admin' : fromPhone || 'admin';
+    customerName = customerName || (isShopForward ? 'Admin' : null);
   }
   order.customerName = customerName;
   if (!input.media_url && !input.media_base64) {
     throw Object.assign(new Error('media_url or media_base64 required'), { status: 400 });
   }
 
+  if (!userId) {
+    throw Object.assign(
+      new Error(
+        'No studio account matched this WhatsApp. Register/login with the business phone, or send to that studio WhatsApp number.',
+      ),
+      { status: 404 },
+    );
+  }
+
   const sizeQuery = order.sizeName || '10x15';
-  const supabase = getSupabaseAdmin();
 
   const { size: sizeRow, aspectRatio, sizeCode, sizeName, sizeId } = await resolvePrintSize(
     supabase,
     sizeQuery,
   );
   void sizeRow;
-
-  // Shop owns the dashboard; do NOT bind user_id to end-customer phone
-  let userId = await resolveShopUserId(supabase, {
-    userId: input.user_id || null,
-    shopPhone: shopPhone || process.env.SMARTCROP_SHOP_PHONE || '',
-  });
-
-  // Fallback: if only one profile matches From and no shop configured, keep legacy link
-  if (!userId && fromPhone && fromPhone === customerPhone) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('phone', fromPhone)
-      .maybeSingle();
-    userId = profile?.id ?? null;
-  }
 
   let orderId = null;
   if (userId) {
@@ -453,7 +479,11 @@ export function registerSmartcropRoutes(app, ctx) {
         res.status(200).type('text/xml').send(out.twiml);
       } catch (err) {
         logErr('Twilio WhatsApp webhook failed', err?.message ?? err);
-        const twiml = (await replyToWhatsApp({ From: '', reply: 'אירעה שגיאה בעיבוד. נסו שוב.' })).twiml;
+        const friendly =
+          err?.status === 404
+            ? 'לא מצאנו סטודיו רשום למספר זה. היכנסו ל-SmartCrop, הירשמו עם מספר העסק, ואז שלחו/העבירו את התמונה מאותו מספר.'
+            : 'אירעה שגיאה בעיבוד. נסו שוב.';
+        const twiml = (await replyToWhatsApp({ From: '', reply: friendly })).twiml;
         res.status(200).type('text/xml').send(twiml);
       }
       return;
