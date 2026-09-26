@@ -22,6 +22,61 @@
   max-width: 36rem;
 }
 
+.sc-demo__controls {
+  margin-block: 0.5rem 1.25rem;
+  padding: 1rem 1.1rem;
+  border-radius: 14px;
+  border: 1px solid rgba(55, 71, 79, 0.12);
+  background: #fff;
+  display: grid;
+  gap: 0.65rem;
+  max-width: 40rem;
+}
+
+.sc-demo__controls h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.sc-demo__tier {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+}
+
+.sc-demo__tier select,
+.sc-demo__size select {
+  font: inherit;
+  padding: 0.45rem 0.6rem;
+  border-radius: 10px;
+  border: 1px solid rgba(55, 71, 79, 0.2);
+}
+
+.sc-demo__usage {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #546e7a;
+}
+
+.sc-demo__ctrl-actions,
+.sc-demo__live-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.sc-demo__live-actions {
+  margin-top: 0.75rem;
+}
+
+.sc-demo__gf-btn {
+  border-color: #00acc1 !important;
+  color: #00838f !important;
+  background: #e0f7fa !important;
+  font-weight: 700;
+  width: 100%;
+}
+
 .sc-demo__compare {
   margin-bottom: 1.5rem;
 }

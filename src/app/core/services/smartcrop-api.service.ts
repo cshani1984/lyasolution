@@ -186,4 +186,107 @@ export class SmartcropApiService {
     }
     return { ok: true, updated: data.updated, hotfolderPaths: data.hotfolderPaths };
   }
+
+  /**
+   * Notes: Free MediaPipe/Sharp auto-crop; flags recommendGenerativeFill when loss > 20%.
+   */
+  async processPhoto(payload: {
+    media_base64?: string;
+    media_url?: string;
+    aspectRatio?: number;
+    photoId?: string;
+  }): Promise<{
+    ok: boolean;
+    croppedBase64?: string;
+    cropData?: CropData;
+    metrics?: CropData['metrics'];
+    confidenceScore?: number;
+    cropLossPercentage?: number;
+    recommendGenerativeFill?: boolean;
+    error?: string;
+  }> {
+    const base = this.baseUrl();
+    if (!base) return { ok: false, error: 'SmartCrop API URL not configured' };
+    const res = await fetch(`${base}/api/photos/process`, {
+      method: 'POST',
+      headers: this.headers(),
+      body: JSON.stringify(payload),
+    });
+    const data = (await res.json()) as Record<string, unknown>;
+    if (!res.ok || !data['ok']) {
+      return { ok: false, error: String(data['error'] ?? res.statusText) };
+    }
+    return {
+      ok: true,
+      croppedBase64: data['croppedBase64'] as string | undefined,
+      cropData: data['cropData'] as CropData | undefined,
+      metrics: data['metrics'] as CropData['metrics'] | undefined,
+      confidenceScore: data['confidenceScore'] as number | undefined,
+      cropLossPercentage: data['cropLossPercentage'] as number | undefined,
+      recommendGenerativeFill: Boolean(data['recommendGenerativeFill']),
+    };
+  }
+
+  /**
+   * Notes: Paid Clipdrop Generative Fill with quota enforcement.
+   * On HTTP 403 QUOTA_EXCEEDED → returns quotaExceeded + supportUrl.
+   */
+  async generativeFill(payload: {
+    photoId?: string;
+    userId?: string;
+    media_base64?: string;
+    media_url?: string;
+    aspectRatio?: number;
+    demoMode?: boolean;
+    simulateUsed?: number;
+    simulateTier?: string;
+  }): Promise<{
+    ok: boolean;
+    usedClipdrop?: boolean;
+    croppedUrl?: string;
+    generativeFillUrl?: string;
+    croppedBase64?: string;
+    generativeBase64?: string | null;
+    cropData?: CropData;
+    metrics?: CropData['metrics'];
+    cropLossPercentage?: number;
+    quota?: { tier: string; used: number; max: number };
+    quotaExceeded?: boolean;
+    supportUrl?: string;
+    message?: string;
+    error?: string;
+  }> {
+    const base = this.baseUrl();
+    if (!base) return { ok: false, error: 'SmartCrop API URL not configured' };
+    const res = await fetch(`${base}/api/photos/generative-fill`, {
+      method: 'POST',
+      headers: this.headers(),
+      body: JSON.stringify(payload),
+    });
+    const data = (await res.json()) as Record<string, unknown>;
+    if (res.status === 403 && data['error'] === 'QUOTA_EXCEEDED') {
+      return {
+        ok: false,
+        quotaExceeded: true,
+        supportUrl: String(data['supportUrl'] ?? ''),
+        message: String(data['message'] ?? ''),
+        error: 'QUOTA_EXCEEDED',
+      };
+    }
+    if (!res.ok || !data['ok']) {
+      return { ok: false, error: String(data['error'] ?? res.statusText) };
+    }
+    return {
+      ok: true,
+      usedClipdrop: Boolean(data['usedClipdrop']),
+      croppedUrl: data['croppedUrl'] as string | undefined,
+      generativeFillUrl: data['generativeFillUrl'] as string | undefined,
+      croppedBase64: data['croppedBase64'] as string | undefined,
+      generativeBase64: (data['generativeBase64'] as string | null | undefined) ?? null,
+      cropData: data['cropData'] as CropData | undefined,
+      metrics: data['metrics'] as CropData['metrics'] | undefined,
+      cropLossPercentage: data['cropLossPercentage'] as number | undefined,
+      quota: data['quota'] as { tier: string; used: number; max: number } | undefined,
+    };
+  }
 }

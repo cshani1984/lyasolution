@@ -8,11 +8,18 @@ import {
   createDemoPhotos,
 } from '../../../core/data/smartcrop-demo.data';
 import { I18nService } from '../../../core/services/i18n.service';
+import { SmartcropApiService } from '../../../core/services/smartcrop-api.service';
 import { smartCropFromUrl, smartCropJpeg } from '../../../core/smartcrop/crop-engine.client';
+import {
+  DEFAULT_SUPPORT_WA,
+  TIER_CONFIGS,
+  type SubscriptionTier,
+} from '../../../core/smartcrop/subscriptions';
 import { SmartcropPhotoCardComponent } from '../components/photo-card/photo-card.component';
 import { SmartcropCropModalComponent } from '../components/crop-modal/crop-modal.component';
 import { SmartcropFileUploaderComponent } from '../components/file-uploader/file-uploader.component';
 import { SmartcropPhotoComparisonCardComponent } from '../components/photo-comparison-card/photo-comparison-card.component';
+import { SmartcropQuotaExceededModalComponent } from '../components/quota-exceeded-modal/quota-exceeded-modal.component';
 
 @Component({
   selector: 'app-smartcrop-demo',
@@ -24,13 +31,17 @@ import { SmartcropPhotoComparisonCardComponent } from '../components/photo-compa
     SmartcropCropModalComponent,
     SmartcropFileUploaderComponent,
     SmartcropPhotoComparisonCardComponent,
+    SmartcropQuotaExceededModalComponent,
   ],
   templateUrl: './smartcrop-demo.component.html',
   styleUrl: './smartcrop-demo.component.scss',
 })
 export class SmartcropDemoComponent implements OnInit, OnDestroy {
   readonly i18n = inject(I18nService);
+  readonly api = inject(SmartcropApiService);
   readonly sizes = DEMO_PRINT_SIZES;
+  readonly tiers = TIER_CONFIGS;
+  readonly tierKeys: SubscriptionTier[] = ['demo', 'basic', 'pro'];
 
   readonly photos = signal<SmartcropPhoto[]>([]);
   readonly selectedIds = signal(new Set<string>());
@@ -40,11 +51,19 @@ export class SmartcropDemoComponent implements OnInit, OnDestroy {
   readonly comparePhoto = signal<SmartcropPhoto | null>(null);
   readonly busy = signal(false);
   readonly aiBusy = signal(false);
+  readonly generativeBusy = signal(false);
   readonly toast = signal<string | null>(null);
   readonly editingIndex = signal(0);
   readonly uploadSizeName = signal('10x15');
 
+  readonly selectedTier = signal<SubscriptionTier>('demo');
+  readonly aiUsed = signal(0);
+  readonly showQuotaModal = signal(false);
+  readonly quotaSupportUrl = signal(DEFAULT_SUPPORT_WA);
+
   private readonly blobUrls = new Set<string>();
+
+  readonly tierMax = computed(() => TIER_CONFIGS[this.selectedTier()].maxMonthlyGenerativeAI);
 
   readonly filteredPhotos = computed(() => {
     const size = this.sizeFilter();
@@ -78,7 +97,13 @@ export class SmartcropDemoComponent implements OnInit, OnDestroy {
         const cropped = await smartCropFromUrl(photo.original_url, Number(size.aspect_ratio));
         const blobUrl = URL.createObjectURL(cropped.blob);
         this.blobUrls.add(blobUrl);
-        next.push({ ...photo, cropped_url: blobUrl, crop_data: cropped.cropData });
+        const loss = cropped.cropData.metrics?.cropLossPercentage ?? 0;
+        next.push({
+          ...photo,
+          cropped_url: blobUrl,
+          crop_data: cropped.cropData,
+          recommend_generative_fill: loss > 20,
+        });
       } catch {
         next.push(photo);
       }
@@ -91,6 +116,22 @@ export class SmartcropDemoComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     for (const url of this.blobUrls) URL.revokeObjectURL(url);
+  }
+
+  onTierChange(tier: string): void {
+    if (tier === 'demo' || tier === 'basic' || tier === 'pro') {
+      this.selectedTier.set(tier);
+    }
+  }
+
+  simulateQuotaReached(): void {
+    this.aiUsed.set(this.tierMax());
+    this.toast.set(`${this.aiUsed()}/${this.tierMax()} · QUOTA`);
+  }
+
+  resetAiCounter(): void {
+    this.aiUsed.set(0);
+    this.toast.set('0/' + this.tierMax());
   }
 
   async onUploadFile(event: Event): Promise<void> {
@@ -121,6 +162,7 @@ export class SmartcropDemoComponent implements OnInit, OnDestroy {
         const cropped = await smartCropJpeg(file, Number(size.aspect_ratio));
         const croppedUrl = URL.createObjectURL(cropped.blob);
         this.blobUrls.add(croppedUrl);
+        const loss = cropped.cropData.metrics?.cropLossPercentage ?? 0;
 
         const photo: SmartcropPhoto = {
           id: `upload-${crypto.randomUUID()}`,
@@ -132,6 +174,7 @@ export class SmartcropDemoComponent implements OnInit, OnDestroy {
           size_id: size.id,
           target_size_name: size.name,
           crop_data: cropped.cropData,
+          recommend_generative_fill: loss > 20,
           status: 'pending',
           created_at: new Date().toISOString(),
         };
@@ -144,6 +187,99 @@ export class SmartcropDemoComponent implements OnInit, OnDestroy {
       this.toast.set(e instanceof Error ? e.message : 'Upload failed');
     } finally {
       this.aiBusy.set(false);
+      this.busy.set(false);
+    }
+  }
+
+  /** Live server MediaPipe/Sharp process when API is configured. */
+  async runServerProcess(photo: SmartcropPhoto): Promise<void> {
+    if (!this.api.isConfigured()) {
+      await this.runAiOnCard(photo);
+      return;
+    }
+    this.busy.set(true);
+    this.aiBusy.set(true);
+    this.toast.set(this.i18n.t('smartcrop.studio.aiWorking'));
+    try {
+      const media_base64 = await this.urlToDataUrl(photo.original_url);
+      const result = await this.api.processPhoto({
+        media_base64,
+        aspectRatio: this.compareAspectFor(photo),
+      });
+      if (!result.ok || !result.croppedBase64) {
+        this.toast.set(result.error || 'Process failed');
+        return;
+      }
+      this.patchPhoto(photo.id, {
+        cropped_url: result.croppedBase64,
+        crop_data: result.cropData ?? photo.crop_data,
+        recommend_generative_fill: Boolean(result.recommendGenerativeFill),
+      });
+      this.comparePhoto.set(this.photos().find((p) => p.id === photo.id) ?? photo);
+      this.toast.set(this.i18n.t('smartcrop.crop.aiDone'));
+    } finally {
+      this.aiBusy.set(false);
+      this.busy.set(false);
+    }
+  }
+
+  async runGenerativeFill(photo: SmartcropPhoto): Promise<void> {
+    if (this.aiUsed() >= this.tierMax()) {
+      this.showQuotaModal.set(true);
+      return;
+    }
+
+    this.generativeBusy.set(true);
+    this.busy.set(true);
+    this.toast.set(this.i18n.t('smartcrop.generative.working'));
+    try {
+      if (!this.api.isConfigured()) {
+        // Local fallback: mark as recommended only / keep crop
+        this.showQuotaModal.set(false);
+        this.toast.set(this.i18n.t('smartcrop.generative.needApi'));
+        return;
+      }
+
+      const media_base64 = await this.urlToDataUrl(photo.original_url);
+      const result = await this.api.generativeFill({
+        media_base64,
+        aspectRatio: this.compareAspectFor(photo),
+        demoMode: true,
+        simulateUsed: this.aiUsed(),
+        simulateTier: this.selectedTier(),
+      });
+
+      if (result.quotaExceeded) {
+        this.quotaSupportUrl.set(result.supportUrl || DEFAULT_SUPPORT_WA);
+        this.showQuotaModal.set(true);
+        this.toast.set(result.message || this.i18n.t('smartcrop.quota.title'));
+        return;
+      }
+      if (!result.ok) {
+        this.toast.set(result.error || 'Generative fill failed');
+        return;
+      }
+
+      if (result.usedClipdrop) {
+        this.aiUsed.update((n) => n + 1);
+      }
+
+      const gfUrl = result.generativeFillUrl || result.generativeBase64 || null;
+      const cropUrl = result.croppedUrl || result.croppedBase64 || photo.cropped_url;
+      this.patchPhoto(photo.id, {
+        cropped_url: cropUrl,
+        generative_fill_url: gfUrl,
+        crop_data: result.cropData ?? photo.crop_data,
+        recommend_generative_fill: false,
+      });
+      this.comparePhoto.set(this.photos().find((p) => p.id === photo.id) ?? photo);
+      this.toast.set(
+        result.usedClipdrop
+          ? this.i18n.t('smartcrop.generative.done')
+          : this.i18n.t('smartcrop.generative.fallback'),
+      );
+    } finally {
+      this.generativeBusy.set(false);
       this.busy.set(false);
     }
   }
@@ -184,11 +320,14 @@ export class SmartcropDemoComponent implements OnInit, OnDestroy {
       const cropped = await smartCropFromUrl(photo.original_url, Number(size.aspect_ratio));
       const blobUrl = URL.createObjectURL(cropped.blob);
       this.blobUrls.add(blobUrl);
+      const loss = cropped.cropData.metrics?.cropLossPercentage ?? 0;
       this.patchPhoto(photoId, {
         size_id: size.id,
         target_size_name: size.name,
         cropped_url: blobUrl,
         crop_data: cropped.cropData,
+        recommend_generative_fill: loss > 20,
+        generative_fill_url: null,
       });
       this.toast.set(this.i18n.t('smartcrop.demo.sizeChanged').replace('{size}', size.name));
     } finally {
@@ -244,8 +383,18 @@ export class SmartcropDemoComponent implements OnInit, OnDestroy {
       const cropped = await smartCropFromUrl(photo.original_url, this.editingAspect());
       const blobUrl = URL.createObjectURL(cropped.blob);
       this.blobUrls.add(blobUrl);
-      this.patchPhoto(photo.id, { cropped_url: blobUrl, crop_data: cropped.cropData });
-      this.editingPhoto.set({ ...photo, cropped_url: blobUrl, crop_data: cropped.cropData });
+      const loss = cropped.cropData.metrics?.cropLossPercentage ?? 0;
+      this.patchPhoto(photo.id, {
+        cropped_url: blobUrl,
+        crop_data: cropped.cropData,
+        recommend_generative_fill: loss > 20,
+      });
+      this.editingPhoto.set({
+        ...photo,
+        cropped_url: blobUrl,
+        crop_data: cropped.cropData,
+        recommend_generative_fill: loss > 20,
+      });
       this.toast.set(this.i18n.t('smartcrop.crop.aiDone'));
     } finally {
       this.aiBusy.set(false);
@@ -257,6 +406,24 @@ export class SmartcropDemoComponent implements OnInit, OnDestroy {
   async runAiOnCard(photo: SmartcropPhoto): Promise<void> {
     this.editingPhoto.set(photo);
     await this.resetAiCrop();
+    this.comparePhoto.set(this.photos().find((p) => p.id === photo.id) ?? photo);
+  }
+
+  private compareAspectFor(photo: SmartcropPhoto): number {
+    const size = this.sizes.find((s) => s.id === photo.size_id || s.name === photo.target_size_name);
+    return size ? Number(size.aspect_ratio) : 2 / 3;
+  }
+
+  private async urlToDataUrl(url: string): Promise<string> {
+    if (url.startsWith('data:')) return url;
+    const res = await fetch(url);
+    const blob = await res.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(blob);
+    });
   }
 
   private patchPhoto(id: string, patch: Partial<SmartcropPhoto>): void {

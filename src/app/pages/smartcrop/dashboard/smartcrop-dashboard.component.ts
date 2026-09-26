@@ -13,8 +13,10 @@ import { SmartcropBatchActionBarComponent } from '../components/batch-action-bar
 import { SmartcropFileUploaderComponent } from '../components/file-uploader/file-uploader.component';
 import { SmartcropPhotoComparisonCardComponent } from '../components/photo-comparison-card/photo-comparison-card.component';
 import { SmartcropStudioTutorialComponent } from '../components/studio-tutorial/studio-tutorial.component';
+import { SmartcropQuotaExceededModalComponent } from '../components/quota-exceeded-modal/quota-exceeded-modal.component';
 import { FooterComponent } from '../../../layout/footer/footer.component';
 import { CROP_LOSS_WARN_PERCENT, confidenceTone } from '../../../core/smartcrop/crop-engine.math';
+import { DEFAULT_SUPPORT_WA } from '../../../core/smartcrop/subscriptions';
 import { smartCropFromUrl } from '../../../core/smartcrop/crop-engine.client';
 
 const TUTORIAL_STORAGE_KEY = 'smartcrop-studio-tutorial-v1';
@@ -32,6 +34,7 @@ const TUTORIAL_STORAGE_KEY = 'smartcrop-studio-tutorial-v1';
     SmartcropFileUploaderComponent,
     SmartcropPhotoComparisonCardComponent,
     SmartcropStudioTutorialComponent,
+    SmartcropQuotaExceededModalComponent,
     FooterComponent,
   ],
   templateUrl: './smartcrop-dashboard.component.html',
@@ -52,6 +55,9 @@ export class SmartcropDashboardComponent implements OnInit {
   readonly cropOpen = signal(false);
   readonly showPhoneModal = signal(false);
   readonly showTutorial = signal(false);
+  readonly showQuotaModal = signal(false);
+  readonly quotaSupportUrl = signal(DEFAULT_SUPPORT_WA);
+  readonly generativeBusy = signal(false);
   readonly busy = signal(false);
   readonly aiBusy = signal(false);
   readonly toast = signal<string | null>(null);
@@ -510,6 +516,47 @@ export class SmartcropDashboardComponent implements OnInit {
     } finally {
       this.aiBusy.set(false);
       this.cropOpen.set(false);
+      this.busy.set(false);
+    }
+  }
+
+  async runGenerativeFill(): Promise<void> {
+    const photo = this.activePhoto();
+    if (!photo) return;
+    if (!this.api.isConfigured()) {
+      this.toast.set(this.i18n.t('smartcrop.generative.needApi'));
+      return;
+    }
+    this.generativeBusy.set(true);
+    this.busy.set(true);
+    this.toast.set(this.i18n.t('smartcrop.generative.working'));
+    try {
+      const result = await this.api.generativeFill({
+        photoId: photo.id,
+        userId: this.auth.user()?.id,
+        aspectRatio: this.activeAspect(),
+      });
+      if (result.quotaExceeded) {
+        this.quotaSupportUrl.set(result.supportUrl || DEFAULT_SUPPORT_WA);
+        this.showQuotaModal.set(true);
+        this.toast.set(result.message || this.i18n.t('smartcrop.quota.title'));
+        return;
+      }
+      if (!result.ok) {
+        this.toast.set(result.error || 'Generative fill failed');
+        return;
+      }
+      await this.photosService.loadPhotos();
+      this.compareMode.set(true);
+      this.toast.set(
+        result.usedClipdrop
+          ? this.i18n.t('smartcrop.generative.done')
+          : this.i18n.t('smartcrop.generative.fallback'),
+      );
+    } catch (e) {
+      this.toast.set(e instanceof Error ? e.message : 'Generative fill failed');
+    } finally {
+      this.generativeBusy.set(false);
       this.busy.set(false);
     }
   }

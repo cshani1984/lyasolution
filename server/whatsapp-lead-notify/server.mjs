@@ -28,7 +28,9 @@ import {
 } from './email.mjs';
 import { enhanceCvText, isOpenAiConfigured } from './cv-openai.mjs';
 import { registerSmartcropRoutes } from './lib/smartcropRoutes.mjs';
+import { registerGenerativeRoutes } from './lib/generativeRoutes.mjs';
 import { isSupabaseAdminConfigured } from './lib/supabaseAdmin.mjs';
+import { isClipdropConfigured } from './lib/generativeService.mjs';
 
 const log = (msg, ...args) => console.log(`[lead-notify ${new Date().toISOString()}]`, msg, ...args);
 const logErr = (msg, ...args) => console.error(`[lead-notify ${new Date().toISOString()}]`, msg, ...args);
@@ -113,11 +115,19 @@ app.get('/health', (_req, res) => {
     gmailConfigured: isGmailConfigured(),
     openAiConfigured: isOpenAiConfigured(),
     supabaseAdminConfigured: isSupabaseAdminConfigured(),
+    clipdropConfigured: isClipdropConfigured(),
     apiKeyRequired: IS_PRODUCTION || Boolean(API_KEY),
   });
 });
 
 registerSmartcropRoutes(app, {
+  checkApiKey,
+  rateLimiter: notifyRateLimiter,
+  log,
+  logErr,
+});
+
+registerGenerativeRoutes(app, {
   checkApiKey,
   rateLimiter: notifyRateLimiter,
   log,

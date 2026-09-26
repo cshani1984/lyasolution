@@ -4,6 +4,7 @@ import { SmartcropShellComponent } from './pages/smartcrop/smartcrop-shell.compo
 import { smartcropAuthGuard } from './core/guards/smartcrop-auth.guard';
 
 export const routes: Routes = [
+  { path: 'demo', redirectTo: 'smartcrop/demo', pathMatch: 'full' },
   {
     path: 'smartcrop',
     component: SmartcropShellComponent,

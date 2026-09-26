@@ -19,6 +19,12 @@
     </div>
   </header>
 
+  @if (recommendGenerativeFill()) {
+    <div class="sc-pcc__gf-warn" role="status">
+      ⚠️ {{ lossBadgeText() }}
+    </div>
+  }
+
   @if (metrics(); as m) {
     <div class="sc-pcc__badges" role="group" [attr.aria-label]="i18n.t('smartcrop.metrics.title')">
       <span class="sc-pcc__badge" [class]="confidenceClass()">
@@ -41,7 +47,7 @@
     </div>
   }
 
-  <div class="sc-pcc__dual">
+  <div class="sc-pcc__dual" [class.has-gf]="!!photo.generative_fill_url">
     <article class="sc-pcc__card">
       <div class="sc-pcc__card-title is-bad">
         <span>
@@ -76,6 +82,19 @@
       </div>
       <p>{{ i18n.t('smartcrop.compare.goodBody') }}</p>
     </article>
+
+    @if (photo.generative_fill_url) {
+      <article class="sc-pcc__card">
+        <div class="sc-pcc__card-title is-gf">
+          <span>✨ {{ i18n.t('smartcrop.generative.aiTitle') }}</span>
+          <em>{{ i18n.t('smartcrop.generative.aiBadge') }}</em>
+        </div>
+        <div class="sc-pcc__frame is-gf">
+          <img [src]="photo.generative_fill_url" [alt]="photo.target_size_name" />
+        </div>
+        <p>{{ i18n.t('smartcrop.generative.aiBody') }}</p>
+      </article>
+    }
   </div>
 
   <footer class="sc-pcc__actions">
@@ -85,6 +104,16 @@
     <button type="button" class="sc-pcc__btn" (click)="resetAi.emit()">
       {{ i18n.t('smartcrop.crop.aiGenerate') }}
     </button>
+    @if (recommendGenerativeFill() || photo.generative_fill_url) {
+      <button
+        type="button"
+        class="sc-pcc__btn sc-pcc__btn--gf"
+        (click)="generativeFill.emit()"
+        [disabled]="generativeBusy"
+      >
+        ✨ {{ i18n.t('smartcrop.generative.action') }}
+      </button>
+    }
     @if (isPrintReady()) {
       <button type="button" class="sc-pcc__btn sc-pcc__btn--primary" (click)="approve.emit()">
         {{ i18n.t('smartcrop.studio.approvePrint') }}

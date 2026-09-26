@@ -252,3 +252,41 @@
   background: var(--sc-primary, #4a5dba);
   color: #fff;
 }
+
+.sc-pcc__btn--gf {
+  border-color: transparent;
+  background: linear-gradient(135deg, #5b4dff, #00bcd4);
+  color: #fff;
+}
+
+.sc-pcc__btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.sc-pcc__gf-warn {
+  padding: 0.55rem 0.75rem;
+  border-radius: 0.55rem;
+  background: #fff3e0;
+  color: #e65100;
+  font-size: 0.82rem;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.sc-pcc__dual.has-gf {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.sc-pcc__card-title.is-gf {
+  color: #4338ca;
+}
+
+.sc-pcc__card-title.is-gf em {
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.sc-pcc__frame.is-gf {
+  border-color: color-mix(in srgb, #5b4dff 45%, transparent);
+}

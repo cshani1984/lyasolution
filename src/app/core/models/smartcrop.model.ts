@@ -112,6 +112,10 @@ export interface SmartcropPhoto {
   hotfolder_path?: string | null;
   original_url: string;
   cropped_url: string | null;
+  /** Clipdrop Uncrop / Generative Fill output URL when used. */
+  generative_fill_url?: string | null;
+  /** Server/UI hint: cropLoss > 20% — recommend Generative Fill. */
+  recommend_generative_fill?: boolean | null;
   size_id: string | null;
   target_size_name: string;
   crop_data: CropData | null;

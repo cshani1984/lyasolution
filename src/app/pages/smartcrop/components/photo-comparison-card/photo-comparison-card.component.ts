@@ -17,6 +17,7 @@ import {
   HEAD_TOP_PADDING_RATIO,
   confidenceTone,
 } from '../../../../core/smartcrop/crop-engine.math';
+import { GENERATIVE_FILL_RECOMMEND_PERCENT } from '../../../../core/smartcrop/subscriptions';
 import { blindCenterCropFromUrl } from '../../../../core/smartcrop/crop-engine.client';
 
 @Component({
@@ -29,15 +30,18 @@ import { blindCenterCropFromUrl } from '../../../../core/smartcrop/crop-engine.c
 export class SmartcropPhotoComparisonCardComponent implements OnChanges, OnDestroy {
   readonly i18n = inject(I18nService);
   readonly cropLossWarn = CROP_LOSS_WARN_PERCENT;
+  readonly generativeRecommend = GENERATIVE_FILL_RECOMMEND_PERCENT;
 
   @Input({ required: true }) photo!: SmartcropPhoto;
   @Input() aspectRatio = 2 / 3;
   @Input() sizeLabel = '';
   @Input() blindUrl: string | null = null;
+  @Input() generativeBusy = false;
 
   @Output() readonly edit = new EventEmitter<void>();
   @Output() readonly resetAi = new EventEmitter<void>();
   @Output() readonly approve = new EventEmitter<void>();
+  @Output() readonly generativeFill = new EventEmitter<void>();
 
   readonly localBlindUrl = signal<string | null>(null);
   readonly blindBusy = signal(false);
@@ -75,6 +79,18 @@ export class SmartcropPhotoComparisonCardComponent implements OnChanges, OnDestr
     const m = this.metrics();
     if (!m) return false;
     return m.hasTruncationRisk || m.cropLossPercentage > CROP_LOSS_WARN_PERCENT;
+  }
+
+  recommendGenerativeFill(): boolean {
+    if (this.photo?.recommend_generative_fill) return true;
+    if (this.photo?.generative_fill_url) return false;
+    const loss = this.metrics()?.cropLossPercentage ?? 0;
+    return loss > GENERATIVE_FILL_RECOMMEND_PERCENT;
+  }
+
+  lossBadgeText(): string {
+    const n = Math.round(this.metrics()?.cropLossPercentage ?? 0);
+    return this.i18n.t('smartcrop.generative.lossBadge').replace('{n}', String(n));
   }
 
   headroomPercent(): number {

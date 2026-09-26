@@ -1,0 +1,17 @@
+@if (open) {
+  <div class="sc-quota" role="dialog" aria-modal="true" [attr.dir]="i18n.isRtl() ? 'rtl' : 'ltr'">
+    <div class="sc-quota__backdrop" (click)="closed.emit()"></div>
+    <div class="sc-quota__panel">
+      <h2>🛑 {{ i18n.t('smartcrop.quota.title') }}</h2>
+      <p>{{ i18n.t('smartcrop.quota.body') }}</p>
+      <div class="sc-quota__actions">
+        <button type="button" class="btn btn--ghost" (click)="closed.emit()">
+          {{ i18n.t('smartcrop.quota.close') }}
+        </button>
+        <a class="sc-quota__wa" [href]="supportUrl" target="_blank" rel="noopener noreferrer">
+          💬 {{ i18n.t('smartcrop.quota.whatsapp') }}
+        </a>
+      </div>
+    </div>
+  </div>
+}

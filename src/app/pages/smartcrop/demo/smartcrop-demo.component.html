@@ -4,7 +4,7 @@
       <div>
         <div class="sc-demo__brand-row">
           <img class="sc-demo__logo" src="/smartcrop-logo.png" alt="" width="44" height="44" />
-          <p class="sc-demo__brand">SmartCrop · Demo</p>
+          <p class="sc-demo__brand">CropFlow · Demo</p>
         </div>
         <h1>{{ i18n.t('smartcrop.demo.title') }}</h1>
         <p class="lede">{{ i18n.t('smartcrop.demo.subtitle') }}</p>
@@ -14,10 +14,34 @@
       </div>
     </header>
 
+    <aside class="sc-demo__controls" [attr.dir]="i18n.isRtl() ? 'rtl' : 'ltr'">
+      <h2>{{ i18n.t('smartcrop.demo.controls') }}</h2>
+      <label class="sc-demo__tier">
+        <span>{{ i18n.t('smartcrop.demo.tier') }}</span>
+        <select [ngModel]="selectedTier()" (ngModelChange)="onTierChange($event)">
+          @for (key of tierKeys; track key) {
+            <option [value]="key">{{ tiers[key].name }} ({{ tiers[key].maxMonthlyGenerativeAI }})</option>
+          }
+        </select>
+      </label>
+      <p class="sc-demo__usage">
+        {{ i18n.t('smartcrop.demo.usage') }}:
+        <strong>{{ aiUsed() }} / {{ tierMax() }}</strong>
+      </p>
+      <div class="sc-demo__ctrl-actions">
+        <button type="button" class="btn btn--ghost" (click)="simulateQuotaReached()">
+          {{ i18n.t('smartcrop.demo.simulateQuota') }}
+        </button>
+        <button type="button" class="btn btn--ghost" (click)="resetAiCounter()">
+          {{ i18n.t('smartcrop.demo.resetQuota') }}
+        </button>
+      </div>
+    </aside>
+
     <div class="sc-demo__uploader">
       <app-smartcrop-file-uploader
         [sizes]="sizes"
-        [busy]="busy() || aiBusy()"
+        [busy]="busy() || aiBusy() || generativeBusy()"
         [sizeName]="uploadSizeName()"
         (sizeNameChange)="uploadSizeName.set($event)"
         (filesSelected)="onUploadFiles($event)"
@@ -30,9 +54,19 @@
           [photo]="cmp"
           [aspectRatio]="compareAspect()"
           [sizeLabel]="cmp.target_size_name"
+          [generativeBusy]="generativeBusy()"
           (edit)="openEdit(cmp)"
           (resetAi)="runAiOnCard(cmp)"
+          (generativeFill)="runGenerativeFill(cmp)"
         />
+        <div class="sc-demo__live-actions">
+          <button type="button" class="btn btn--ghost" (click)="runServerProcess(cmp)" [disabled]="busy()">
+            {{ i18n.t('smartcrop.demo.runProcess') }}
+          </button>
+          <button type="button" class="btn btn--primary" (click)="runGenerativeFill(cmp)" [disabled]="busy() || generativeBusy()">
+            {{ i18n.t('smartcrop.demo.runGf') }}
+          </button>
+        </div>
       </div>
     }
 
@@ -50,7 +84,7 @@
     </div>
 
     @if (toast()) {
-      <p class="sc-demo__toast" [class.is-ai]="aiBusy()">{{ toast() }}</p>
+      <p class="sc-demo__toast" [class.is-ai]="aiBusy() || generativeBusy()">{{ toast() }}</p>
     }
 
     @if (busy() && !photos().length) {
@@ -80,6 +114,9 @@
               <button type="button" class="btn btn--ghost sc-demo__ai-btn" (click)="runAiOnCard(photo)" [disabled]="busy()">
                 {{ i18n.t('smartcrop.crop.aiGenerate') }}
               </button>
+              <button type="button" class="btn btn--ghost sc-demo__gf-btn" (click)="runGenerativeFill(photo)" [disabled]="busy() || generativeBusy()">
+                ✨ {{ i18n.t('smartcrop.generative.action') }}
+              </button>
             </div>
           </div>
         }
@@ -95,5 +132,11 @@
     (closed)="editingPhoto.set(null)"
     (saved)="saveCrop($event)"
     (resetAi)="resetAiCrop()"
+  />
+
+  <app-smartcrop-quota-exceeded-modal
+    [open]="showQuotaModal()"
+    [supportUrl]="quotaSupportUrl()"
+    (closed)="showQuotaModal.set(false)"
   />
 </section>

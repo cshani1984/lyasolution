@@ -122,9 +122,11 @@
                 [photo]="photo"
                 [aspectRatio]="activeAspect()"
                 [sizeLabel]="activeSizeLabel()"
+                [generativeBusy]="generativeBusy()"
                 (edit)="openCrop()"
                 (resetAi)="resetAiCrop()"
                 (approve)="approveActive()"
+                (generativeFill)="runGenerativeFill()"
               />
             } @else {
               <div class="sc-studio__frame">
@@ -277,4 +279,10 @@
 <app-smartcrop-studio-tutorial
   [open]="showTutorial()"
   (closed)="onTutorialClosed()"
+/>
+
+<app-smartcrop-quota-exceeded-modal
+  [open]="showQuotaModal()"
+  [supportUrl]="quotaSupportUrl()"
+  (closed)="showQuotaModal.set(false)"
 />
