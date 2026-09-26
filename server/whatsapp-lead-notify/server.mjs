@@ -29,7 +29,7 @@ import {
 import { enhanceCvText, isOpenAiConfigured } from './cv-openai.mjs';
 import { registerSmartcropRoutes } from './lib/smartcropRoutes.mjs';
 import { registerGenerativeRoutes } from './lib/generativeRoutes.mjs';
-import { isSupabaseAdminConfigured } from './lib/supabaseAdmin.mjs';
+import { isSupabaseAdminConfigured, probeSupabaseAdmin, describeSupabaseServiceKey } from './lib/supabaseAdmin.mjs';
 import { isClipdropConfigured } from './lib/generativeService.mjs';
 
 const log = (msg, ...args) => console.log(`[lead-notify ${new Date().toISOString()}]`, msg, ...args);
@@ -360,8 +360,15 @@ app.listen(PORT, () => {
   log('POST /api/photos/batch-update — SmartCrop batch');
   if (isOpenAiConfigured()) log('OpenAI: configured for CV enhance');
   else log('OpenAI: OPENAI_API_KEY not set (CV enhance unavailable)');
-  if (isSupabaseAdminConfigured()) log('Supabase admin: configured for SmartCrop');
-  else log('Supabase admin: SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY not set');
+  if (isSupabaseAdminConfigured()) {
+    const desc = describeSupabaseServiceKey();
+    if (desc.warning) logErr('Supabase admin KEY WARNING', desc.warning);
+    else log('Supabase admin: key shape looks OK — probing…');
+    probeSupabaseAdmin().then((p) => {
+      if (p.ok) log('Supabase admin probe:', p.detail);
+      else logErr('Supabase admin probe FAILED', p.detail);
+    });
+  } else log('Supabase admin: SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY not set');
   log('WhatsApp runtime disabled (email-only mode).');
   if (IS_PRODUCTION) {
     if (!API_KEY) {

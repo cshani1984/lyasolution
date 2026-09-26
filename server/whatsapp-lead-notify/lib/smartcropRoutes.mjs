@@ -12,7 +12,7 @@ import {
   phoneLookupCandidates,
   slugifyCustomer,
 } from './whatsappParser.mjs';
-import { getSupabaseAdmin, isSupabaseAdminConfigured } from './supabaseAdmin.mjs';
+import { getSupabaseAdmin, isSupabaseAdminConfigured, probeSupabaseAdmin } from './supabaseAdmin.mjs';
 import {
   loadImageBuffer,
   photoStatusFromAutoCrop,
@@ -774,28 +774,35 @@ export function registerSmartcropRoutes(app, ctx) {
             reply =
               'השרת לא מחובר ל-Supabase (חסר SUPABASE_URL / SERVICE_ROLE). לבדיקה חיה הגדירו את Webhook של Twilio ל: https://lyasolution-node-email-server.onrender.com/api/whatsapp/webhook';
           } else {
-            const media = await resolveTwilioMedia(parsed);
-            const result = await ingestSmartcropPhoto({
-              senderPhone: parsed.senderPhone,
-              shopPhone: parsed.shopPhone,
-              media_url: media.media_url,
-              media_base64: media.media_base64,
-              caption_text: parsed.caption_text,
-            });
-            reply = buildCustomerBotReply({
-              customerName: result.customerName,
-              sizeName: result.sizeName,
-              paperType: result.paperType,
-              copies: result.copies,
-              metrics: result.metrics,
-            });
-            log('Twilio WhatsApp ingested', {
-              photoId: result.photoId,
-              sizeName: result.sizeName,
-              customerPhone: result.customerPhone,
-              customerName: result.customerName,
-              hotfolderPath: result.hotfolderPath,
-            });
+            const probe = await probeSupabaseAdmin();
+            if (!probe.ok) {
+              logErr('Supabase admin probe failed', probe.detail);
+              reply =
+                'שגיאת הגדרת שרת: SUPABASE_SERVICE_ROLE_KEY לא תקין (כנראה מפתח anon במקום service_role). עדכנו ב-Render → Environment את המפתח מ-Supabase → Settings → API → service_role.';
+            } else {
+              const media = await resolveTwilioMedia(parsed);
+              const result = await ingestSmartcropPhoto({
+                senderPhone: parsed.senderPhone,
+                shopPhone: parsed.shopPhone,
+                media_url: media.media_url,
+                media_base64: media.media_base64,
+                caption_text: parsed.caption_text,
+              });
+              reply = buildCustomerBotReply({
+                customerName: result.customerName,
+                sizeName: result.sizeName,
+                paperType: result.paperType,
+                copies: result.copies,
+                metrics: result.metrics,
+              });
+              log('Twilio WhatsApp ingested', {
+                photoId: result.photoId,
+                sizeName: result.sizeName,
+                customerPhone: result.customerPhone,
+                customerName: result.customerName,
+                hotfolderPath: result.hotfolderPath,
+              });
+            }
           }
         } else if (parsed.Body) {
           const preview = parseWhatsAppOrder(parsed.Body);
