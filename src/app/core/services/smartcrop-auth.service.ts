@@ -156,7 +156,7 @@ export class SmartcropAuthService {
   }
 
   async ensureProfile(user: User): Promise<SmartcropProfile | null> {
-    const authPhone = user.phone?.trim() || null;
+    const authPhone = this.toE164(user.phone?.trim() || '') || null;
     const existing = await this.loadProfile(user.id);
     if (existing) {
       await this.applyPendingStudioRegistration();
@@ -177,13 +177,13 @@ export class SmartcropAuthService {
     const { error } = await client.from('profiles').upsert(row, { onConflict: 'id' });
     if (error) {
       console.warn('[SmartcropAuth] ensureProfile', error.message);
-      // Retry without phone if unique constraint (phone already claimed elsewhere)
       if (authPhone && (error.code === '23505' || /profiles_phone_key/i.test(error.message))) {
         const { error: retryErr } = await client.from('profiles').upsert(
           { ...row, phone: null },
           { onConflict: 'id' },
         );
         if (retryErr) console.warn('[SmartcropAuth] ensureProfile retry', retryErr.message);
+        await this.reclaimPhoneIfOrphan(authPhone, user.id);
       } else {
         return null;
       }
@@ -199,15 +199,14 @@ export class SmartcropAuthService {
    */
   async syncPhoneFromAuthUser(user?: User | null): Promise<void> {
     const u = user ?? this.user();
-    const phone = u?.phone?.trim();
+    const phone = this.toE164(u?.phone?.trim() || '');
     if (!u || !phone) return;
     const profile = this.profile() ?? (await this.loadProfile(u.id));
-    if (profile?.phone === phone) {
+    if (this.toE164(profile?.phone || '') === phone) {
       await this.linkPhotosByPhone(phone);
       return;
     }
-    if (profile?.phone) {
-      // Profile already has a different phone — still try linking auth phone photos.
+    if (profile?.phone && this.toE164(profile.phone) !== phone) {
       await this.linkPhotosByPhone(phone);
       return;
     }
@@ -279,7 +278,7 @@ export class SmartcropAuthService {
     if (!user) {
       return { error: new Error('Not signed in') };
     }
-    const normalized = phone.trim();
+    const normalized = this.toE164(phone);
     if (!normalized) return { error: new Error('Invalid phone') };
 
     // Avoid recursive ensureProfile → updatePhone loops: load only.
@@ -365,11 +364,43 @@ export class SmartcropAuthService {
     const user = this.user();
     if (!user) return;
     const client = this.supabase.requireClient();
+    const e164 = this.toE164(phone) || phone;
     await client
       .from('photos')
       .update({ user_id: user.id })
-      .eq('sender_phone', phone)
+      .eq('sender_phone', e164)
       .is('user_id', null);
+  }
+
+  /**
+   * Notes: If phone is stuck on another profile with no auth session value, move it here.
+   * Used after unique-constraint races during OTP register.
+   */
+  private async reclaimPhoneIfOrphan(phone: string, userId: string): Promise<void> {
+    const client = this.supabase.requireClient();
+    const e164 = this.toE164(phone);
+    if (!e164) return;
+    const { data: owner } = await client.from('profiles').select('id, phone').eq('phone', e164).maybeSingle();
+    if (!owner) {
+      await client.from('profiles').update({ phone: e164 }).eq('id', userId);
+      return;
+    }
+    if (owner.id === userId) return;
+    // Clear from other row then assign (best-effort — needs RLS allowing update on own row only;
+    // if blocked, server-side WhatsApp auth.admin fallback still works after deploy).
+    await client.from('profiles').update({ phone: null }).eq('id', owner.id);
+    await client.from('profiles').update({ phone: e164 }).eq('id', userId);
+  }
+
+  /** Same rules as server normalizePhoneE164 — WhatsApp match depends on this. */
+  private toE164(raw: string): string {
+    if (!raw) return '';
+    let s = raw.trim().replace(/[\s\-().]/g, '');
+    if (s.startsWith('00')) s = `+${s.slice(2)}`;
+    if (/^05\d{8}$/.test(s)) s = `+972${s.slice(1)}`;
+    if (/^5\d{8}$/.test(s) && !s.startsWith('+')) s = `+972${s}`;
+    if (!s.startsWith('+') && /^\d{10,15}$/.test(s)) s = `+${s}`;
+    return s;
   }
 
   async signOut(): Promise<void> {

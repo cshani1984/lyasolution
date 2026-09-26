@@ -8,6 +8,7 @@ import {
   buildHotfolderPath,
   normalizePhoneE164,
   parseWhatsAppOrder,
+  phoneLookupCandidates,
   slugifyCustomer,
 } from './whatsappParser.mjs';
 import { getSupabaseAdmin, isSupabaseAdminConfigured } from './supabaseAdmin.mjs';
@@ -100,23 +101,116 @@ const upload = multer({
  *   1) explicit user_id (browser upload while logged in)
  *   2) WhatsApp "To" matches a studio profile phone (dedicated business line)
  *   3) WhatsApp "From" matches a studio profile phone (sandbox / shop forward)
+ *   4) Auth user with same phone (profiles.phone missing / format drift) + backfill
  * No global SMARTCROP_SHOP_PHONE — that would pin every order to one shop.
  */
 async function resolveShopUserId(supabase, { userId, shopPhone, fromPhone }) {
   if (userId) return userId;
 
-  const toPhone = normalizePhoneE164(String(shopPhone ?? ''));
-  if (toPhone) {
-    const { data } = await supabase.from('profiles').select('id').eq('phone', toPhone).maybeSingle();
-    if (data?.id) return data.id;
+  for (const phone of [shopPhone, fromPhone]) {
+    const id = await findUserIdByStudioPhone(supabase, phone);
+    if (id) return id;
   }
 
-  const from = normalizePhoneE164(String(fromPhone ?? ''));
-  if (from) {
-    const { data } = await supabase.from('profiles').select('id').eq('phone', from).maybeSingle();
-    if (data?.id) return data.id;
+  return null;
+}
+
+/**
+ * Notes: Match studio by phone — exact candidates, then digit-suffix, then Auth phone.
+ * @param {import('@supabase/supabase-js').SupabaseClient} supabase
+ * @param {string | null | undefined} rawPhone
+ * @returns {Promise<string | null>}
+ */
+async function findUserIdByStudioPhone(supabase, rawPhone) {
+  const candidates = phoneLookupCandidates(String(rawPhone ?? ''));
+  if (!candidates.length) return null;
+
+  const orFilter = candidates
+    .map((c) => `phone.eq."${String(c).replace(/"/g, '')}"`)
+    .join(',');
+  const { data: exactRows } = await supabase.from('profiles').select('id, phone').or(orFilter).limit(1);
+  const exact = exactRows?.[0];
+  if (exact?.id) {
+    await backfillProfilePhone(supabase, exact.id, candidates[0]);
+    return exact.id;
   }
 
+  // Soft match: last 9 digits (handles +972 / 0 / spacing leftovers in DB)
+  const digits = normalizePhoneE164(String(rawPhone ?? '')).replace(/\D/g, '');
+  const tail = digits.slice(-9);
+  if (tail.length === 9) {
+    const { data: rows } = await supabase
+      .from('profiles')
+      .select('id, phone')
+      .not('phone', 'is', null)
+      .limit(300);
+    const hit = (rows ?? []).find((r) => String(r.phone).replace(/\D/g, '').endsWith(tail));
+    if (hit?.id) {
+      await backfillProfilePhone(supabase, hit.id, candidates[0]);
+      return hit.id;
+    }
+  }
+
+  // profiles.phone empty but Auth OTP user exists with this phone
+  const authId = await findAuthUserIdByPhone(supabase, candidates);
+  if (authId) {
+    await backfillProfilePhone(supabase, authId, candidates[0]);
+    return authId;
+  }
+
+  return null;
+}
+
+/**
+ * Notes: Ensure profiles.phone is canonical E.164 so future WhatsApp matches are exact.
+ * @param {import('@supabase/supabase-js').SupabaseClient} supabase
+ * @param {string} userId
+ * @param {string} e164
+ */
+async function backfillProfilePhone(supabase, userId, e164) {
+  const phone = normalizePhoneE164(e164);
+  if (!userId || !phone) return;
+  const { data } = await supabase.from('profiles').select('id, phone').eq('id', userId).maybeSingle();
+  if (!data) {
+    await supabase.from('profiles').upsert({ id: userId, phone }, { onConflict: 'id' });
+    return;
+  }
+  if (normalizePhoneE164(data.phone || '') === phone) return;
+  const { error } = await supabase.from('profiles').update({ phone }).eq('id', userId);
+  if (error && (error.code === '23505' || /profiles_phone_key/i.test(error.message || ''))) {
+    // Phone unique on another row — leave as-is; match already succeeded by id.
+  }
+}
+
+/**
+ * Notes: Fallback when profiles.phone was never saved after OTP (unique conflict / race).
+ * @param {import('@supabase/supabase-js').SupabaseClient} supabase
+ * @param {string[]} candidates
+ * @returns {Promise<string | null>}
+ */
+async function findAuthUserIdByPhone(supabase, candidates) {
+  const wanted = new Set(candidates.map((c) => normalizePhoneE164(c)).filter(Boolean));
+  const wantedDigits = new Set([...wanted].map((c) => c.replace(/\D/g, '')));
+  try {
+    let page = 1;
+    const perPage = 200;
+    for (;;) {
+      const { data, error } = await supabase.auth.admin.listUsers({ page, perPage });
+      if (error || !data?.users?.length) break;
+      for (const u of data.users) {
+        const p = normalizePhoneE164(u.phone || '');
+        if (!p) continue;
+        if (wanted.has(p) || wantedDigits.has(p.replace(/\D/g, ''))) {
+          return u.id;
+        }
+      }
+      if (data.users.length < perPage) break;
+      page += 1;
+      if (page > 10) break;
+    }
+  } catch {
+    // admin API unavailable — ignore
+  }
   return null;
 }
 
@@ -124,10 +218,8 @@ async function resolveShopUserId(supabase, { userId, shopPhone, fromPhone }) {
  * Notes: True when the WhatsApp sender is the studio itself (forward / self-send).
  */
 async function isRegisteredShopPhone(supabase, phone) {
-  const p = normalizePhoneE164(String(phone ?? ''));
-  if (!p) return false;
-  const { data } = await supabase.from('profiles').select('id').eq('phone', p).maybeSingle();
-  return Boolean(data?.id);
+  const id = await findUserIdByStudioPhone(supabase, phone);
+  return Boolean(id);
 }
 
 /**
@@ -396,6 +488,8 @@ export function registerSmartcropRoutes(app, ctx) {
 
     // --- Twilio WhatsApp (form-urlencoded: From, Body, NumMedia, MediaUrl0, …) ---
     if (isTwilioInbound(body)) {
+      /** @type {ReturnType<typeof parseTwilioWhatsAppBody> | null} */
+      let parsed = null;
       try {
         /** @type {Record<string, string>} */
         const params = {};
@@ -407,7 +501,7 @@ export function registerSmartcropRoutes(app, ctx) {
           return;
         }
 
-        const parsed = parseTwilioWhatsAppBody(body);
+        parsed = parseTwilioWhatsAppBody(body);
 
         // Notes: Logger — received user details and photo URL.
         log('Twilio WhatsApp inbound', {
@@ -480,9 +574,17 @@ export function registerSmartcropRoutes(app, ctx) {
         res.status(200).type('text/xml').send(out.twiml);
       } catch (err) {
         logErr('Twilio WhatsApp webhook failed', err?.message ?? err);
+        if (err?.status === 404) {
+          logErr('Studio phone lookup miss', {
+            from: parsed?.From,
+            to: parsed?.To,
+            senderPhone: parsed?.senderPhone,
+            shopPhone: parsed?.shopPhone,
+          });
+        }
         const friendly =
           err?.status === 404
-            ? 'לא מצאנו סטודיו רשום למספר זה. היכנסו ל-SmartCrop, הירשמו עם מספר העסק, ואז שלחו/העבירו את התמונה מאותו מספר.'
+            ? 'לא מצאנו סטודיו רשום למספר זה. היכנסו ל-SmartCrop עם אותו מספר WhatsApp שממנו שלחתם, ואז שלחו שוב תמונה.'
             : 'אירעה שגיאה בעיבוד. נסו שוב.';
         const twiml = (await replyToWhatsApp({ From: '', reply: friendly })).twiml;
         res.status(200).type('text/xml').send(twiml);

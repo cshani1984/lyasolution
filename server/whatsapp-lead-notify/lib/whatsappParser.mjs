@@ -48,6 +48,29 @@ export function normalizePhoneE164(raw) {
 }
 
 /**
+ * Notes: All common spellings of the same mobile for DB lookup (E.164 / local / digits).
+ * @param {string} raw
+ * @returns {string[]}
+ */
+export function phoneLookupCandidates(raw) {
+  const n = normalizePhoneE164(raw);
+  if (!n) return [];
+  const digits = n.replace(/\D/g, '');
+  const out = new Set([n, digits, `+${digits}`]);
+  // Israel mobile: +9725XXXXXXXX ↔ 05XXXXXXXX ↔ 5XXXXXXXX
+  if (digits.startsWith('972') && digits.length >= 11) {
+    const national = digits.slice(3); // 5XXXXXXXX
+    out.add(national);
+    out.add(`0${national}`);
+    out.add(`+972${national}`);
+  }
+  if (digits.startsWith('0') && digits.length >= 9) {
+    out.add(`+972${digits.slice(1)}`);
+  }
+  return [...out].filter(Boolean);
+}
+
+/**
  * Parse caption for print size name. Defaults to 10x15.
  * @param {string | null | undefined} caption
  * @returns {string}
