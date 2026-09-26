@@ -471,6 +471,7 @@ export class SmartcropDashboardComponent implements OnInit {
                 cropped_url: result.objectUrl ?? p.cropped_url,
                 size_id: result.sizeId ?? p.size_id,
                 target_size_name: result.sizeName ?? p.target_size_name,
+                status: 'pending' as const,
               }
             : p,
         ),
@@ -481,6 +482,7 @@ export class SmartcropDashboardComponent implements OnInit {
           cropped_url: result.objectUrl ?? photo.cropped_url,
           size_id: result.sizeId ?? photo.size_id,
           target_size_name: result.sizeName ?? photo.target_size_name,
+          status: 'pending',
         });
       }
     }

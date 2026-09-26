@@ -3,7 +3,7 @@
     <input type="checkbox" [checked]="selected" (change)="toggleSelect.emit()" />
   </label>
 
-  <div class="sc-card__media">
+  <div class="sc-card__media" [style.--sc-card-aspect]="frameAspect()">
     <img [src]="previewUrl()" [alt]="photo.target_size_name" loading="lazy" />
     <span class="sc-card__badge">{{ photo.target_size_name }} cm</span>
     <span class="sc-card__status" [attr.data-status]="photo.status">{{ photo.status }}</span>

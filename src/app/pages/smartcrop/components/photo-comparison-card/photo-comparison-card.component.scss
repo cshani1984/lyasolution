@@ -166,11 +166,14 @@
 
 .sc-pcc__frame {
   position: relative;
-  aspect-ratio: 2 / 3;
+  aspect-ratio: var(--sc-frame-aspect, 2 / 3);
   max-height: 18rem;
+  width: min(100%, calc(18rem * var(--sc-frame-aspect, 0.6667)));
+  margin-inline: auto;
   border-radius: 0.5rem;
   overflow: hidden;
   background: #d2d9f4;
+  transition: aspect-ratio 0.25s ease, width 0.25s ease;
 }
 
 .sc-pcc__frame img {

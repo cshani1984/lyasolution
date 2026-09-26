@@ -9,6 +9,7 @@ import type {
   SmartcropPhoto,
 } from '../models/smartcrop.model';
 import { smartCropJpeg, smartCropFromUrl } from '../smartcrop/crop-engine.client';
+import { photoStatusFromAutoCrop } from '../smartcrop/crop-engine.math';
 import { DEMO_PRINT_SIZES, findPrintSize, getCalculatedAspectRatio } from '../smartcrop/print-sizes';
 
 @Injectable({ providedIn: 'root' })
@@ -219,7 +220,7 @@ export class SmartcropPhotosService {
       size_id: size?.id ?? null,
       target_size_name: size?.name ?? '10x15',
       crop_data: cropData,
-      status: 'pending',
+      status: photoStatusFromAutoCrop(cropData.metrics),
       created_at: new Date().toISOString(),
     };
     this.photos.update((list) => [photo, ...list]);
@@ -239,12 +240,14 @@ export class SmartcropPhotosService {
         getCalculatedAspectRatio(size, false),
       );
       const croppedUrl = URL.createObjectURL(result.blob);
+      const status = photoStatusFromAutoCrop(result.cropData.metrics);
       if (this.supabase.isConfigured() && !photo.id.startsWith('demo-') && !photo.original_url.startsWith('blob:')) {
         await this.updatePhoto(photo.id, {
           size_id: size.id,
           target_size_name: size.name,
           crop_data: result.cropData,
           cropped_url: croppedUrl,
+          status,
         });
       } else {
         this.photos.update((list) =>
@@ -256,6 +259,7 @@ export class SmartcropPhotosService {
                   target_size_name: size.name,
                   crop_data: result.cropData,
                   cropped_url: croppedUrl,
+                  status,
                 }
               : p,
           ),
@@ -330,7 +334,7 @@ export class SmartcropPhotosService {
       size_id: input.size?.id ?? null,
       target_size_name: input.size?.name ?? '10x15',
       crop_data: input.cropData,
-      status: 'pending',
+      status: photoStatusFromAutoCrop(input.cropData.metrics),
     });
     if (photoErr) return { ok: false, error: photoErr.message };
     return { ok: true };

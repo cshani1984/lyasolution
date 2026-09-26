@@ -70,7 +70,7 @@
         </span>
         <em>{{ i18n.t('smartcrop.compare.badBadge') }}</em>
       </div>
-      <div class="sc-pcc__frame is-bad">
+      <div class="sc-pcc__frame is-bad" [style.--sc-frame-aspect]="aspectRatio">
         <img [src]="resolvedBlindUrl()" [alt]="photo.target_size_name" />
         <div class="sc-pcc__warn">
           <span>{{ badWarnText() }}</span>
@@ -87,7 +87,7 @@
         </span>
         <em>{{ isPrintReady() ? i18n.t('smartcrop.compare.readyBadge') : i18n.t('smartcrop.compare.goodBadge') }}</em>
       </div>
-      <div class="sc-pcc__frame">
+      <div class="sc-pcc__frame" [style.--sc-frame-aspect]="aspectRatio">
         <img [src]="photo.cropped_url || photo.original_url" [alt]="photo.target_size_name" />
         <div class="sc-pcc__safe">
           <span>{{ goodSafeText() }}</span>
@@ -103,7 +103,7 @@
           <span>✨ {{ i18n.t('smartcrop.generative.aiTitle') }}</span>
           <em>{{ i18n.t('smartcrop.generative.aiBadge') }}</em>
         </div>
-        <div class="sc-pcc__frame is-gf">
+        <div class="sc-pcc__frame is-gf" [style.--sc-frame-aspect]="aspectRatio">
           <img [src]="photo.generative_fill_url" [alt]="photo.target_size_name" />
         </div>
         <p>{{ i18n.t('smartcrop.generative.aiBody') }}</p>

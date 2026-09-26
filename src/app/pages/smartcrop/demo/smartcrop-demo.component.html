@@ -140,6 +140,7 @@
     (closed)="editingPhoto.set(null)"
     (saved)="saveCrop($event)"
     (resetAi)="resetAiCrop()"
+    (sizeChanged)="onModalSizeChanged($event)"
   />
 
   <app-smartcrop-quota-exceeded-modal

@@ -2,6 +2,31 @@
 
 export const CROP_LOSS_WARN_PERCENT = 25;
 export const CROP_LOSS_OK_PERCENT = 15;
+
+/**
+ * Notes: Auto-crop → shop status.
+ * Small change (low loss, no truncation) → approved for print.
+ * Significant change → pending for shop-owner review.
+ */
+export function photoStatusFromAutoCrop(metrics?: {
+  cropLossPercentage?: number;
+  hasTruncationRisk?: boolean;
+  shouldRecommendGenerativeFill?: boolean;
+  usedSmartShift?: boolean;
+  isCroppingNecessary?: boolean;
+  correctionDelta?: { distancePercent?: number };
+} | null): 'approved' | 'pending' {
+  if (!metrics) return 'pending';
+  const loss = Number(metrics.cropLossPercentage) || 0;
+  const shift = Number(metrics.correctionDelta?.distancePercent) || 0;
+  const significantChange =
+    Boolean(metrics.hasTruncationRisk) ||
+    Boolean(metrics.shouldRecommendGenerativeFill) ||
+    loss > CROP_LOSS_OK_PERCENT ||
+    (Boolean(metrics.usedSmartShift) && shift > 10) ||
+    (Boolean(metrics.isCroppingNecessary) && loss > CROP_LOSS_OK_PERCENT);
+  return significantChange ? 'pending' : 'approved';
+}
 /** Central zone — loosely balanced VCG. */
 export const CENTER_ZONE_RATIO = 0.4;
 /** Headroom above faces / hair (8–15%). */

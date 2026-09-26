@@ -43,6 +43,26 @@ const HEAD_TOP_PADDING_RATIO = 0.12;
 /** Crop-loss thresholds for admin badges. */
 export const CROP_LOSS_WARN_PERCENT = 25;
 export const CROP_LOSS_OK_PERCENT = 15;
+
+/**
+ * Notes: Auto-crop → shop status.
+ * Small change → approved; significant change → pending for owner review.
+ * @param {object | null | undefined} metrics
+ * @returns {'approved' | 'pending'}
+ */
+export function photoStatusFromAutoCrop(metrics) {
+  if (!metrics) return 'pending';
+  const loss = Number(metrics.cropLossPercentage) || 0;
+  const shift = Number(metrics.correctionDelta?.distancePercent) || 0;
+  const significantChange =
+    Boolean(metrics.hasTruncationRisk) ||
+    Boolean(metrics.shouldRecommendGenerativeFill) ||
+    loss > CROP_LOSS_OK_PERCENT ||
+    (Boolean(metrics.usedSmartShift) && shift > 10) ||
+    (Boolean(metrics.isCroppingNecessary) && loss > CROP_LOSS_OK_PERCENT);
+  return significantChange ? 'pending' : 'approved';
+}
+
 /** Central zone — loosely balanced VCG. */
 const CENTER_ZONE_RATIO = 0.4;
 /** Print shop guillotine bleed buffer (5–8%). */

@@ -12,7 +12,7 @@ import {
 import { I18nService } from '../../../core/services/i18n.service';
 import { SmartcropApiService } from '../../../core/services/smartcrop-api.service';
 import { smartCropFromUrl, smartCropJpeg } from '../../../core/smartcrop/crop-engine.client';
-import { CROP_LOSS_WARN_PERCENT } from '../../../core/smartcrop/crop-engine.math';
+import { CROP_LOSS_WARN_PERCENT, photoStatusFromAutoCrop } from '../../../core/smartcrop/crop-engine.math';
 import {
   DEFAULT_SUPPORT_WA,
   TIER_CONFIGS,
@@ -128,6 +128,7 @@ export class SmartcropDemoComponent implements OnInit, OnDestroy {
           cropped_url: blobUrl,
           crop_data: cropped.cropData,
           recommend_generative_fill: loss > CROP_LOSS_WARN_PERCENT,
+          status: photoStatusFromAutoCrop(cropped.cropData.metrics),
         });
       } catch {
         next.push(photo);
@@ -200,7 +201,7 @@ export class SmartcropDemoComponent implements OnInit, OnDestroy {
           target_size_name: size.name,
           crop_data: cropped.cropData,
           recommend_generative_fill: loss > CROP_LOSS_WARN_PERCENT,
-          status: 'pending',
+          status: photoStatusFromAutoCrop(cropped.cropData.metrics),
           created_at: new Date().toISOString(),
         };
         this.photos.update((list) => [photo, ...list]);
@@ -329,6 +330,18 @@ export class SmartcropDemoComponent implements OnInit, OnDestroy {
     this.editingPhoto.set(photo);
   }
 
+  /** Notes: Print size changed in crop popup — keep photo + presentation in sync. */
+  onModalSizeChanged(ev: { sizeId: string; sizeName: string }): void {
+    const photo = this.editingPhoto();
+    if (!photo) return;
+    const next = { ...photo, size_id: ev.sizeId, target_size_name: ev.sizeName };
+    this.patchPhoto(photo.id, { size_id: ev.sizeId, target_size_name: ev.sizeName });
+    this.editingPhoto.set(next);
+    if (this.comparePhoto()?.id === photo.id) {
+      this.comparePhoto.set(next);
+    }
+  }
+
   async remove(photo: SmartcropPhoto): Promise<void> {
     this.photos.update((list) => list.filter((p) => p.id !== photo.id));
   }
@@ -353,6 +366,7 @@ export class SmartcropDemoComponent implements OnInit, OnDestroy {
         crop_data: cropped.cropData,
         recommend_generative_fill: loss > CROP_LOSS_WARN_PERCENT,
         generative_fill_url: null,
+        status: photoStatusFromAutoCrop(cropped.cropData.metrics),
       });
       this.toast.set(this.i18n.t('smartcrop.demo.sizeChanged').replace('{size}', size.name));
     } finally {
@@ -384,6 +398,7 @@ export class SmartcropDemoComponent implements OnInit, OnDestroy {
         crop_data: result.cropData,
         size_id: result.sizeId ?? photo.size_id,
         target_size_name: result.sizeName ?? photo.target_size_name,
+        status: 'pending',
       });
       this.toast.set(this.i18n.t('smartcrop.demo.cropSaved'));
       const next = idx >= 0 ? list[idx + 1] : undefined;
@@ -413,12 +428,14 @@ export class SmartcropDemoComponent implements OnInit, OnDestroy {
         cropped_url: blobUrl,
         crop_data: cropped.cropData,
         recommend_generative_fill: loss > CROP_LOSS_WARN_PERCENT,
+        status: photoStatusFromAutoCrop(cropped.cropData.metrics),
       });
       this.editingPhoto.set({
         ...photo,
         cropped_url: blobUrl,
         crop_data: cropped.cropData,
         recommend_generative_fill: loss > CROP_LOSS_WARN_PERCENT,
+        status: photoStatusFromAutoCrop(cropped.cropData.metrics),
       });
       this.toast.set(this.i18n.t('smartcrop.crop.aiDone'));
     } finally {

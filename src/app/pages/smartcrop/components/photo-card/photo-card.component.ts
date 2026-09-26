@@ -24,4 +24,11 @@ export class SmartcropPhotoCardComponent {
     if (this.showOriginal) return this.photo.original_url;
     return this.photo.cropped_url || this.photo.original_url;
   }
+
+  /** Print presentation ratio from saved crop box (falls back to 2:3). */
+  frameAspect(): number {
+    const c = this.photo?.crop_data;
+    if (c?.width && c?.height) return c.width / c.height;
+    return 2 / 3;
+  }
 }

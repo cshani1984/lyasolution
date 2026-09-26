@@ -146,6 +146,17 @@ export class SmartcropCropModalComponent implements OnChanges, OnDestroy {
     }
     if (changes['photo'] || changes['open'] || changes['sizes']) {
       if (this.open && this.photo) {
+        // Parent mirrored our size change — do not remount / restore old crop box.
+        const mirroredSizeOnly =
+          Boolean(changes['photo']) &&
+          !changes['open'] &&
+          !changes['sizes'] &&
+          Boolean(this.selectedSizeId()) &&
+          (this.photo.size_id === this.selectedSizeId() ||
+            this.sizes.find((s) => s.id === this.selectedSizeId())?.name ===
+              this.photo.target_size_name);
+        if (mirroredSizeOnly) return;
+
         this.syncSizeFromPhoto();
         this.resetCropperState(true);
         // Recalculate cropper size after panel layout settles.
@@ -331,7 +342,7 @@ export class SmartcropCropModalComponent implements OnChanges, OnDestroy {
     if (size) {
       this.sizeChanged.emit({ sizeId: size.id, sizeName: size.name });
     }
-    // Remount cropper so ngx-image-cropper picks up the new aspect ratio.
+    // Remount cropper so ngx-image-cropper picks up the new print aspect ratio.
     this.resetCropperState(false);
     setTimeout(() => {
       this.cropperCmp?.onResize();

@@ -11,7 +11,12 @@ import {
   slugifyCustomer,
 } from './whatsappParser.mjs';
 import { getSupabaseAdmin, isSupabaseAdminConfigured } from './supabaseAdmin.mjs';
-import { loadImageBuffer, processBlindCenterCrop, processSmartCrop } from './cropEngine.mjs';
+import {
+  loadImageBuffer,
+  photoStatusFromAutoCrop,
+  processBlindCenterCrop,
+  processSmartCrop,
+} from './cropEngine.mjs';
 import {
   DEMO_PRINT_SIZES,
   defaultPrintSize,
@@ -302,7 +307,7 @@ async function ingestSmartcropPhoto(input) {
       size_id: sizeId,
       target_size_name: sizeName,
       crop_data: cropData,
-      status: 'pending',
+      status: photoStatusFromAutoCrop(cropData?.metrics),
     })
     .select('id')
     .single();
@@ -523,11 +528,13 @@ export function registerSmartcropRoutes(app, ctx) {
       if (up.error) throw up.error;
 
       const { data: cropPub } = supabase.storage.from(BUCKET).getPublicUrl(croppedPath);
+      const isManualEdit = Boolean(manualCrop) && !resetToAi;
       const patch = {
         cropped_url: `${cropPub.publicUrl}?t=${Date.now()}`,
         crop_data: cropData,
         size_id: resolved.sizeId ?? photo.size_id,
         target_size_name: resolved.sizeName ?? photo.target_size_name,
+        status: isManualEdit ? 'pending' : photoStatusFromAutoCrop(cropData?.metrics),
       };
 
       const { error: updErr } = await supabase.from('photos').update(patch).eq('id', photoId);
@@ -590,6 +597,7 @@ export function registerSmartcropRoutes(app, ctx) {
           patch.crop_data = cropData;
           patch.size_id = resolvedSize.sizeId;
           patch.target_size_name = resolvedSize.sizeName;
+          if (!status) patch.status = photoStatusFromAutoCrop(cropData?.metrics);
         }
 
         if (Object.keys(patch).length) {
