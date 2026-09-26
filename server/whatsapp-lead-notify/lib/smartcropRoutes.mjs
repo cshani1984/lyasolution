@@ -156,12 +156,15 @@ async function findUserIdByStudioPhone(supabase, rawPhone) {
   if (wantDigits.length < 8) return null;
 
   const tail = wantDigits.slice(-9);
-  const candidatesNoPlus = phoneLookupCandidates(canonical || String(rawPhone ?? '')).filter(
-    (c) => !String(c).includes('+'),
-  );
+  const allCandidates = phoneLookupCandidates(canonical || String(rawPhone ?? ''));
+  // Try every spelling: +972…, 972…, 05… (PostgREST can mangle '+', so digits-first)
+  const candidatesOrdered = [
+    ...allCandidates.filter((c) => !String(c).includes('+')),
+    ...allCandidates.filter((c) => String(c).includes('+')),
+  ];
 
-  // 1) Queries without '+' only
-  for (const c of candidatesNoPlus) {
+  // 1) Exact eq for each candidate (+ and without)
+  for (const c of candidatesOrdered) {
     const { data: rows } = await supabase.from('profiles').select('id, phone').eq('phone', c).limit(5);
     const hit = (rows ?? []).find((r) => phonesMatch(r.phone, wantDigits));
     if (hit?.id) {
@@ -170,7 +173,21 @@ async function findUserIdByStudioPhone(supabase, rawPhone) {
     }
   }
 
-  // 2) LIKE last 9 digits
+  // 2) OR filter — one round-trip for common spellings
+  const orParts = [...new Set(allCandidates)]
+    .slice(0, 12)
+    .map((c) => `phone.eq.${c}`)
+    .join(',');
+  if (orParts) {
+    const { data: orRows } = await supabase.from('profiles').select('id, phone').or(orParts).limit(20);
+    const hit = (orRows ?? []).find((r) => phonesMatch(r.phone, wantDigits));
+    if (hit?.id) {
+      await backfillProfilePhone(supabase, hit.id, canonical || `+${wantDigits}`);
+      return hit.id;
+    }
+  }
+
+  // 3) LIKE last 9 digits (matches +972509250384 and 0509250384)
   if (tail.length >= 8) {
     const { data: liked } = await supabase
       .from('profiles')
@@ -185,7 +202,7 @@ async function findUserIdByStudioPhone(supabase, rawPhone) {
     }
   }
 
-  // 3) Full scan — compare digits in JS (bypasses filter encoding quirks)
+  // 4) Full scan of profiles with phone set
   const { data: allRows, error: scanErr } = await supabase
     .from('profiles')
     .select('id, phone')
@@ -202,6 +219,8 @@ async function findUserIdByStudioPhone(supabase, rawPhone) {
     console.warn('[smartcrop] no profile digit match', {
       wantDigits,
       tail,
+      candidates: allCandidates,
+      profilesWithPhone: (allRows ?? []).length,
       sample: (allRows ?? []).slice(0, 15).map((r) => ({
         id: r.id,
         phone: r.phone,
@@ -210,15 +229,18 @@ async function findUserIdByStudioPhone(supabase, rawPhone) {
     });
   }
 
-  const authId = await findAuthUserIdByPhone(
-    supabase,
-    phoneLookupCandidates(canonical || String(rawPhone ?? '')),
-  );
+  // 5) auth.users — phone OTP users often have phone here while profiles.phone is still null
+  const authId = await findAuthUserIdByPhone(supabase, allCandidates);
   if (authId) {
+    console.warn('[smartcrop] matched via auth.users, backfilling profiles.phone', {
+      authId,
+      phone: canonical || `+${wantDigits}`,
+    });
     await backfillProfilePhone(supabase, authId, canonical || `+${wantDigits}`);
     return authId;
   }
 
+  console.warn('[smartcrop] auth.users also miss', { wantDigits, candidates: allCandidates });
   return null;
 }
 
@@ -265,19 +287,31 @@ async function backfillProfilePhone(supabase, userId, e164) {
  * @returns {Promise<string | null>}
  */
 async function findAuthUserIdByPhone(supabase, candidates) {
-  const wantedDigitsList = candidates
-    .map((c) => phoneDigits(normalizePhoneE164(c) || c))
-    .filter((d) => d.length >= 8);
+  const wantedDigitsList = [
+    ...new Set(
+      candidates
+        .map((c) => phoneDigits(normalizePhoneE164(c) || c))
+        .filter((d) => d.length >= 8),
+    ),
+  ];
 
   const digitMatch = (raw) => {
+    if (raw == null || raw === '') return false;
     const d = phoneDigits(raw);
-    if (!d) return false;
-    return wantedDigitsList.some((w) => phonesMatch(d, w) || phonesMatch(raw, w));
+    if (!d || d.length < 8) return false;
+    return wantedDigitsList.some((w) => {
+      if (d === w) return true;
+      // with/without country code: compare last 8–10 national digits
+      const n = Math.min(10, d.length, w.length);
+      return n >= 8 && d.slice(-n) === w.slice(-n);
+    });
   };
 
   try {
     let page = 1;
     const perPage = 200;
+    let scanned = 0;
+    const phoneSamples = [];
     for (;;) {
       const { data, error } = await supabase.auth.admin.listUsers({ page, perPage });
       if (error) {
@@ -287,6 +321,10 @@ async function findAuthUserIdByPhone(supabase, candidates) {
       const users = data?.users ?? [];
       if (!users.length) break;
       for (const u of users) {
+        scanned += 1;
+        if (u.phone && phoneSamples.length < 10) {
+          phoneSamples.push({ id: u.id, phone: u.phone, digits: phoneDigits(u.phone) });
+        }
         if (digitMatch(u.phone)) return u.id;
         if (digitMatch(u.user_metadata?.phone)) return u.id;
         const identities = Array.isArray(u.identities) ? u.identities : [];
@@ -302,6 +340,11 @@ async function findAuthUserIdByPhone(supabase, candidates) {
       page += 1;
       if (page > 15) break;
     }
+    console.warn('[smartcrop] auth scan done', {
+      scanned,
+      wantedDigitsList,
+      phoneSamples,
+    });
   } catch (err) {
     console.warn('[smartcrop] findAuthUserIdByPhone', err?.message ?? err);
   }

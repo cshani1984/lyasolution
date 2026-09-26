@@ -275,6 +275,9 @@ export class SmartcropAuthService {
       this.session.set(data.session);
       this.user.set(data.session.user);
       await this.ensureProfile(data.session.user);
+      // Force profiles.phone even if auth.user.phone lags behind the OTP input
+      const e164 = this.toE164(phone);
+      if (e164) await this.updatePhone(e164);
     }
     return { error: null };
   }
