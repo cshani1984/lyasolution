@@ -1,4 +1,5 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, inject, signal, DestroyRef } from '@angular/core';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { SupabaseClientService } from './supabase-client.service';
 import { SmartcropAuthService } from './smartcrop-auth.service';
 import type {
@@ -16,12 +17,17 @@ import { DEMO_PRINT_SIZES, findPrintSize, getCalculatedAspectRatio } from '../sm
 export class SmartcropPhotosService {
   private readonly supabase = inject(SupabaseClientService);
   private readonly auth = inject(SmartcropAuthService);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly photos = signal<SmartcropPhoto[]>([]);
   readonly sizes = signal<PrintSize[]>([]);
   readonly orders = signal<SmartcropOrder[]>([]);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
+
+  private photosChannel: RealtimeChannel | null = null;
+  private realtimeUserId: string | null = null;
+  private realtimeCleanupBound = false;
 
   async loadSizes(): Promise<void> {
     if (!this.supabase.isConfigured()) {
@@ -94,6 +100,76 @@ export class SmartcropPhotosService {
           p.id.startsWith('demo-')),
     );
     this.photos.set([...localOnly, ...remote]);
+    this.ensurePhotosRealtime(user.id);
+  }
+
+  /**
+   * Notes: Live-update the studio when WhatsApp webhook inserts photos for this shop.
+   * Requires Supabase Realtime enabled on public.photos (default for new tables).
+   */
+  ensurePhotosRealtime(userId: string): void {
+    if (!this.supabase.isConfigured() || !userId) return;
+    if (this.photosChannel && this.realtimeUserId === userId) return;
+    this.teardownPhotosRealtime();
+    const client = this.supabase.requireClient();
+    this.realtimeUserId = userId;
+    this.photosChannel = client
+      .channel(`smartcrop-photos-${userId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'photos', filter: `user_id=eq.${userId}` },
+        () => {
+          void this.loadPhotosQuiet();
+        },
+      )
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[SmartcropPhotos] realtime', status);
+        }
+      });
+    if (!this.realtimeCleanupBound) {
+      this.realtimeCleanupBound = true;
+      this.destroyRef.onDestroy(() => this.teardownPhotosRealtime());
+    }
+  }
+
+  /** Reload without flipping the global loading spinner (realtime / background). */
+  async loadPhotosQuiet(): Promise<void> {
+    if (!this.supabase.isConfigured()) return;
+    const user = this.auth.user();
+    if (!user) return;
+    const client = this.supabase.requireClient();
+    const phone = this.auth.profile()?.phone;
+    let query = client.from('photos').select('*').order('created_at', { ascending: false });
+    if (phone) {
+      query = query.or(`user_id.eq.${user.id},sender_phone.eq.${phone}`);
+    } else {
+      query = query.eq('user_id', user.id);
+    }
+    const { data, error } = await query;
+    if (error) {
+      console.warn('[SmartcropPhotos] quiet reload', error.message);
+      return;
+    }
+    const remote = (data as SmartcropPhoto[]) ?? [];
+    const remoteIds = new Set(remote.map((r) => r.id));
+    const localOnly = this.photos().filter(
+      (p) =>
+        !remoteIds.has(p.id) &&
+        (p.original_url?.startsWith('blob:') ||
+          p.original_url?.startsWith('data:') ||
+          p.cropped_url?.startsWith('blob:') ||
+          p.id.startsWith('demo-')),
+    );
+    this.photos.set([...localOnly, ...remote]);
+  }
+
+  teardownPhotosRealtime(): void {
+    if (this.photosChannel) {
+      void this.supabase.getClient()?.removeChannel(this.photosChannel);
+      this.photosChannel = null;
+    }
+    this.realtimeUserId = null;
   }
 
   /** Notes: Patch one photo in memory without a full list reload. */

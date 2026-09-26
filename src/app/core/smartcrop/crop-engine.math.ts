@@ -415,10 +415,22 @@ export function computeSmartShiftCropBox(
   if (opts.subjectBox) {
     const sb = opts.subjectBox;
     const headPad = Math.round(sb.height * (isPortrait ? HEAD_TOP_PADDING_RATIO : 0.04));
-    const preferX = Math.round(sb.x + sb.width / 2 - cropW / 2);
     const preferY = Math.round(sb.y - headPad);
-    x = Math.round(x * 0.5 + preferX * 0.5);
     y = Math.round(y * 0.45 + preferY * 0.55);
+
+    // Keep geometric X when the subject already fits horizontally — avoid
+    // sliding the crop onto the face and chopping shoulders/arms on the sides.
+    const padX = Math.max(4, sb.width * 0.08);
+    const fitsX =
+      sb.x - padX >= geo.x - 1 && sb.x + sb.width + padX <= geo.x + geo.width + 1;
+    if (fitsX) {
+      x = geo.x;
+    } else {
+      const preferX = Math.round(sb.x + sb.width / 2 - cropW / 2);
+      x = Math.round(geo.x * 0.55 + preferX * 0.45);
+    }
+  } else {
+    x = geo.x;
   }
 
   return clampBox({ x, y, width: cropW, height: cropH }, imgW, imgH);

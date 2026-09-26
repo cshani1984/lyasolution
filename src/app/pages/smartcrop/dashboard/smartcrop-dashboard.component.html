@@ -5,7 +5,7 @@
         <span class="sc-studio__logo-mark" aria-hidden="true">
           <span class="material-symbols-outlined">photo_camera</span>
         </span>
-        <strong>CropFlow</strong>
+        <strong>SmartCrop</strong>
       </a>
       <span class="sc-studio__pill sc-studio__pill--green" [title]="i18n.t('smartcrop.studio.proHint')">PRO</span>
       <span class="sc-studio__pill sc-studio__pill--live" [title]="whatsappBadgeTitle()">
@@ -150,6 +150,7 @@
                   <span class="sc-studio__crop-size">{{ photo.target_size_name }}</span>
                 </div>
                 @if (activeMetrics(); as m) {
+                  @if (!showOriginal()) {
                   <div class="sc-studio__ai-tag sc-studio__ai-tag--a">
                     {{ detectionLabel(m.detectedType) }}
                     @if (m.confidenceScore) {
@@ -173,8 +174,13 @@
                       {{ isLowFocus() ? i18n.t('smartcrop.studio.focusBlurry') : i18n.t('smartcrop.studio.focusSharp') }}
                     </div>
                   }
+                  } @else {
+                    <div class="sc-studio__ai-tag sc-studio__ai-tag--a is-warn">
+                      {{ i18n.t('smartcrop.studio.regularCropWarn') }}
+                    </div>
+                  }
                 }
-                @if (aiBusy() || generativeBusy()) {
+                @if (aiBusy() || generativeBusy() || blindBusy()) {
                   <div class="sc-studio__img-busy" role="status" aria-live="polite" [attr.aria-label]="i18n.t('smartcrop.studio.aiWorking')">
                     <span class="sc-studio__spinner" aria-hidden="true"></span>
                   </div>

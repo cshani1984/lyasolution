@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, computed, effect, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { DecimalPipe, NgStyle } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -22,7 +22,7 @@ import {
   getCalculatedAspectRatio,
   defaultPrintSize,
 } from '../../../core/smartcrop/print-sizes';
-import { smartCropFromUrl } from '../../../core/smartcrop/crop-engine.client';
+import { blindCenterCropFromUrl, smartCropFromUrl } from '../../../core/smartcrop/crop-engine.client';
 import { applyClientCrop } from '../../../core/data/smartcrop-demo.data';
 
 const TUTORIAL_STORAGE_KEY = 'smartcrop-studio-tutorial-v1';
@@ -50,7 +50,7 @@ const ZOOM_STEP = 1.08;
   templateUrl: './smartcrop-dashboard.component.html',
   styleUrl: './smartcrop-dashboard.component.scss',
 })
-export class SmartcropDashboardComponent implements OnInit {
+export class SmartcropDashboardComponent implements OnInit, OnDestroy {
   readonly i18n = inject(I18nService);
   readonly auth = inject(SmartcropAuthService);
   readonly photosService = inject(SmartcropPhotosService);
@@ -78,6 +78,37 @@ export class SmartcropDashboardComponent implements OnInit {
   readonly autoHorizon = signal(true);
   readonly showGrid = signal(false);
   readonly showHeatmap = signal(false);
+  /** Blind center-crop preview URL for “regular crop” mode (revoked on replace). */
+  readonly blindPreviewUrl = signal<string | null>(null);
+  readonly blindBusy = signal(false);
+
+  private pollTimer: ReturnType<typeof setInterval> | null = null;
+  private blindCacheKey = '';
+
+  constructor() {
+    // When switching to regular-crop mode, generate a true center crop (not full original).
+    effect(() => {
+      const photo = this.activePhoto();
+      const showBlind = this.showOriginal();
+      const aspect = this.activeAspect();
+      if (!photo || !showBlind || this.compareMode()) {
+        return;
+      }
+      const key = `${photo.id}|${aspect}|${photo.original_url}`;
+      if (key === this.blindCacheKey && this.blindPreviewUrl()) return;
+      void this.loadBlindPreview(photo, aspect, key);
+    });
+
+    // Keep selection valid when WhatsApp pushes new photos into the list
+    effect(() => {
+      const list = this.filteredPhotos();
+      const id = this.activeId();
+      if (!list.length) return;
+      if (!id || !list.some((p) => p.id === id)) {
+        this.activeId.set(list[0]!.id);
+      }
+    });
+  }
 
   readonly photos = computed(() => this.photosService.photos());
 
@@ -247,7 +278,8 @@ export class SmartcropDashboardComponent implements OnInit {
   readonly previewUrl = computed(() => {
     const p = this.activePhoto();
     if (!p) return null;
-    if (this.showOriginal()) return p.original_url;
+    // Regular crop = blind geometric center crop (lab default), not the full original.
+    if (this.showOriginal()) return this.blindPreviewUrl() || p.original_url;
     return p.cropped_url || p.original_url;
   });
 
@@ -296,6 +328,45 @@ export class SmartcropDashboardComponent implements OnInit {
     if (first) this.activeId.set(first.id);
     // Phone OTP registration already links the number — skip WhatsApp sync modal.
     this.maybeOpenTutorial();
+    // Fallback poll if Realtime is disabled on the project
+    this.pollTimer = setInterval(() => {
+      void this.photosService.loadPhotosQuiet();
+    }, 12_000);
+  }
+
+  ngOnDestroy(): void {
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
+    this.revokeBlindPreview();
+    this.photosService.teardownPhotosRealtime();
+  }
+
+  private revokeBlindPreview(): void {
+    const url = this.blindPreviewUrl();
+    if (url?.startsWith('blob:')) URL.revokeObjectURL(url);
+    this.blindPreviewUrl.set(null);
+    this.blindCacheKey = '';
+  }
+
+  private async loadBlindPreview(
+    photo: SmartcropPhoto,
+    aspect: number,
+    key: string,
+  ): Promise<void> {
+    this.blindBusy.set(true);
+    try {
+      const blob = await blindCenterCropFromUrl(photo.original_url, aspect);
+      this.revokeBlindPreview();
+      this.blindCacheKey = key;
+      this.blindPreviewUrl.set(URL.createObjectURL(blob));
+    } catch (err) {
+      console.warn('[SmartcropDashboard] blind preview', err);
+      this.blindPreviewUrl.set(null);
+    } finally {
+      this.blindBusy.set(false);
+    }
   }
 
   openTutorial(): void {
