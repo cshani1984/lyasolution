@@ -2,7 +2,7 @@
  * Twilio WhatsApp → SmartCrop ingest helper.
  * Notes: Parses Twilio form fields, downloads media, maps into process payload.
  */
-import { normalizePhoneE164 } from './whatsappParser.mjs';
+import { normalizePhoneE164, parseSizeFromCaption } from './whatsappParser.mjs';
 import {
   buildTwimlReply,
   downloadTwilioMedia,
