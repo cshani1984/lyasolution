@@ -32,9 +32,8 @@
 
 .sc-card__media {
   position: relative;
-  aspect-ratio: var(--sc-card-aspect, 2 / 3);
+  aspect-ratio: 2 / 3;
   background: #eceff1;
-  transition: aspect-ratio 0.25s ease;
 }
 
 .sc-card__media img {

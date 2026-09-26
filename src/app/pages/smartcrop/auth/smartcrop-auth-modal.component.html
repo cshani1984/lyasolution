@@ -58,13 +58,11 @@
           @if (!supabase.isConfigured()) {
             <p class="sc-am__err">{{ i18n.t('smartcrop.login.noSupabase') }}</p>
           } @else if (tab() === 'login') {
-            <!-- Google / Gmail login temporarily disabled — phone OTP only
             <button type="button" class="sc-am__google" (click)="google(false)" [disabled]="busy()">
               <span class="sc-am__g">G</span>
               {{ i18n.t('smartcrop.auth.googleBusiness') }}
             </button>
             <div class="sc-am__or"><span>{{ i18n.t('smartcrop.auth.orPhone') }}</span></div>
-            -->
 
             <label class="sc-am__field">
               <span>{{ i18n.t('smartcrop.phone.label') }}</span>
@@ -120,12 +118,10 @@
               <p class="sc-am__err">{{ error() }}</p>
             }
 
-            <!-- Google / Gmail register temporarily disabled
             <button type="button" class="sc-am__google" (click)="google(true)" [disabled]="busy()">
               <span class="sc-am__g">G</span>
               {{ i18n.t('smartcrop.auth.googleBusiness') }}
             </button>
-            -->
 
             <button type="button" class="sc-am__primary" (click)="submitRegister()" [disabled]="busy()">
               {{ regOtpSent() ? i18n.t('smartcrop.login.verify') : i18n.t('smartcrop.auth.quickRegister') }} →
@@ -136,7 +132,7 @@
 
       <footer class="sc-am__foot">
         <span>SSL 256-bit</span>
-        <!-- <span>OAuth 2.0</span> -->
+        <span>OAuth 2.0</span>
         <span>{{ i18n.t('smartcrop.auth.rolesNote') }}</span>
       </footer>
     </div>

@@ -494,5 +494,6 @@
 <app-smartcrop-auth-modal
   [open]="loginOpen()"
   [initialTab]="authTab()"
-  (closed)="loginOpen.set(false)"
+  [autoStartGoogle]="startGoogle()"
+  (closed)="loginOpen.set(false); startGoogle.set(false)"
 />

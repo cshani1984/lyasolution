@@ -196,10 +196,6 @@ export class SmartcropAuthService {
   }
 
   async signInWithGoogle(redirectTo: string): Promise<{ error: Error | null }> {
-    // Google / Gmail login temporarily disabled — phone OTP only.
-    void redirectTo;
-    return { error: new Error('Google login is temporarily disabled') };
-    /*
     if (!this.supabase.isConfigured()) {
       return { error: new Error('Supabase is not configured') };
     }
@@ -213,7 +209,6 @@ export class SmartcropAuthService {
       },
     });
     return { error: error ? new Error(error.message) : null };
-    */
   }
 
   async signInWithPhone(phone: string): Promise<{ error: Error | null }> {

@@ -12,7 +12,10 @@ import {
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { I18nService } from '../../../core/services/i18n.service';
-import { SmartcropAuthService } from '../../../core/services/smartcrop-auth.service';
+import {
+  SmartcropAuthService,
+  smartcropAuthOrigin,
+} from '../../../core/services/smartcrop-auth.service';
 import { SupabaseClientService } from '../../../core/services/supabase-client.service';
 
 export type AuthModalTab = 'login' | 'register';
@@ -32,6 +35,8 @@ export class SmartcropAuthModalComponent implements OnChanges {
 
   @Input() open = false;
   @Input() initialTab: AuthModalTab = 'login';
+  /** When true, open triggers Google/Gmail OAuth immediately (e.g. ?startGoogle=1). */
+  @Input() autoStartGoogle = false;
   @Output() readonly closed = new EventEmitter<void>();
   @Output() readonly authenticated = new EventEmitter<void>();
 
@@ -55,6 +60,9 @@ export class SmartcropAuthModalComponent implements OnChanges {
       this.regOtpSent.set(false);
       this.showUserMissing.set(false);
       this.otp = '';
+      if (this.autoStartGoogle && this.initialTab === 'login') {
+        queueMicrotask(() => void this.google(false));
+      }
     }
   }
 
@@ -77,11 +85,6 @@ export class SmartcropAuthModalComponent implements OnChanges {
   }
 
   async google(fromRegister = false): Promise<void> {
-    // Google / Gmail login temporarily disabled — phone OTP only.
-    void fromRegister;
-    this.error.set(this.i18n.t('smartcrop.auth.googleDisabled'));
-    return;
-    /*
     if (typeof window !== 'undefined' && window.location.hostname === 'lya-solution.com') {
       window.location.replace('https://www.lya-solution.com/smartcrop?login=1&startGoogle=1');
       return;
@@ -107,7 +110,6 @@ export class SmartcropAuthModalComponent implements OnChanges {
     const { error } = await this.auth.signInWithGoogle(redirectTo);
     this.busy.set(false);
     if (error) this.error.set(error.message);
-    */
   }
 
   async sendOtp(): Promise<void> {
