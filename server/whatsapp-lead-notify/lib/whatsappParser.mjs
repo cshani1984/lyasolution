@@ -33,18 +33,26 @@ const GREETINGS = new Set([
 ]);
 
 /**
- * Normalize to E.164-ish (+digits). Israeli local 05x → +9725x.
+ * Normalize to E.164-ish (+digits). Strips whatsapp: prefix. Israeli local 05x → +9725x.
  * @param {string} raw
  * @returns {string}
  */
 export function normalizePhoneE164(raw) {
   if (!raw || typeof raw !== 'string') return '';
-  let s = raw.trim().replace(/[\s\-().]/g, '');
+  let s = raw
+    .trim()
+    .replace(/^whatsapp:/i, '')
+    .replace(/[\s\-().]/g, '');
   if (s.startsWith('00')) s = `+${s.slice(2)}`;
   if (/^05\d{8}$/.test(s)) s = `+972${s.slice(1)}`;
   if (/^5\d{8}$/.test(s) && !s.startsWith('+')) s = `+972${s}`;
   if (!s.startsWith('+') && /^\d{10,15}$/.test(s)) s = `+${s}`;
   return s;
+}
+
+/** Digits only — primary key for matching Twilio ↔ profiles.phone. */
+export function phoneDigits(raw) {
+  return String(raw ?? '').replace(/\D/g, '');
 }
 
 /**

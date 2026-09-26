@@ -8,6 +8,7 @@ import {
   buildHotfolderPath,
   normalizePhoneE164,
   parseWhatsAppOrder,
+  phoneDigits,
   phoneLookupCandidates,
   slugifyCustomer,
 } from './whatsappParser.mjs';
@@ -107,8 +108,8 @@ const upload = multer({
 async function resolveShopUserId(supabase, { userId, shopPhone, fromPhone }) {
   if (userId) return userId;
 
-  // Sandbox: From is the studio phone; To is Twilio (+1415…). Prefer From first.
-  for (const phone of [fromPhone, shopPhone]) {
+  // Dedicated Twilio WA: To = studio (whatsapp:+972…). Prefer To, then From.
+  for (const phone of [shopPhone, fromPhone]) {
     const id = await findUserIdByStudioPhone(supabase, phone);
     if (id) return id;
   }
@@ -117,72 +118,91 @@ async function resolveShopUserId(supabase, { userId, shopPhone, fromPhone }) {
 }
 
 /**
- * Notes: Match studio by phone — exact eq (avoids PostgREST '+' encoding bugs),
- * digit-suffix soft match, then Auth admin phone (+ identities).
+ * Notes: Match studio by digits only (ignore +, spaces, whatsapp:).
+ * Never put '+' in PostgREST .eq filters — it often becomes a space.
  * @param {import('@supabase/supabase-js').SupabaseClient} supabase
  * @param {string | null | undefined} rawPhone
  * @returns {Promise<string | null>}
  */
 async function findUserIdByStudioPhone(supabase, rawPhone) {
-  const candidates = phoneLookupCandidates(String(rawPhone ?? ''));
-  if (!candidates.length) return null;
-  const canonical = normalizePhoneE164(String(rawPhone ?? '')) || candidates[0];
+  const canonical = normalizePhoneE164(String(rawPhone ?? ''));
+  const wantDigits = phoneDigits(canonical || rawPhone);
+  if (wantDigits.length < 8) return null;
 
-  // Exact match per candidate — .eq encodes '+' correctly; .or("phone.eq.+972…") often breaks.
-  for (const c of candidates) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, phone')
-      .eq('phone', c)
-      .limit(1)
-      .maybeSingle();
-    if (error) {
-      // continue — try other candidates
-      continue;
-    }
-    if (data?.id) {
-      await backfillProfilePhone(supabase, data.id, canonical);
-      return data.id;
-    }
-  }
+  const tail = wantDigits.slice(-9);
+  const candidatesNoPlus = phoneLookupCandidates(canonical || String(rawPhone ?? '')).filter(
+    (c) => !String(c).includes('+'),
+  );
 
-  // Soft match: last 9 digits (handles +972 / 0 / spacing leftovers in DB)
-  const digits = canonical.replace(/\D/g, '');
-  const tail = digits.slice(-9);
-  if (tail.length === 9) {
-    const { data: rows } = await supabase
-      .from('profiles')
-      .select('id, phone')
-      .not('phone', 'is', null)
-      .like('phone', `%${tail}`)
-      .limit(20);
-    const hit = (rows ?? []).find((r) => String(r.phone).replace(/\D/g, '').endsWith(tail));
+  // 1) Queries without '+' only
+  for (const c of candidatesNoPlus) {
+    const { data: rows } = await supabase.from('profiles').select('id, phone').eq('phone', c).limit(5);
+    const hit = (rows ?? []).find((r) => phonesMatch(r.phone, wantDigits));
     if (hit?.id) {
-      await backfillProfilePhone(supabase, hit.id, canonical);
+      await backfillProfilePhone(supabase, hit.id, canonical || `+${wantDigits}`);
       return hit.id;
     }
+  }
 
-    // Broader scan if like failed (phone stored with spaces/dashes)
-    const { data: allRows } = await supabase
+  // 2) LIKE last 9 digits
+  if (tail.length >= 8) {
+    const { data: liked } = await supabase
       .from('profiles')
       .select('id, phone')
       .not('phone', 'is', null)
-      .limit(500);
-    const soft = (allRows ?? []).find((r) => String(r.phone).replace(/\D/g, '').endsWith(tail));
-    if (soft?.id) {
-      await backfillProfilePhone(supabase, soft.id, canonical);
-      return soft.id;
+      .like('phone', `%${tail}%`)
+      .limit(50);
+    const hit = (liked ?? []).find((r) => phonesMatch(r.phone, wantDigits));
+    if (hit?.id) {
+      await backfillProfilePhone(supabase, hit.id, canonical || `+${wantDigits}`);
+      return hit.id;
     }
   }
 
-  // profiles.phone empty but Auth OTP user exists with this phone
-  const authId = await findAuthUserIdByPhone(supabase, candidates);
+  // 3) Full scan — compare digits in JS (bypasses filter encoding quirks)
+  const { data: allRows, error: scanErr } = await supabase
+    .from('profiles')
+    .select('id, phone')
+    .not('phone', 'is', null)
+    .limit(1000);
+  if (scanErr) {
+    console.warn('[smartcrop] profiles scan', scanErr.message);
+  } else {
+    const soft = (allRows ?? []).find((r) => phonesMatch(r.phone, wantDigits));
+    if (soft?.id) {
+      await backfillProfilePhone(supabase, soft.id, canonical || `+${wantDigits}`);
+      return soft.id;
+    }
+    console.warn('[smartcrop] no profile digit match', {
+      wantDigits,
+      tail,
+      sample: (allRows ?? []).slice(0, 15).map((r) => ({
+        id: r.id,
+        phone: r.phone,
+        digits: phoneDigits(r.phone),
+      })),
+    });
+  }
+
+  const authId = await findAuthUserIdByPhone(
+    supabase,
+    phoneLookupCandidates(canonical || String(rawPhone ?? '')),
+  );
   if (authId) {
-    await backfillProfilePhone(supabase, authId, canonical);
+    await backfillProfilePhone(supabase, authId, canonical || `+${wantDigits}`);
     return authId;
   }
 
   return null;
+}
+
+/** True when two phones share the same national digits (8–10). */
+function phonesMatch(stored, wantDigits) {
+  const a = phoneDigits(stored);
+  if (!a || !wantDigits) return false;
+  if (a === wantDigits) return true;
+  const n = Math.min(10, a.length, wantDigits.length);
+  return n >= 8 && a.slice(-n) === wantDigits.slice(-n);
 }
 
 /**

@@ -2,7 +2,7 @@
  * Twilio WhatsApp → SmartCrop ingest helper.
  * Notes: Parses Twilio form fields, downloads media, maps into process payload.
  */
-import { normalizePhoneE164, parseSizeFromCaption } from './whatsappParser.mjs';
+import { normalizePhoneE164, parseSizeFromCaption, phoneDigits } from './whatsappParser.mjs';
 import {
   buildTwimlReply,
   downloadTwilioMedia,
@@ -22,7 +22,23 @@ export function isTwilioInbound(body) {
 }
 
 /**
+ * Notes: Strip whatsapp: and normalize any Twilio address field to E.164.
+ * @param {...unknown} fields
+ * @returns {string}
+ */
+function firstE164(...fields) {
+  for (const f of fields) {
+    const raw = String(f ?? '').trim();
+    if (!raw) continue;
+    const n = normalizePhoneE164(raw);
+    if (n && phoneDigits(n).length >= 8) return n;
+  }
+  return '';
+}
+
+/**
  * Notes: Extract Twilio WhatsApp fields from req.body (urlencoded).
+ * Studio number = To (business line). Sender = From / WaId.
  * @param {Record<string, unknown>} body
  */
 export function parseTwilioWhatsAppBody(body) {
@@ -32,8 +48,9 @@ export function parseTwilioWhatsAppBody(body) {
   const NumMedia = Number(body.NumMedia ?? 0);
   const MediaUrl0 = String(body.MediaUrl0 ?? '');
   const MediaContentType0 = String(body.MediaContentType0 ?? '');
-  const senderPhone = normalizePhoneE164(From.replace(/^whatsapp:/i, ''));
-  const shopPhone = normalizePhoneE164(To.replace(/^whatsapp:/i, ''));
+  // Prefer To as shop (your Twilio WA number e.g. whatsapp:+972509250384).
+  const shopPhone = firstE164(body.To, body.OriginalTo, body.ChannelToAddress);
+  const senderPhone = firstE164(body.From, body.WaId, body.Author);
 
   return {
     From,
