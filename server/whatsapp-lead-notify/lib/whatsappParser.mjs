@@ -232,12 +232,8 @@ export function buildCustomerBotReply(result) {
           ? 'לאסטר'
           : '';
   const req = paperHe ? `${result.sizeName} ${paperHe}` : result.sizeName;
-  let msg = `${hi} זיהינו את הבקשה: ${req}.\nהתמונה נסרקה ב-SmartCrop,\nהראשים שמורים והקובץ מוכן להדפסה!`;
-  const conf = result.metrics?.confidenceScore;
-  if (typeof conf === 'number' && conf >= 90) {
-    msg += '\n✓ מוכן להדפסה';
-  }
-  return msg;
+  const dashboardUrl = 'https://www.lya-solution.com/smartcrop/dashboard';
+  return `${hi} זיהינו את הבקשה: ${req}.\nהתמונה נסרקה ב-SmartCrop.\nהתמונות מוכנות להדפסה, יש להיכנס לדשבורד:\n${dashboardUrl}`;
 }
 
 /**
