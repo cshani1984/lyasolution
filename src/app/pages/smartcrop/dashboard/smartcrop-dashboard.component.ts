@@ -256,10 +256,23 @@ export class SmartcropDashboardComponent implements OnInit {
     return p?.full_name || p?.email || p?.phone || 'Studio';
   });
 
+  /** Short studio alias for the avatar circle (first word / initials). */
   readonly userInitials = computed(() => {
+    const studio = (this.auth.profile()?.full_name || '').trim();
+    if (studio) {
+      const parts = studio.split(/\s+/).filter(Boolean);
+      const first = parts[0] ?? studio;
+      // Latin multi-word → initials (e.g. Photo Lab → PL)
+      if (/^[A-Za-z]/.test(first) && parts.length >= 2) {
+        return `${parts[0]![0]}${parts[1]![0]}`.toUpperCase();
+      }
+      if (/^[A-Za-z]/.test(first)) return first.slice(0, 2).toUpperCase();
+      // Hebrew / mixed: show first name/word as alias (e.g. יוסי צלמים → יוסי)
+      return first.length > 6 ? first.slice(0, 4) : first;
+    }
     const label = this.userLabel();
     const parts = label.split(/\s+/).filter(Boolean);
-    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    if (parts.length >= 2) return `${parts[0]![0]}${parts[1]![0]}`.toUpperCase();
     return label.slice(0, 2).toUpperCase();
   });
 

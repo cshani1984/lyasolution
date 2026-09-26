@@ -26,7 +26,7 @@
       <button type="button" class="sc-studio__lang" (click)="toggleLang()">
         {{ i18n.lang() === 'he' ? 'EN' : 'עב' }}
       </button>
-      <div class="sc-studio__avatar" aria-hidden="true">{{ userInitials() }}</div>
+      <div class="sc-studio__avatar" [attr.title]="userLabel()" aria-hidden="true">{{ userInitials() }}</div>
       <button type="button" class="sc-studio__signout" (click)="signOut()">{{ i18n.t('smartcrop.dash.signOut') }}</button>
     </div>
   </header>
