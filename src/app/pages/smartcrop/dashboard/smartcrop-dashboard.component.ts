@@ -516,6 +516,10 @@ export class SmartcropDashboardComponent implements OnInit, OnDestroy {
     this.showHeatmap.update((v) => !v);
   }
 
+  toggleHotfolder(): void {
+    this.showHotfolder.update((v) => !v);
+  }
+
   /** Notes: Move the crop window on the original (image appears to pan opposite). */
   async panCrop(dir: 'up' | 'down' | 'left' | 'right'): Promise<void> {
     const photo = this.activePhoto();

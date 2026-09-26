@@ -321,7 +321,7 @@
             <button
               type="button"
               class="sc-studio__hotfolder-toggle"
-              (click)="showHotfolder.update((v) => !v)"
+              (click)="toggleHotfolder()"
               [attr.aria-expanded]="showHotfolder()"
             >
               <span class="material-symbols-outlined" aria-hidden="true">{{
