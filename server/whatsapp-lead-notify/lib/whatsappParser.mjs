@@ -5,6 +5,7 @@
 
 const SIZE_ALIASES = [
   { pattern: /\b10\s*[x×]\s*15\b/i, name: '10x15' },
+  { pattern: /\b10\s*[x×]\s*20\b/i, name: '10x20' },
   { pattern: /\b13\s*[x×]\s*18\b/i, name: '13x18' },
   { pattern: /\b15\s*[x×]\s*21\b|\ba5\b/i, name: '15x21' },
   { pattern: /\b20\s*[x×]\s*30\b/i, name: '20x30' },
@@ -113,13 +114,21 @@ export function parseWhatsAppOrder(caption) {
       break;
     }
   }
+  // Generic W×H (e.g. 10X20, 8x12) when not in aliases
+  if (!sizeHit) {
+    const dim = text.match(/\b(\d{1,2}(?:\.\d)?)\s*[x×]\s*(\d{1,2}(?:\.\d)?)\b/i);
+    if (dim) {
+      sizeName = `${dim[1]}x${dim[2]}`;
+      sizeHit = true;
+    }
+  }
 
   let copies = 1;
   let copiesHit = false;
+  // Prefer explicit "עותקים"; avoid treating 10X20 as "×20 copies"
   const copiesMatch =
     text.match(/(\d+)\s*(?:עותקים|עותק|copies?|pcs?)/i) ||
-    text.match(/(?:x|×)\s*(\d+)(?!\s*\d)/i) ||
-    text.match(/(\d+)\s*[x×](?!\s*\d)/i);
+    text.match(/(?<!\d)\s*[x×]\s*(\d+)\b(?!\s*\d)/i);
   if (copiesMatch) {
     const n = Number(copiesMatch[1]);
     if (Number.isFinite(n) && n > 0 && n < 500) {
@@ -223,7 +232,7 @@ export function buildCustomerBotReply(result) {
           ? 'לאסטר'
           : '';
   const req = paperHe ? `${result.sizeName} ${paperHe}` : result.sizeName;
-  let msg = `${hi} זיהינו את הבקשה: ${req}.\nהתמונה נסרקה ב-AI Headroom Guard,\nהראשים שמורים והקובץ מוכן להדפסה!`;
+  let msg = `${hi} זיהינו את הבקשה: ${req}.\nהתמונה נסרקה ב-SmartCrop,\nהראשים שמורים והקובץ מוכן להדפסה!`;
   const conf = result.metrics?.confidenceScore;
   if (typeof conf === 'number' && conf >= 90) {
     msg += '\n✓ מוכן להדפסה';

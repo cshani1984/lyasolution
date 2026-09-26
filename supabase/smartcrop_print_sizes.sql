@@ -1,4 +1,4 @@
--- SmartCrop: expanded print sizes + optional metadata
+-- Smart'י: expanded print sizes + optional metadata
 -- Run in Supabase SQL Editor after smartcrop_schema.sql
 
 alter table public.print_sizes
@@ -15,6 +15,7 @@ insert into public.print_sizes (name, width_cm, height_cm, aspect_ratio, is_defa
 select v.name, v.width_cm, v.height_cm, v.aspect_ratio, v.is_default, v.category, v.description, v.code
 from (values
   ('10x15', 10::numeric, 15::numeric, (10::numeric / 15), true, 'standard', 'הגודל הקלאסי והפופולרי ביותר', '10x15'),
+  ('10x20', 10::numeric, 20::numeric, (10::numeric / 20), false, 'standard', 'פורמט פנורמי / כרטיס ברכה ארוך', '10x20'),
   ('13x18', 13::numeric, 18::numeric, (13::numeric / 18), false, 'standard', 'מתאים למסגרות אלבום בינוניות', '13x18'),
   ('15x21', 15::numeric, 21::numeric, (15::numeric / 21), false, 'standard', 'גודל מבוקש למזכרות מאירועים', '15x21'),
   ('20x30', 20::numeric, 30::numeric, (20::numeric / 30), false, 'large', 'הגדלה רגילה למסגרות קיר', '20x30'),
@@ -36,6 +37,7 @@ set
   code = coalesce(ps.code, v.code)
 from (values
   ('10x15', 'standard', 'הגודל הקלאסי והפופולרי ביותר', '10x15'),
+  ('10x20', 'standard', 'פורמט פנורמי / כרטיס ברכה ארוך', '10x20'),
   ('13x18', 'standard', 'מתאים למסגרות אלבום בינוניות', '13x18'),
   ('15x21', 'standard', 'גודל מבוקש למזכרות מאירועים', '15x21'),
   ('20x30', 'large', 'הגדלה רגילה למסגרות קיר', '20x30'),

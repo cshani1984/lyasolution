@@ -19,6 +19,17 @@ export const DEMO_PRINT_SIZES: PrintSize[] = [
     description: 'הגודל הקלאסי והפופולרי ביותר',
   },
   {
+    id: 'size-10x20',
+    name: '10x20 ס"מ',
+    code: '10x20',
+    width_cm: 10,
+    height_cm: 20,
+    aspect_ratio: 10 / 20,
+    is_default: false,
+    category: 'standard',
+    description: 'פורמט פנורמי / כרטיס ברכה ארוך',
+  },
+  {
     id: 'size-13x18',
     name: '13x18 ס"מ',
     code: '13x18',
@@ -145,7 +156,7 @@ export function findPrintSize(
     sizes.find((s) => normalizeSizeKey(s.code || '') === nq) ||
     sizes.find((s) => normalizeSizeKey(s.name) === nq) ||
     sizes.find((s) => normalizeSizeKey(`${s.width_cm}x${s.height_cm}`) === nq) ||
-    sizes.find((s) => nq.includes(normalizeSizeKey(`${s.width_cm}x${s.height_cm}`)))
+    sizes.find((s) => normalizeSizeKey(`${s.height_cm}x${s.width_cm}`) === nq)
   );
 }
 

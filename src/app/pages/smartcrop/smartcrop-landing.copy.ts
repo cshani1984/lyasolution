@@ -170,7 +170,7 @@ export const SC_LANDING: Record<ScLandingLang, ScLandingCopy> = {
     chatMsg: 'שלום, רוצה להדפיס את התמונה הזו ב-10x15 על נייר מבריק! אפשרי שיהיה מוכן לעוד שעתיים?',
     orderLine: '10x15 • נייר גלוס • עותק 1',
     botMsg:
-      'היי דני! זיהינו את הבקשה: 10x15 מבריק. התמונה נסרקה ב-AI Headroom Guard, הראשים שמורים והקובץ מוכן להדפסה!',
+      'היי דני! זיהינו את הבקשה: 10x15 מבריק. התמונה נסרקה ב-SmartCrop, הראשים שמורים והקובץ מוכן להדפסה!',
     botMeta: '14:32 • בוט SmartCrop',
     dpiTag: 'DPI מקורי: 300',
     hotfolderTag: 'ניתוב Hotfolder מאושר',
@@ -333,7 +333,7 @@ export const SC_LANDING: Record<ScLandingLang, ScLandingCopy> = {
     chatMsg: 'Hi, I want this printed as 10x15 on glossy paper! Can it be ready in two hours?',
     orderLine: '10x15 • Gloss paper • 1 copy',
     botMsg:
-      'Hi Danny! We detected: 10x15 glossy. The image was scanned with AI Headroom Guard — heads are safe and the file is print-ready!',
+      'Hi Danny! We detected: 10x15 glossy. The image was scanned with SmartCrop — heads are safe and the file is print-ready!',
     botMeta: '14:32 • SmartCrop bot',
     dpiTag: 'Source DPI: 300',
     hotfolderTag: 'Hotfolder routing approved',
