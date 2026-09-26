@@ -28,6 +28,9 @@
                   </optgroup>
                 }
               </select>
+              @if (photo.target_size_name) {
+                <em class="sc-modal__detected">{{ i18n.t('smartcrop.studio.waDetectedSize') }}: {{ photo.target_size_name }}</em>
+              }
             </label>
           }
           <p class="sc-modal__ratio">

@@ -330,6 +330,12 @@ export class SmartcropDashboardComponent implements OnInit, OnDestroy {
   readonly approvedCount = computed(() =>
     this.filteredPhotos().filter((p) => p.status === 'approved' || p.status === 'printed').length,
   );
+  readonly stripReadyCount = computed(
+    () => this.filteredPhotos().filter((p) => !this.thumbNeedsReview(p)).length,
+  );
+  readonly stripReviewCount = computed(
+    () => this.filteredPhotos().filter((p) => this.thumbNeedsReview(p)).length,
+  );
   readonly selectedCount = computed(() => this.selectedIds().size);
 
   /** Inbound WhatsApp caption for the active photo (with a readable fallback). */
@@ -900,7 +906,8 @@ export class SmartcropDashboardComponent implements OnInit, OnDestroy {
     this.toast.set(this.i18n.t('smartcrop.studio.aiWorking'));
     try {
       const size =
-        this.photosService.sizes().find((s) => s.id === photo.size_id || s.name === photo.target_size_name) ??
+        findPrintSize(this.photosService.sizes(), photo.target_size_name) ||
+        findPrintSize(this.photosService.sizes(), photo.size_id) ||
         this.photosService.sizes()[0];
       if (this.api.isConfigured() && !this.photosService.isLocalOnly(photo)) {
         await this.api.processCrop({ photoId: photo.id, resetToAi: true });
@@ -1031,7 +1038,8 @@ export class SmartcropDashboardComponent implements OnInit, OnDestroy {
 
   /** Notes: Show WhatsApp-detected print size on the order card. */
   thumbSizeLabel(photo: SmartcropPhoto): string {
-    const size = (photo.target_size_name || '').trim() || '10x15';
+    const raw = (photo.target_size_name || '').trim() || '10x15';
+    const size = raw.replace(/[x×]/gi, '×').replace(/\s*ס["״]?מ\s*/gi, '').trim();
     if (this.isActiveThumb(photo)) {
       return this.i18n.t('smartcrop.studio.photoSize').replace('{size}', size);
     }
@@ -1041,7 +1049,10 @@ export class SmartcropDashboardComponent implements OnInit, OnDestroy {
   isSizeSelected(size: { id: string; name: string }): boolean {
     const photo = this.activePhoto();
     if (!photo) return false;
-    return photo.size_id === size.id || photo.target_size_name === size.name;
+    const matched =
+      findPrintSize(this.photosService.sizes(), photo.target_size_name) ||
+      findPrintSize(this.photosService.sizes(), photo.size_id);
+    return matched?.id === size.id;
   }
 
   isActiveThumb(photo: SmartcropPhoto): boolean {

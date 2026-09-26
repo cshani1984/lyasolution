@@ -34,6 +34,7 @@ import { I18nService } from '../../../../core/services/i18n.service';
 import { smartCropFromUrl } from '../../../../core/smartcrop/crop-engine.client';
 import {
   PRINT_SIZE_CATEGORY_LABELS,
+  findPrintSize,
   getCalculatedAspectRatio,
   groupPrintSizesByCategory,
   orientAspectRatio,
@@ -198,6 +199,7 @@ export class SmartcropCropModalComponent implements OnChanges, OnDestroy {
           !changes['sizes'] &&
           Boolean(this.selectedSizeId()) &&
           (this.photo.size_id === this.selectedSizeId() ||
+            findPrintSize(this.sizes, this.photo.target_size_name)?.id === this.selectedSizeId() ||
             this.sizes.find((s) => s.id === this.selectedSizeId())?.name ===
               this.photo.target_size_name);
         if (mirroredSizeOnly) return;
@@ -281,12 +283,14 @@ export class SmartcropCropModalComponent implements OnChanges, OnDestroy {
       this.selectedSizeId.set('');
       return;
     }
+    // Prefer detected WhatsApp / card size name so the editor opens at what was ordered
+    // (e.g. "10x15" → catalog "10x15 ס״מ"), then fall back to size_id / default.
     const match =
-      this.sizes.find((s) => s.id === photo.size_id) ??
-      this.sizes.find((s) => s.name === photo.target_size_name) ??
-      this.sizes.find((s) => s.is_default) ??
+      findPrintSize(this.sizes, photo.target_size_name) ||
+      findPrintSize(this.sizes, photo.size_id) ||
+      this.sizes.find((s) => s.is_default) ||
       this.sizes[0];
-    this.selectedSizeId.set(match.id);
+    if (match) this.selectedSizeId.set(match.id);
   }
 
   private resetCropperState(restoreCrop: boolean): void {
@@ -322,12 +326,19 @@ export class SmartcropCropModalComponent implements OnChanges, OnDestroy {
       if (!this.restoreExistingCrop) return;
       const existing = this.photo?.crop_data;
       if (existing && existing.width > 0 && existing.height > 0) {
-        this.applyOriginalCropBox({
-          x1: existing.x,
-          y1: existing.y,
-          x2: existing.x + existing.width,
-          y2: existing.y + existing.height,
-        });
+        // Only restore when the saved box matches the selected print aspect
+        // (e.g. WhatsApp 10x15 → editor opens at 10x15, not a mismatched default).
+        const boxAspect = existing.width / Math.max(1, existing.height);
+        const want = this.activeAspect();
+        const drift = Math.abs(boxAspect - want) / Math.max(want, 0.01);
+        if (drift <= 0.08) {
+          this.applyOriginalCropBox({
+            x1: existing.x,
+            y1: existing.y,
+            x2: existing.x + existing.width,
+            y2: existing.y + existing.height,
+          });
+        }
       }
     });
   }

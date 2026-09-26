@@ -369,18 +369,30 @@
 
   <section class="sc-studio__strip">
     <div class="sc-studio__strip-head">
-      <div class="sc-studio__strip-title">
-        <h3>
+      <div class="sc-studio__strip-lead">
+        <span class="sc-studio__strip-title">
           {{ i18n.t('smartcrop.studio.orderStrip') }}
           @if (whatsappOrderRef()) {
-            <em>{{ whatsappOrderRef() }}</em>
+            ({{ whatsappOrderRef() }}):
           }
-        </h3>
+        </span>
+        <span class="sc-studio__strip-caught">
+          {{ filteredPhotos().length }} {{ i18n.t('smartcrop.studio.caughtCount') }}
+        </span>
       </div>
-      <div class="sc-studio__stats">
-        <span>{{ filteredPhotos().length }} {{ i18n.t('smartcrop.studio.caught') }}</span>
-        <span class="is-warn">{{ pendingCount() }} {{ i18n.t('smartcrop.studio.pending') }}</span>
-        <span class="is-ok">{{ approvedCount() }} {{ i18n.t('smartcrop.studio.approved') }}</span>
+      <div class="sc-studio__strip-pills">
+        @if (stripReadyCount()) {
+          <span class="sc-studio__strip-pill is-ok">
+            <i aria-hidden="true"></i>
+            {{ stripReadyCount() }} {{ i18n.t('smartcrop.studio.autoApproved') }}
+          </span>
+        }
+        @if (stripReviewCount()) {
+          <span class="sc-studio__strip-pill is-warn">
+            <i aria-hidden="true"></i>
+            {{ stripReviewCount() }} {{ i18n.t('smartcrop.studio.thumbNeedsReview') }}
+          </span>
+        }
       </div>
     </div>
 
