@@ -6,8 +6,11 @@
 const SIZE_ALIASES = [
   { pattern: /\b10\s*[x×]\s*15\b/i, name: '10x15' },
   { pattern: /\b13\s*[x×]\s*18\b/i, name: '13x18' },
+  { pattern: /\b15\s*[x×]\s*21\b|\ba5\b/i, name: '15x21' },
   { pattern: /\b20\s*[x×]\s*30\b/i, name: '20x30' },
   { pattern: /\ba4\b/i, name: 'A4' },
+  { pattern: /\b10\s*[x×]\s*10\b|\bריבוע\b|\bsquare\b/i, name: '10x10' },
+  { pattern: /\bpassport\b|\bפספורט\b|\b3\.?5\s*[x×]\s*4\.?5\b/i, name: 'Passport' },
   { pattern: /\bגלויה\b|\bpostcard\b/i, name: '10x15' },
   { pattern: /\bהגדלה\b|\benlargement\b/i, name: '20x30' },
 ];

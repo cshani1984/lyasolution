@@ -19,6 +19,15 @@
     </div>
   </header>
 
+  @if (metrics(); as m) {
+    <div class="sc-pcc__loss-status" [attr.data-tone]="lossTone()" role="status">
+      {{ lossStatusText() }}
+    </div>
+    @if (m.photographerNote || photographerNote()) {
+      <p class="sc-pcc__note">{{ m.photographerNote || photographerNote() }}</p>
+    }
+  }
+
   @if (recommendGenerativeFill()) {
     <div class="sc-pcc__gf-warn" role="status">
       ⚠️ {{ lossBadgeText() }}
@@ -39,6 +48,11 @@
         </span>
       }
       <span class="sc-pcc__badge is-ratio">📐 {{ sizeLabel || photo.target_size_name }}</span>
+      @if (m.addedSafetyMargin) {
+        <span class="sc-pcc__badge is-safe">
+          🛡️ +{{ m.safetyMarginPercentage || 6 }}% {{ i18n.t('smartcrop.metrics.safetyMargin') }}
+        </span>
+      }
       @if (m.headPaddingApplied) {
         <span class="sc-pcc__badge is-safe">
           +{{ headroomPercent() }}% {{ i18n.t('smartcrop.metrics.headroom') }}
@@ -108,10 +122,13 @@
       <button
         type="button"
         class="sc-pcc__btn sc-pcc__btn--gf"
+        [class.is-pulse]="recommendGenerativeFill() && !photo.generative_fill_url"
         (click)="generativeFill.emit()"
         [disabled]="generativeBusy"
       >
-        ✨ {{ i18n.t('smartcrop.generative.action') }}
+        ✨ {{ recommendGenerativeFill() && !photo.generative_fill_url
+          ? i18n.t('smartcrop.generative.pulseHint')
+          : i18n.t('smartcrop.generative.action') }}
       </button>
     }
     @if (isPrintReady()) {

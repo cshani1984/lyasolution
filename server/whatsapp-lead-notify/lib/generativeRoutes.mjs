@@ -79,8 +79,11 @@ export function registerGenerativeRoutes(app, ctx) {
         const { buffer, cropData, cropLossPercentage, confidenceScore, metrics } =
           await processSmartCrop(inputBuffer, { aspectRatio, resetToAi: true });
 
-        const loss = Number(cropLossPercentage ?? metrics?.cropLossPercentage ?? 0);
-        const recommendGenerativeFill = loss > GENERATIVE_FILL_RECOMMEND_PERCENT;
+        const m = metrics ?? cropData?.metrics ?? null;
+        const loss = Number(cropLossPercentage ?? m?.cropLossPercentage ?? 0);
+        const recommendGenerativeFill = Boolean(
+          m?.shouldRecommendGenerativeFill ?? loss > GENERATIVE_FILL_RECOMMEND_PERCENT,
+        );
         const meta = await (await import('sharp')).default(inputBuffer).rotate().metadata();
         const extend = calculateExtendPadding(meta.width || 1, meta.height || 1, aspectRatio);
 
@@ -101,9 +104,23 @@ export function registerGenerativeRoutes(app, ctx) {
 
         res.json({
           ok: true,
+          processedImageUrl: croppedBase64,
+          originalImageUrl: req.body?.media_url || null,
           croppedBase64,
           cropData,
-          metrics: metrics ?? cropData?.metrics ?? null,
+          metrics: {
+            ...(m || {}),
+            cropLossPercentage: loss,
+            isCroppingNecessary: Boolean(m?.isCroppingNecessary),
+            addedSafetyMargin: Boolean(m?.addedSafetyMargin),
+            safetyMarginPercentage: Number(m?.safetyMarginPercentage) || 6,
+            shouldRecommendGenerativeFill: recommendGenerativeFill,
+            photographerNote:
+              m?.photographerNote ||
+              (recommendGenerativeFill
+                ? `⚠️ אזהרה: חיתוך עמוק (נחתך ${loss}% מהמקור). מומלץ להפעיל מחולל AI להשלמת הרקע`
+                : undefined),
+          },
           confidenceScore,
           cropLossPercentage: loss,
           recommendGenerativeFill,

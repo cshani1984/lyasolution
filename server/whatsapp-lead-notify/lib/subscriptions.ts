@@ -32,7 +32,7 @@ export const TIER_CONFIGS: Record<SubscriptionTier, TierConfig> = {
 };
 
 /** Crop-loss % above which Generative Fill is recommended. */
-export const GENERATIVE_FILL_RECOMMEND_PERCENT = 20;
+export const GENERATIVE_FILL_RECOMMEND_PERCENT = 25;
 
 /** WhatsApp upgrade deep-link (override with SMARTCROP_SUPPORT_WA). */
 export const DEFAULT_SUPPORT_WA =

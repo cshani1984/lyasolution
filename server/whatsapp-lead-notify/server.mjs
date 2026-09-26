@@ -40,18 +40,60 @@ const API_KEY = (process.env.API_KEY ?? '').trim();
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 const corsOrigin = process.env.CORS_ORIGIN?.trim();
-const corsOptions =
-  corsOrigin === '*' || !corsOrigin
-    ? { origin: true }
-    : { origin: corsOrigin.split(',').map((s) => s.trim()).filter(Boolean) };
+const configuredOrigins =
+  corsOrigin && corsOrigin !== '*'
+    ? corsOrigin.split(',').map((s) => s.trim()).filter(Boolean)
+    : null;
+
+/** Always allow local Angular + production site origins for SmartCrop API calls. */
+const DEFAULT_ALLOWED_ORIGINS = [
+  'http://localhost:4200',
+  'http://127.0.0.1:4200',
+  'https://lya-solution.com',
+  'https://www.lya-solution.com',
+  'https://lyasolution.com',
+  'https://www.lyasolution.com',
+];
+
+const allowedOriginSet = new Set([
+  ...(configuredOrigins ?? []),
+  ...DEFAULT_ALLOWED_ORIGINS,
+]);
+
+const corsOptions = {
+  origin(origin, callback) {
+    // Non-browser / same-origin / server-to-server
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+    if (!configuredOrigins || corsOrigin === '*') {
+      callback(null, true);
+      return;
+    }
+    if (allowedOriginSet.has(origin)) {
+      callback(null, true);
+      return;
+    }
+    logErr('CORS blocked origin', origin);
+    callback(null, false);
+  },
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'x-api-key', 'Authorization', 'Accept'],
+  exposedHeaders: ['Content-Type'],
+  credentials: true,
+  optionsSuccessStatus: 204,
+  maxAge: 86400,
+};
 
 const app = express();
 app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS ?? '1') || 1);
 app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 /** Twilio WhatsApp webhooks post application/x-www-form-urlencoded */
 app.use(express.urlencoded({ extended: false }));
-/** 12mb allows demo WhatsApp webhook with media_base64 */
-app.use(express.json({ limit: '12mb' }));
+/** 25mb allows generative-fill / process with large media_base64 payloads */
+app.use(express.json({ limit: '25mb' }));
 
 const NOTIFY_MAX_PER_IP = Math.max(1, Number(process.env.NOTIFY_MAX_PER_IP) || 30);
 const NOTIFY_WINDOW_MS = Math.max(60_000, Number(process.env.NOTIFY_WINDOW_MS) || 15 * 60 * 1000);

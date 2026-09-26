@@ -9,6 +9,7 @@ import type {
   SmartcropPhoto,
 } from '../models/smartcrop.model';
 import { smartCropJpeg, smartCropFromUrl } from '../smartcrop/crop-engine.client';
+import { DEMO_PRINT_SIZES, findPrintSize, getCalculatedAspectRatio } from '../smartcrop/print-sizes';
 
 @Injectable({ providedIn: 'root' })
 export class SmartcropPhotosService {
@@ -33,18 +34,28 @@ export class SmartcropPhotosService {
       if (error) this.error.set(error.message);
       return;
     }
-    this.sizes.set((data as PrintSize[]) ?? []);
+    this.sizes.set(
+      (data as PrintSize[]).map((row) => {
+        const demo = findPrintSize(DEMO_PRINT_SIZES, row.code || row.name);
+        const width = Number(row.width_cm);
+        const height = Number(row.height_cm);
+        return {
+          ...row,
+          width_cm: width,
+          height_cm: height,
+          aspect_ratio: width && height ? width / height : Number(row.aspect_ratio) || 2 / 3,
+          category: row.category || demo?.category,
+          description: row.description || demo?.description,
+          code: row.code || demo?.code,
+        };
+      }),
+    );
   }
 
   /** Notes: Local print sizes when Supabase seeds are missing. */
   private seedFallbackSizes(): void {
     if (this.sizes().length) return;
-    this.sizes.set([
-      { id: 'local-10x15', name: '10x15', width_cm: 10, height_cm: 15, aspect_ratio: 0.6667, is_default: true },
-      { id: 'local-13x18', name: '13x18', width_cm: 13, height_cm: 18, aspect_ratio: 0.7222, is_default: false },
-      { id: 'local-20x30', name: '20x30', width_cm: 20, height_cm: 30, aspect_ratio: 0.6667, is_default: false },
-      { id: 'local-a4', name: 'A4', width_cm: 21, height_cm: 29.7, aspect_ratio: 0.7071, is_default: false },
-    ]);
+    this.sizes.set(DEMO_PRINT_SIZES.map((s) => ({ ...s })));
   }
 
   async loadPhotos(): Promise<void> {
@@ -159,13 +170,11 @@ export class SmartcropPhotosService {
 
     if (!this.sizes().length) this.seedFallbackSizes();
     const size =
-      (sizeName
-        ? this.sizes().find((s) => s.name === sizeName)
-        : null) ??
+      (sizeName ? findPrintSize(this.sizes(), sizeName) : null) ??
       this.sizes().find((s) => s.is_default) ??
       this.sizes()[0] ??
       null;
-    const aspect = size ? Number(size.aspect_ratio) || 2 / 3 : 2 / 3;
+    const aspect = size ? getCalculatedAspectRatio(size, false) : 2 / 3;
     const id = crypto.randomUUID();
 
     let originalUrl: string;
@@ -225,7 +234,10 @@ export class SmartcropPhotosService {
     size: PrintSize,
   ): Promise<{ error: Error | null }> {
     try {
-      const result = await smartCropFromUrl(photo.original_url, Number(size.aspect_ratio) || 2 / 3);
+      const result = await smartCropFromUrl(
+        photo.original_url,
+        getCalculatedAspectRatio(size, false),
+      );
       const croppedUrl = URL.createObjectURL(result.blob);
       if (this.supabase.isConfigured() && !photo.id.startsWith('demo-') && !photo.original_url.startsWith('blob:')) {
         await this.updatePhoto(photo.id, {

@@ -274,6 +274,41 @@
   line-height: 1.4;
 }
 
+.sc-pcc__loss-status {
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.55rem;
+  font-size: 0.84rem;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.sc-pcc__loss-status[data-tone='green'] {
+  background: #e8f5e9;
+  color: #1b5e20;
+}
+
+.sc-pcc__loss-status[data-tone='yellow'] {
+  background: #fff8e1;
+  color: #f57f17;
+}
+
+.sc-pcc__loss-status[data-tone='red'] {
+  background: #fdecea;
+  color: #b71c1c;
+}
+
+.sc-pcc__note {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--sc-on-variant, #45464f);
+  line-height: 1.45;
+}
+
+.sc-pcc__btn--gf.is-pulse {
+  animation: sc-gf-pulse 1.6s ease-in-out infinite;
+  box-shadow: 0 0 0 0 rgba(91, 77, 255, 0.55);
+}
+
 .sc-pcc__dual.has-gf {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
@@ -289,4 +324,19 @@
 
 .sc-pcc__frame.is-gf {
   border-color: color-mix(in srgb, #5b4dff 45%, transparent);
+}
+
+@keyframes sc-gf-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(91, 77, 255, 0.55);
+    transform: scale(1);
+  }
+  55% {
+    box-shadow: 0 0 0 10px rgba(91, 77, 255, 0);
+    transform: scale(1.03);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(91, 77, 255, 0);
+    transform: scale(1);
+  }
 }

@@ -6,10 +6,14 @@ export type PhotoStatus = 'pending' | 'approved' | 'printed';
 export interface PrintSize {
   id: string;
   name: string;
+  /** Stable machine key for WhatsApp / hotfolder / DB lookups (e.g. 10x15). */
+  code?: string;
   width_cm: number;
   height_cm: number;
   aspect_ratio: number;
   is_default: boolean;
+  category?: 'standard' | 'passport' | 'square' | 'large';
+  description?: string;
 }
 
 export interface CropFocalPoint {
@@ -53,6 +57,18 @@ export interface CropMetrics {
   headPaddingApplied: boolean;
   hasTruncationRisk: boolean;
   correctionDelta?: CropCorrectionDelta;
+  /** True when aspect fit or smart shift was required. */
+  isCroppingNecessary?: boolean;
+  /** True when the crop box was shifted toward the subject (not geometric). */
+  usedSmartShift?: boolean;
+  /** Print bleed buffer was applied / enforced. */
+  addedSafetyMargin?: boolean;
+  /** Safety margin percent (typically 5–8). */
+  safetyMarginPercentage?: number;
+  /** Recommend Generative Fill / AI outpainting when loss > 25%. */
+  shouldRecommendGenerativeFill?: boolean;
+  /** Hebrew/EN photographer note for admin UI. */
+  photographerNote?: string;
 }
 
 export interface CropData {

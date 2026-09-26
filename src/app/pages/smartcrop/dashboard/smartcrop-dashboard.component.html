@@ -187,9 +187,13 @@
             [class.is-selected]="isSizeSelected(s)"
             (click)="selectSize(s.id)"
             [disabled]="!activePhoto() || busy()"
+            [title]="s.description || s.name"
           >
             <strong>{{ s.name }}</strong>
             <span>{{ s.width_cm }}×{{ s.height_cm }}</span>
+            @if (s.description) {
+              <em>{{ s.description }}</em>
+            }
           </button>
         }
       </div>

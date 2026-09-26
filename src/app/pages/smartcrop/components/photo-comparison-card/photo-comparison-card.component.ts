@@ -16,6 +16,7 @@ import {
   CROP_LOSS_WARN_PERCENT,
   HEAD_TOP_PADDING_RATIO,
   confidenceTone,
+  cropLossTone,
 } from '../../../../core/smartcrop/crop-engine.math';
 import { GENERATIVE_FILL_RECOMMEND_PERCENT } from '../../../../core/smartcrop/subscriptions';
 import { blindCenterCropFromUrl } from '../../../../core/smartcrop/crop-engine.client';
@@ -68,6 +69,25 @@ export class SmartcropPhotoComparisonCardComponent implements OnChanges, OnDestr
     return `is-${confidenceTone(m.confidenceScore)}`;
   }
 
+  lossTone(): 'green' | 'yellow' | 'red' {
+    return cropLossTone(this.metrics()?.cropLossPercentage ?? 0);
+  }
+
+  lossStatusText(): string {
+    const n = Math.round(this.metrics()?.cropLossPercentage ?? 0);
+    const tone = this.lossTone();
+    const margin = this.metrics()?.safetyMarginPercentage ?? 5;
+    if (tone === 'green') {
+      return `🟢 ${this.i18n.t('smartcrop.loss.green').replace('5%', `${margin}%`)}`;
+    }
+    if (tone === 'yellow') return `🟡 ${this.i18n.t('smartcrop.loss.yellow')}`;
+    return `🔴 ${this.i18n.t('smartcrop.loss.red').replace('{n}', String(n))}`;
+  }
+
+  photographerNote(): string {
+    return this.metrics()?.photographerNote || this.lossStatusText();
+  }
+
   /** High AI confidence + no truncation risk → shop can trust auto-print. */
   isPrintReady(): boolean {
     const m = this.metrics();
@@ -76,15 +96,15 @@ export class SmartcropPhotoComparisonCardComponent implements OnChanges, OnDestr
   }
 
   lossDanger(): boolean {
-    const m = this.metrics();
-    if (!m) return false;
-    return m.hasTruncationRisk || m.cropLossPercentage > CROP_LOSS_WARN_PERCENT;
+    return this.lossTone() === 'red';
   }
 
   recommendGenerativeFill(): boolean {
     if (this.photo?.recommend_generative_fill) return true;
     if (this.photo?.generative_fill_url) return false;
-    const loss = this.metrics()?.cropLossPercentage ?? 0;
+    const m = this.metrics();
+    if (m?.shouldRecommendGenerativeFill) return true;
+    const loss = m?.cropLossPercentage ?? 0;
     return loss > GENERATIVE_FILL_RECOMMEND_PERCENT;
   }
 

@@ -6,15 +6,24 @@ import {
   DEMO_PRINT_SIZES,
   applyClientCrop,
   createDemoPhotos,
+  findPrintSize,
+  getCalculatedAspectRatio,
 } from '../../../core/data/smartcrop-demo.data';
 import { I18nService } from '../../../core/services/i18n.service';
 import { SmartcropApiService } from '../../../core/services/smartcrop-api.service';
 import { smartCropFromUrl, smartCropJpeg } from '../../../core/smartcrop/crop-engine.client';
+import { CROP_LOSS_WARN_PERCENT } from '../../../core/smartcrop/crop-engine.math';
 import {
   DEFAULT_SUPPORT_WA,
   TIER_CONFIGS,
   type SubscriptionTier,
 } from '../../../core/smartcrop/subscriptions';
+import {
+  PRINT_SIZE_CATEGORY_LABELS,
+  defaultPrintSize,
+  groupPrintSizesByCategory,
+  type PrintSizeCategory,
+} from '../../../core/smartcrop/print-sizes';
 import { SmartcropPhotoCardComponent } from '../components/photo-card/photo-card.component';
 import { SmartcropCropModalComponent } from '../components/crop-modal/crop-modal.component';
 import { SmartcropFileUploaderComponent } from '../components/file-uploader/file-uploader.component';
@@ -54,7 +63,7 @@ export class SmartcropDemoComponent implements OnInit, OnDestroy {
   readonly generativeBusy = signal(false);
   readonly toast = signal<string | null>(null);
   readonly editingIndex = signal(0);
-  readonly uploadSizeName = signal('10x15');
+  readonly uploadSizeName = signal(defaultPrintSize().name);
 
   readonly selectedTier = signal<SubscriptionTier>('demo');
   readonly aiUsed = signal(0);
@@ -73,16 +82,32 @@ export class SmartcropDemoComponent implements OnInit, OnDestroy {
   readonly editingAspect = computed(() => {
     const photo = this.editingPhoto();
     if (!photo) return 2 / 3;
-    const size = this.sizes.find((s) => s.id === photo.size_id || s.name === photo.target_size_name);
-    return size ? Number(size.aspect_ratio) : 2 / 3;
+    const size =
+      findPrintSize(this.sizes, photo.size_id) ||
+      findPrintSize(this.sizes, photo.target_size_name) ||
+      this.sizes[0];
+    return size ? getCalculatedAspectRatio(size, false) : 2 / 3;
   });
 
   readonly compareAspect = computed(() => {
     const photo = this.comparePhoto();
     if (!photo) return 2 / 3;
-    const size = this.sizes.find((s) => s.id === photo.size_id || s.name === photo.target_size_name);
-    return size ? Number(size.aspect_ratio) : 2 / 3;
+    const size =
+      findPrintSize(this.sizes, photo.size_id) ||
+      findPrintSize(this.sizes, photo.target_size_name) ||
+      this.sizes[0];
+    return size ? getCalculatedAspectRatio(size, false) : 2 / 3;
   });
+
+  sizeGroups() {
+    return groupPrintSizesByCategory(this.sizes);
+  }
+
+  categoryLabel(category: PrintSizeCategory | 'other'): string {
+    if (category === 'other') return this.i18n.lang() === 'he' ? 'אחר' : 'Other';
+    const labels = PRINT_SIZE_CATEGORY_LABELS[category];
+    return this.i18n.lang() === 'he' ? labels.he : labels.en;
+  }
 
   async ngOnInit(): Promise<void> {
     const list = createDemoPhotos();
@@ -92,9 +117,9 @@ export class SmartcropDemoComponent implements OnInit, OnDestroy {
     this.toast.set(this.i18n.t('smartcrop.studio.aiWorking'));
     const next: SmartcropPhoto[] = [];
     for (const photo of list) {
-      const size = this.sizes.find((s) => s.name === photo.target_size_name) ?? this.sizes[0];
+      const size = findPrintSize(this.sizes, photo.target_size_name) ?? this.sizes[0];
       try {
-        const cropped = await smartCropFromUrl(photo.original_url, Number(size.aspect_ratio));
+        const cropped = await smartCropFromUrl(photo.original_url, getCalculatedAspectRatio(size, false));
         const blobUrl = URL.createObjectURL(cropped.blob);
         this.blobUrls.add(blobUrl);
         const loss = cropped.cropData.metrics?.cropLossPercentage ?? 0;
@@ -102,7 +127,7 @@ export class SmartcropDemoComponent implements OnInit, OnDestroy {
           ...photo,
           cropped_url: blobUrl,
           crop_data: cropped.cropData,
-          recommend_generative_fill: loss > 20,
+          recommend_generative_fill: loss > CROP_LOSS_WARN_PERCENT,
         });
       } catch {
         next.push(photo);
@@ -144,13 +169,13 @@ export class SmartcropDemoComponent implements OnInit, OnDestroy {
 
   async onUploadFiles(payload: { files: File[]; sizeName: string }): Promise<void> {
     if (!payload.files.length) return;
-    this.uploadSizeName.set(payload.sizeName || '10x15');
+    this.uploadSizeName.set(payload.sizeName || defaultPrintSize().name);
     this.busy.set(true);
     this.aiBusy.set(true);
     this.toast.set(this.i18n.t('smartcrop.studio.aiWorking'));
 
     const size =
-      this.sizes.find((s) => s.name === payload.sizeName) ??
+      findPrintSize(this.sizes, payload.sizeName) ??
       this.sizes.find((s) => s.is_default) ??
       this.sizes[0];
 
@@ -159,7 +184,7 @@ export class SmartcropDemoComponent implements OnInit, OnDestroy {
       for (const file of payload.files) {
         const originalUrl = URL.createObjectURL(file);
         this.blobUrls.add(originalUrl);
-        const cropped = await smartCropJpeg(file, Number(size.aspect_ratio));
+        const cropped = await smartCropJpeg(file, getCalculatedAspectRatio(size, false));
         const croppedUrl = URL.createObjectURL(cropped.blob);
         this.blobUrls.add(croppedUrl);
         const loss = cropped.cropData.metrics?.cropLossPercentage ?? 0;
@@ -174,7 +199,7 @@ export class SmartcropDemoComponent implements OnInit, OnDestroy {
           size_id: size.id,
           target_size_name: size.name,
           crop_data: cropped.cropData,
-          recommend_generative_fill: loss > 20,
+          recommend_generative_fill: loss > CROP_LOSS_WARN_PERCENT,
           status: 'pending',
           created_at: new Date().toISOString(),
         };
@@ -309,7 +334,7 @@ export class SmartcropDemoComponent implements OnInit, OnDestroy {
   }
 
   async changeSize(photoId: string, sizeName: string): Promise<void> {
-    const size = this.sizes.find((s) => s.name === sizeName);
+    const size = findPrintSize(this.sizes, sizeName);
     if (!size) return;
     const photo = this.photos().find((p) => p.id === photoId);
     if (!photo) return;
@@ -317,7 +342,7 @@ export class SmartcropDemoComponent implements OnInit, OnDestroy {
     this.aiBusy.set(true);
     this.toast.set(this.i18n.t('smartcrop.studio.aiWorking'));
     try {
-      const cropped = await smartCropFromUrl(photo.original_url, Number(size.aspect_ratio));
+      const cropped = await smartCropFromUrl(photo.original_url, getCalculatedAspectRatio(size, false));
       const blobUrl = URL.createObjectURL(cropped.blob);
       this.blobUrls.add(blobUrl);
       const loss = cropped.cropData.metrics?.cropLossPercentage ?? 0;
@@ -326,7 +351,7 @@ export class SmartcropDemoComponent implements OnInit, OnDestroy {
         target_size_name: size.name,
         cropped_url: blobUrl,
         crop_data: cropped.cropData,
-        recommend_generative_fill: loss > 20,
+        recommend_generative_fill: loss > CROP_LOSS_WARN_PERCENT,
         generative_fill_url: null,
       });
       this.toast.set(this.i18n.t('smartcrop.demo.sizeChanged').replace('{size}', size.name));
@@ -387,13 +412,13 @@ export class SmartcropDemoComponent implements OnInit, OnDestroy {
       this.patchPhoto(photo.id, {
         cropped_url: blobUrl,
         crop_data: cropped.cropData,
-        recommend_generative_fill: loss > 20,
+        recommend_generative_fill: loss > CROP_LOSS_WARN_PERCENT,
       });
       this.editingPhoto.set({
         ...photo,
         cropped_url: blobUrl,
         crop_data: cropped.cropData,
-        recommend_generative_fill: loss > 20,
+        recommend_generative_fill: loss > CROP_LOSS_WARN_PERCENT,
       });
       this.toast.set(this.i18n.t('smartcrop.crop.aiDone'));
     } finally {
@@ -410,8 +435,11 @@ export class SmartcropDemoComponent implements OnInit, OnDestroy {
   }
 
   private compareAspectFor(photo: SmartcropPhoto): number {
-    const size = this.sizes.find((s) => s.id === photo.size_id || s.name === photo.target_size_name);
-    return size ? Number(size.aspect_ratio) : 2 / 3;
+    const size =
+      findPrintSize(this.sizes, photo.size_id) ||
+      findPrintSize(this.sizes, photo.target_size_name) ||
+      this.sizes[0];
+    return size ? getCalculatedAspectRatio(size, false) : 2 / 3;
   }
 
   private async urlToDataUrl(url: string): Promise<string> {

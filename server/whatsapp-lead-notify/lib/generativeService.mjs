@@ -3,6 +3,7 @@
  * Docs: POST https://clipdrop-api.co/uncrop/v1
  */
 import sharp from 'sharp';
+import { orientAspectRatio } from './printSizes.mjs';
 
 const CLIPDROP_UNCROP_URL = 'https://clipdrop-api.co/uncrop/v1';
 
@@ -130,7 +131,8 @@ export async function generativeFillOrFallback(inputBuffer, aspectRatio) {
   const meta = await sharp(inputBuffer).rotate().metadata();
   const imgW = meta.width || 1;
   const imgH = meta.height || 1;
-  const extend = calculateExtendPadding(imgW, imgH, aspectRatio);
+  const oriented = orientAspectRatio(Number(aspectRatio) || 2 / 3, imgW, imgH);
+  const extend = calculateExtendPadding(imgW, imgH, oriented);
 
   if (!extend.needed) {
     return { ok: true, buffer: inputBuffer, extend, usedClipdrop: false };

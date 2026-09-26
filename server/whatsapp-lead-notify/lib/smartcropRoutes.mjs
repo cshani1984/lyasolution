@@ -13,6 +13,13 @@ import {
 import { getSupabaseAdmin, isSupabaseAdminConfigured } from './supabaseAdmin.mjs';
 import { loadImageBuffer, processBlindCenterCrop, processSmartCrop } from './cropEngine.mjs';
 import {
+  DEMO_PRINT_SIZES,
+  defaultPrintSize,
+  findPrintSize,
+  getCalculatedAspectRatio,
+  printSizeCode,
+} from './printSizes.mjs';
+import {
   assertTwilioSignature,
   isTwilioInbound,
   parseTwilioWhatsAppBody,
@@ -21,6 +28,45 @@ import {
 } from './twilioWhatsapp.mjs';
 
 const BUCKET = 'photo-prints';
+
+/**
+ * Notes: Resolve print size from DB catalog or DEMO_PRINT_SIZES fallback.
+ * aspect_ratio is always width/height; landscape orientation is applied in processSmartCrop.
+ * @param {import('@supabase/supabase-js').SupabaseClient | null} supabase
+ * @param {string | null | undefined} query
+ */
+async function resolvePrintSize(supabase, query) {
+  let catalog = DEMO_PRINT_SIZES;
+  let fromDb = false;
+  if (supabase) {
+    const { data: rows } = await supabase.from('print_sizes').select('*');
+    if (rows?.length) {
+      fromDb = true;
+      catalog = rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        code: r.code || undefined,
+        width_cm: Number(r.width_cm),
+        height_cm: Number(r.height_cm),
+        aspect_ratio:
+          r.width_cm && r.height_cm
+            ? Number(r.width_cm) / Number(r.height_cm)
+            : Number(r.aspect_ratio) || 2 / 3,
+        is_default: Boolean(r.is_default),
+        category: r.category || undefined,
+        description: r.description || undefined,
+      }));
+    }
+  }
+  const size = findPrintSize(catalog, query) || defaultPrintSize(catalog);
+  return {
+    size,
+    aspectRatio: getCalculatedAspectRatio(size, false),
+    sizeCode: printSizeCode(size),
+    sizeName: size.name,
+    sizeId: fromDb ? size.id : null,
+  };
+}
 
 const ALLOWED_MIME = new Set([
   'image/jpeg',
@@ -136,16 +182,14 @@ async function ingestSmartcropPhoto(input) {
     throw Object.assign(new Error('media_url or media_base64 required'), { status: 400 });
   }
 
-  const sizeName = order.sizeName || '10x15';
+  const sizeQuery = order.sizeName || '10x15';
   const supabase = getSupabaseAdmin();
 
-  const { data: sizeRow } = await supabase
-    .from('print_sizes')
-    .select('*')
-    .eq('name', sizeName)
-    .maybeSingle();
-
-  const aspectRatio = sizeRow?.aspect_ratio ? Number(sizeRow.aspect_ratio) : 2 / 3;
+  const { size: sizeRow, aspectRatio, sizeCode, sizeName, sizeId } = await resolvePrintSize(
+    supabase,
+    sizeQuery,
+  );
+  void sizeRow;
 
   // Shop owns the dashboard; do NOT bind user_id to end-customer phone
   let userId = await resolveShopUserId(supabase, {
@@ -204,10 +248,10 @@ async function ingestSmartcropPhoto(input) {
   const shopSegment = userId || 'inbox';
   const customerSlug = slugifyCustomer(order.customerName, customerPhone);
   const phoneDigits = customerPhone.replace(/\+/g, '');
-  const folderBase = `${shopSegment}/${phoneDigits}/${sizeName}`;
+  const folderBase = `${shopSegment}/${phoneDigits}/${sizeCode}`;
   const originalPath = `${folderBase}/${id}-original.jpg`;
   const croppedPath = `${folderBase}/${id}-cropped.jpg`;
-  const hotfolderPath = buildHotfolderPath(order.customerName, customerPhone, sizeName);
+  const hotfolderPath = buildHotfolderPath(order.customerName, customerPhone, sizeCode);
 
   const originalJpeg = await (await import('sharp')).default(inputBuffer).rotate().jpeg({ quality: 92 }).toBuffer();
 
@@ -224,7 +268,7 @@ async function ingestSmartcropPhoto(input) {
   if (upCrop.error) throw upCrop.error;
 
   // Print-ready copy under hotfolder-style storage prefix (syncable to lab PC)
-  const printPath = `${shopSegment}/hotfolder/${customerSlug}_${sizeName}/${id}.jpg`;
+  const printPath = `${shopSegment}/hotfolder/${customerSlug}_${sizeCode}/${id}.jpg`;
   await supabase.storage.from(BUCKET).upload(printPath, croppedBuffer, {
     contentType: 'image/jpeg',
     upsert: true,
@@ -255,7 +299,7 @@ async function ingestSmartcropPhoto(input) {
       hotfolder_path: hotfolderPath,
       original_url: origPub.publicUrl,
       cropped_url: cropPub.publicUrl,
-      size_id: sizeRow?.id ?? null,
+      size_id: sizeId,
       target_size_name: sizeName,
       crop_data: cropData,
       status: 'pending',
@@ -458,23 +502,12 @@ export function registerSmartcropRoutes(app, ctx) {
         return;
       }
 
-      let sizeRow = null;
-      if (sizeId) {
-        const { data } = await supabase.from('print_sizes').select('*').eq('id', sizeId).maybeSingle();
-        sizeRow = data;
-      } else if (photo.size_id) {
-        const { data } = await supabase.from('print_sizes').select('*').eq('id', photo.size_id).maybeSingle();
-        sizeRow = data;
-      } else {
-        const { data } = await supabase
-          .from('print_sizes')
-          .select('*')
-          .eq('name', photo.target_size_name || '10x15')
-          .maybeSingle();
-        sizeRow = data;
-      }
+      let sizeQuery = photo.target_size_name || '10x15';
+      if (sizeId) sizeQuery = sizeId;
+      else if (photo.size_id) sizeQuery = photo.size_id;
 
-      const aspectRatio = sizeRow?.aspect_ratio ? Number(sizeRow.aspect_ratio) : 2 / 3;
+      const resolved = await resolvePrintSize(supabase, sizeQuery);
+      const aspectRatio = resolved.aspectRatio;
       const inputBuffer = await loadImageBuffer({ media_url: photo.original_url });
       const { buffer, cropData } = await processSmartCrop(inputBuffer, {
         aspectRatio,
@@ -493,8 +526,8 @@ export function registerSmartcropRoutes(app, ctx) {
       const patch = {
         cropped_url: `${cropPub.publicUrl}?t=${Date.now()}`,
         crop_data: cropData,
-        size_id: sizeRow?.id ?? photo.size_id,
-        target_size_name: sizeRow?.name ?? photo.target_size_name,
+        size_id: resolved.sizeId ?? photo.size_id,
+        target_size_name: resolved.sizeName ?? photo.target_size_name,
       };
 
       const { error: updErr } = await supabase.from('photos').update(patch).eq('id', photoId);
@@ -528,10 +561,9 @@ export function registerSmartcropRoutes(app, ctx) {
       }
 
       const supabase = getSupabaseAdmin();
-      let sizeRow = null;
+      let resolvedSize = null;
       if (sizeId) {
-        const { data } = await supabase.from('print_sizes').select('*').eq('id', sizeId).maybeSingle();
-        sizeRow = data;
+        resolvedSize = await resolvePrintSize(supabase, sizeId);
       }
 
       let updated = 0;
@@ -542,10 +574,10 @@ export function registerSmartcropRoutes(app, ctx) {
         const patch = {};
         if (status) patch.status = status;
 
-        if (sizeRow) {
+        if (resolvedSize) {
           const inputBuffer = await loadImageBuffer({ media_url: photo.original_url });
           const { buffer, cropData } = await processSmartCrop(inputBuffer, {
-            aspectRatio: Number(sizeRow.aspect_ratio) || 2 / 3,
+            aspectRatio: resolvedSize.aspectRatio,
             resetToAi: true,
           });
           const croppedPath = `${String(photo.sender_phone).replace(/\+/g, '')}/${photo.id}-cropped.jpg`;
@@ -556,8 +588,8 @@ export function registerSmartcropRoutes(app, ctx) {
           const { data: cropPub } = supabase.storage.from(BUCKET).getPublicUrl(croppedPath);
           patch.cropped_url = `${cropPub.publicUrl}?t=${Date.now()}`;
           patch.crop_data = cropData;
-          patch.size_id = sizeRow.id;
-          patch.target_size_name = sizeRow.name;
+          patch.size_id = resolvedSize.sizeId;
+          patch.target_size_name = resolvedSize.sizeName;
         }
 
         if (Object.keys(patch).length) {

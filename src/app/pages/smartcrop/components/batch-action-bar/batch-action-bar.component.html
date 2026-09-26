@@ -5,8 +5,12 @@
       <span>{{ i18n.t('smartcrop.batch.changeSize') }}</span>
       <select (change)="onSizeChange($event)">
         <option value="">{{ i18n.t('smartcrop.batch.pickSize') }}</option>
-        @for (s of sizes; track s.id) {
-          <option [value]="s.id">{{ s.name }}</option>
+        @for (group of sizeGroups(); track group.category) {
+          <optgroup [label]="categoryLabel(group.category)">
+            @for (s of group.sizes; track s.id) {
+              <option [value]="s.id" [title]="s.description || ''">{{ s.name }}</option>
+            }
+          </optgroup>
         }
       </select>
     </label>

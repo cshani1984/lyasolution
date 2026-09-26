@@ -32,6 +32,13 @@ import type {
 } from '../../../../core/models/smartcrop.model';
 import { I18nService } from '../../../../core/services/i18n.service';
 import { smartCropFromUrl } from '../../../../core/smartcrop/crop-engine.client';
+import {
+  PRINT_SIZE_CATEGORY_LABELS,
+  getCalculatedAspectRatio,
+  groupPrintSizesByCategory,
+  orientAspectRatio,
+  type PrintSizeCategory,
+} from '../../../../core/smartcrop/print-sizes';
 
 @Component({
   selector: 'app-smartcrop-crop-modal',
@@ -66,13 +73,13 @@ export class SmartcropCropModalComponent implements OnChanges, OnDestroy {
   readonly loadFailed = signal(false);
   readonly cropperPos = signal<CropperPosition | undefined>(undefined);
   readonly aiRunning = signal(false);
+  readonly originalSizeSig = signal<Dimensions | null>(null);
   private aiMetrics: CropMetrics | null = null;
 
   /** When true, restore previous crop box after ready (converted to display coords). */
   private restoreExistingCrop = true;
 
   private lastCrop: ImageCroppedEvent | null = null;
-  private originalSize: Dimensions | null = null;
   private displayedSize: Dimensions | null = null;
   private lockedScrollY = 0;
   private bodyLocked = false;
@@ -109,9 +116,23 @@ export class SmartcropCropModalComponent implements OnChanges, OnDestroy {
 
   readonly activeAspect = computed(() => {
     const size = this.activeSize();
-    if (size) return Number(size.aspect_ratio) || this.aspectRatio;
-    return this.aspectRatio;
+    const portrait = size ? getCalculatedAspectRatio(size, false) : this.aspectRatio;
+    const dims = this.originalSizeSig();
+    if (dims?.width && dims?.height) {
+      return orientAspectRatio(portrait, dims.width, dims.height);
+    }
+    return portrait;
   });
+
+  sizeGroups() {
+    return groupPrintSizesByCategory(this.sizes);
+  }
+
+  categoryLabel(category: PrintSizeCategory | 'other'): string {
+    if (category === 'other') return this.i18n.lang() === 'he' ? 'אחר' : 'Other';
+    const labels = PRINT_SIZE_CATEGORY_LABELS[category];
+    return this.i18n.lang() === 'he' ? labels.he : labels.en;
+  }
 
   /** Remount key includes size so aspect changes always recreate the cropper. */
   readonly cropperTrackKey = computed(
@@ -216,7 +237,7 @@ export class SmartcropCropModalComponent implements OnChanges, OnDestroy {
     this.restoreExistingCrop = restoreCrop;
     this.lastCrop = null;
     this.aiMetrics = null;
-    this.originalSize = null;
+    this.originalSizeSig.set(null);
     this.displayedSize = null;
     this.ready.set(false);
     this.loadFailed.set(false);
@@ -230,7 +251,7 @@ export class SmartcropCropModalComponent implements OnChanges, OnDestroy {
   }
 
   onImageLoaded(image: LoadedImage): void {
-    this.originalSize = image.original.size;
+    this.originalSizeSig.set(image.original.size);
   }
 
   /**
@@ -287,7 +308,7 @@ export class SmartcropCropModalComponent implements OnChanges, OnDestroy {
   }
 
   private toDisplayedCropper(original: CropperPosition): CropperPosition | null {
-    const orig = this.originalSize;
+    const orig = this.originalSizeSig();
     const disp = this.displayedSize;
     if (!orig?.width || !orig?.height || !disp?.width || !disp?.height) {
       // Fallback: assume 1:1 if sizes not ready yet (rare).

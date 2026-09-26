@@ -4,7 +4,7 @@
  * Live endpoint in this repo (Express):
  *   POST /api/photos/process
  *
- * Returns recommendGenerativeFill when cropLossPercentage > 20%.
+ * Returns metrics with photographer's-eye framing flags when cropLossPercentage > 25%.
  */
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -30,7 +30,14 @@ export async function POST(req: NextRequest) {
       ok: false,
       error:
         'Use Express POST /api/photos/process in this monorepo, or wire processSmartCrop here.',
-      recommendGenerativeFill: false,
+      metrics: {
+        cropLossPercentage: 0,
+        isCroppingNecessary: false,
+        addedSafetyMargin: false,
+        safetyMarginPercentage: 6,
+        shouldRecommendGenerativeFill: false,
+        photographerNote: '',
+      },
     },
     { status: 501 },
   );

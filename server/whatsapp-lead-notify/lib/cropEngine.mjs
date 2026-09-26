@@ -35,27 +35,38 @@
  * }} CropEngineResult
  */
 import sharp from 'sharp';
+import { orientAspectRatio } from './printSizes.mjs';
 
-/** Top safety padding above the topmost face/subject edge (never chop heads). */
-const HEAD_TOP_PADDING_RATIO = 0.15;
+/** Top safety padding above faces / hair (8–15%). */
+const HEAD_TOP_PADDING_RATIO = 0.12;
 
-/** Crop-loss threshold that should warn the admin UI (red badge). */
+/** Crop-loss thresholds for admin badges. */
 export const CROP_LOSS_WARN_PERCENT = 25;
+export const CROP_LOSS_OK_PERCENT = 15;
+/** Central zone — loosely balanced VCG. */
+const CENTER_ZONE_RATIO = 0.4;
+/** Print shop guillotine bleed buffer (5–8%). */
+export const PRINT_SAFETY_MARGIN_RATIO = 0.06;
+const PRINT_SAFETY_MARGIN_MIN = 0.05;
+const PRINT_SAFETY_MARGIN_MAX = 0.08;
+const ASPECT_MATCH_TOLERANCE = 0.05;
+const RULE_OF_THIRDS_TOLERANCE = 0.08;
 
 /**
  * Main entry: analyze image, pick focal point, crop to print aspect ratio.
  * Notes: Prefer manual crop when provided; otherwise run the 3-pass AI pipeline.
+ * Auto-orients portrait print ratios when the source photo is landscape (width > height).
  *
  * @param {Buffer} inputBuffer
  * @param {{
  *   aspectRatio?: number,
  *   manualCrop?: object | null,
  *   resetToAi?: boolean,
+ *   autoOrient?: boolean,
  * }} opts
  * @returns {Promise<CropEngineResult>}
  */
 export async function processSmartCrop(inputBuffer, opts = {}) {
-  const aspectRatio = Number(opts.aspectRatio) || 2 / 3;
   const meta = await sharp(inputBuffer).rotate().metadata();
   const imgW = meta.width ?? 0;
   const imgH = meta.height ?? 0;
@@ -63,10 +74,24 @@ export async function processSmartCrop(inputBuffer, opts = {}) {
     throw new Error('Could not read image dimensions');
   }
 
+  const portraitAspect = Number(opts.aspectRatio) || 2 / 3;
+  const autoOrient = opts.autoOrient !== false;
+  const isLandscape = imgW > imgH;
+  const aspectRatio =
+    autoOrient && !(opts.manualCrop && !opts.resetToAi)
+      ? orientAspectRatio(portraitAspect, imgW, imgH)
+      : portraitAspect;
+
   const manual = opts.manualCrop && !opts.resetToAi ? opts.manualCrop : null;
   let cropBox;
   let analysis = null;
   let headPaddingApplied = false;
+  let isCroppingNecessary = true;
+  let usedSmartShift = false;
+  let addedSafetyMargin = false;
+  let safetyMarginPercentage = Math.round(PRINT_SAFETY_MARGIN_RATIO * 100);
+  let compositionMode = 'geometric';
+  let subjectTruncatedByMargin = false;
 
   if (isValidManualCrop(manual)) {
     // Notes: Admin override — trust the locked-aspect box from the crop modal.
@@ -92,14 +117,24 @@ export async function processSmartCrop(inputBuffer, opts = {}) {
       subjectBox: null,
       headPaddingApplied: Boolean(manual.metrics?.headPaddingApplied),
     };
+    usedSmartShift = Boolean(manual.metrics?.usedSmartShift);
+    isCroppingNecessary = true;
   } else {
-    // Notes: Auto path — detect subject, then build aspect-locked crop around it.
+    // Notes: VCG framing — geometric / thirds first; smart-shift + print bleed when needed.
     analysis = await analyzeImageSubject(inputBuffer, imgW, imgH);
     headPaddingApplied = analysis.headPaddingApplied;
-    cropBox = computeCropBox(imgW, imgH, aspectRatio, analysis.focalPoint, {
+    const framed = computePhotographerCropBox(imgW, imgH, aspectRatio, analysis.focalPoint, {
       subjectBox: analysis.subjectBox,
       headPaddingApplied,
+      detectedType: analysis.detectedType,
     });
+    cropBox = framed.cropBox;
+    isCroppingNecessary = framed.isCroppingNecessary;
+    usedSmartShift = framed.usedSmartShift;
+    addedSafetyMargin = framed.addedSafetyMargin;
+    safetyMarginPercentage = framed.safetyMarginPercentage;
+    compositionMode = framed.compositionMode;
+    subjectTruncatedByMargin = framed.subjectTruncatedByMargin;
   }
 
   const processedBuffer = await sharp(inputBuffer)
@@ -114,11 +149,19 @@ export async function processSmartCrop(inputBuffer, opts = {}) {
     .toBuffer();
 
   const cropLossPercentage = calculateCropLossPercentage(imgW, imgH, cropBox);
-  const hasTruncationRisk = calculateTruncationRisk(
-    cropBox,
-    analysis.subjectBox,
-    cropLossPercentage,
-  );
+  const hasTruncationRisk =
+    calculateTruncationRisk(cropBox, analysis.subjectBox, cropLossPercentage) ||
+    subjectTruncatedByMargin;
+  const shouldRecommendGenerativeFill =
+    cropLossPercentage > CROP_LOSS_WARN_PERCENT || subjectTruncatedByMargin;
+  const photographerNote = buildPhotographerNote(cropLossPercentage, {
+    shouldRecommendGenerativeFill,
+    usedSmartShift,
+    isCroppingNecessary,
+    addedSafetyMargin,
+    safetyMarginPercentage,
+    compositionMode,
+  });
 
   const focalPoint = analysis.focalPoint;
   const correctionDelta = calculateCorrectionDelta(imgW, imgH, focalPoint);
@@ -129,6 +172,15 @@ export async function processSmartCrop(inputBuffer, opts = {}) {
     headPaddingApplied,
     hasTruncationRisk,
     correctionDelta,
+    isLandscape,
+    orientedAspectRatio: aspectRatio,
+    isCroppingNecessary,
+    usedSmartShift,
+    addedSafetyMargin,
+    safetyMarginPercentage,
+    compositionMode,
+    shouldRecommendGenerativeFill,
+    photographerNote,
   };
 
   const cropData = {
@@ -154,6 +206,14 @@ export async function processSmartCrop(inputBuffer, opts = {}) {
     headPaddingApplied: metrics.headPaddingApplied,
     hasTruncationRisk: metrics.hasTruncationRisk,
     correctionDelta,
+    isLandscape,
+    aspectRatio,
+    isCroppingNecessary,
+    usedSmartShift,
+    addedSafetyMargin,
+    safetyMarginPercentage,
+    shouldRecommendGenerativeFill,
+    photographerNote,
   };
 }
 
@@ -441,7 +501,8 @@ export async function processBlindCenterCrop(inputBuffer, aspectRatio = 2 / 3) {
   const meta = await sharp(inputBuffer).rotate().metadata();
   const imgW = meta.width || 1;
   const imgH = meta.height || 1;
-  const cropBox = computeCropBox(imgW, imgH, aspectRatio, { x: imgW / 2, y: imgH / 2 }, {
+  const oriented = orientAspectRatio(aspectRatio, imgW, imgH);
+  const cropBox = computeCropBox(imgW, imgH, oriented, { x: imgW / 2, y: imgH / 2 }, {
     headPaddingApplied: false,
   });
   const buffer = await sharp(inputBuffer)
@@ -476,19 +537,19 @@ export function calculateTruncationRisk(cropBox, subjectBox, cropLossPercentage)
 }
 
 /**
- * Notes: Fit target aspect around focal point; keep headroom when faces detected.
- *
- * @param {number} imgW
- * @param {number} imgH
- * @param {number} aspectRatio
- * @param {FocalPoint} focal
- * @param {{ subjectBox?: BoundingBox | null, headPaddingApplied?: boolean }} [opts]
+ * Notes: VCG crop — geometric / rule-of-thirds by default; smart-shift + bleed when needed.
  */
 export function computeCropBox(imgW, imgH, aspectRatio, focal, opts = {}) {
-  const imgAspect = imgW / imgH;
+  if (opts.forceSmartShift) {
+    return computeSmartShiftCropBox(imgW, imgH, aspectRatio, focal, opts);
+  }
+  return computePhotographerCropBox(imgW, imgH, aspectRatio, focal, opts).cropBox;
+}
+
+export function computeGeometricCropBox(imgW, imgH, aspectRatio) {
+  const imgAspect = imgW / Math.max(1, imgH);
   let cropW;
   let cropH;
-
   if (imgAspect > aspectRatio) {
     cropH = imgH;
     cropW = Math.round(cropH * aspectRatio);
@@ -496,30 +557,228 @@ export function computeCropBox(imgW, imgH, aspectRatio, focal, opts = {}) {
     cropW = imgW;
     cropH = Math.round(cropW / aspectRatio);
   }
+  return clampCropBox(
+    {
+      x: Math.round((imgW - cropW) / 2),
+      y: Math.round((imgH - cropH) / 2),
+      width: cropW,
+      height: cropH,
+    },
+    imgW,
+    imgH,
+  );
+}
 
-  // Notes: When head padding was applied, bias crop upward (heads stay in frame).
-  const topBias = opts.headPaddingApplied ? HEAD_TOP_PADDING_RATIO : 0.08;
+function isFocalWellCentered(focal, imgW, imgH, zone = CENTER_ZONE_RATIO) {
+  const half = zone / 2;
+  const nx = focal.x / Math.max(1, imgW);
+  const ny = focal.y / Math.max(1, imgH);
+  return nx >= 0.5 - half && nx <= 0.5 + half && ny >= 0.5 - half && ny <= 0.5 + half;
+}
+
+function isOnRuleOfThirds(focal, imgW, imgH, tolerance = RULE_OF_THIRDS_TOLERANCE) {
+  const tolX = Math.max(1, imgW * tolerance);
+  const tolY = Math.max(1, imgH * tolerance);
+  const xs = [imgW / 3, (2 * imgW) / 3];
+  const ys = [imgH / 3, (2 * imgH) / 3];
+  return xs.some((tx) => Math.abs(focal.x - tx) <= tolX) || ys.some((ty) => Math.abs(focal.y - ty) <= tolY);
+}
+
+function expandSubjectForProtection(subject, opts = {}) {
+  const isPortrait = Boolean(opts.isPortrait);
+  const headroom = opts.headroomRatio ?? (isPortrait ? HEAD_TOP_PADDING_RATIO : 0.04);
+  const side = opts.sidePadRatio ?? 0.06;
+  const padX = subject.width * side;
+  const padTop = subject.height * headroom;
+  const padBottom = subject.height * (isPortrait ? 0.04 : side);
+  return {
+    x: subject.x - padX,
+    y: subject.y - padTop,
+    width: subject.width + padX * 2,
+    height: subject.height + padTop + padBottom,
+  };
+}
+
+function subjectFitsInBox(subject, box) {
+  if (!subject) return true;
+  const protectedBox = expandSubjectForProtection(subject, { isPortrait: true });
+  const pad = 2;
+  return (
+    protectedBox.x >= box.x - pad &&
+    protectedBox.y >= box.y - pad &&
+    protectedBox.x + protectedBox.width <= box.x + box.width + pad &&
+    protectedBox.y + protectedBox.height <= box.y + box.height + pad
+  );
+}
+
+export function applyPrintSafetyMargin(
+  cropBox,
+  subjectBox,
+  imgW,
+  imgH,
+  marginRatio = PRINT_SAFETY_MARGIN_RATIO,
+  opts = {},
+) {
+  const ratio = Math.max(PRINT_SAFETY_MARGIN_MIN, Math.min(PRINT_SAFETY_MARGIN_MAX, marginRatio));
+  const pct = Math.round(ratio * 1000) / 10;
+  if (!subjectBox) {
+    return {
+      cropBox,
+      addedSafetyMargin: false,
+      safetyMarginPercentage: pct,
+      subjectTruncatedByMargin: false,
+    };
+  }
+
+  const protectedSubject = expandSubjectForProtection(subjectBox, {
+    isPortrait: opts.isPortrait,
+  });
+  const padX = cropBox.width * ratio;
+  const padY = cropBox.height * ratio;
+  let x = cropBox.x;
+  let y = cropBox.y;
+  let shifted = false;
+
+  if (protectedSubject.x - cropBox.x < padX) {
+    x = protectedSubject.x - padX;
+    shifted = true;
+  }
+  if (cropBox.x + cropBox.width - (protectedSubject.x + protectedSubject.width) < padX) {
+    x = protectedSubject.x + protectedSubject.width + padX - cropBox.width;
+    shifted = true;
+  }
+  if (protectedSubject.y - cropBox.y < padY) {
+    y = protectedSubject.y - padY;
+    shifted = true;
+  }
+  if (cropBox.y + cropBox.height - (protectedSubject.y + protectedSubject.height) < padY) {
+    y = protectedSubject.y + protectedSubject.height + padY - cropBox.height;
+    shifted = true;
+  }
+
+  const clamped = clampCropBox(
+    { x, y, width: cropBox.width, height: cropBox.height },
+    imgW,
+    imgH,
+  );
+  const stillTight =
+    protectedSubject.x - clamped.x < padX * 0.5 ||
+    clamped.x + clamped.width - (protectedSubject.x + protectedSubject.width) < padX * 0.5 ||
+    protectedSubject.y - clamped.y < padY * 0.5 ||
+    clamped.y + clamped.height - (protectedSubject.y + protectedSubject.height) < padY * 0.5;
+  const truncated =
+    protectedSubject.x < clamped.x - 1 ||
+    protectedSubject.y < clamped.y - 1 ||
+    protectedSubject.x + protectedSubject.width > clamped.x + clamped.width + 1 ||
+    protectedSubject.y + protectedSubject.height > clamped.y + clamped.height + 1;
+
+  return {
+    cropBox: clamped,
+    addedSafetyMargin: shifted || stillTight,
+    safetyMarginPercentage: pct,
+    subjectTruncatedByMargin: truncated || stillTight,
+  };
+}
+
+export function computePhotographerCropBox(imgW, imgH, aspectRatio, focal, opts = {}) {
+  const isPortrait = opts.headPaddingApplied || opts.detectedType === 'face';
+  const geometric = computeGeometricCropBox(imgW, imgH, aspectRatio);
+  const imgAspect = imgW / Math.max(1, imgH);
+  const aspectClose =
+    Math.abs(imgAspect - aspectRatio) / Math.max(aspectRatio, 0.01) <= ASPECT_MATCH_TOLERANCE;
+
+  const wellCentered = isFocalWellCentered(focal, imgW, imgH);
+  const onThirds = isOnRuleOfThirds(focal, imgW, imgH);
+  const fitsGeometric = subjectFitsInBox(opts.subjectBox, geometric);
+
+  let cropBox = geometric;
+  let usedSmartShift = false;
+  let compositionMode = 'geometric';
+
+  if ((onThirds || wellCentered) && fitsGeometric) {
+    compositionMode = onThirds && !wellCentered ? 'rule_of_thirds' : 'geometric';
+  } else if (!fitsGeometric || (!wellCentered && !onThirds)) {
+    cropBox = computeSmartShiftCropBox(imgW, imgH, aspectRatio, focal, {
+      subjectBox: opts.subjectBox,
+      headPaddingApplied: opts.headPaddingApplied,
+      isPortrait,
+    });
+    usedSmartShift = true;
+    compositionMode = 'smart_shift';
+  }
+
+  const margin = applyPrintSafetyMargin(
+    cropBox,
+    opts.subjectBox,
+    imgW,
+    imgH,
+    opts.safetyMarginRatio ?? PRINT_SAFETY_MARGIN_RATIO,
+    { isPortrait },
+  );
+
+  const aspectForcesCrop =
+    !aspectClose || geometric.width < imgW - 1 || geometric.height < imgH - 1;
+  const loss = calculateCropLossPercentage(imgW, imgH, margin.cropBox);
+  const isCroppingNecessary =
+    (aspectForcesCrop && loss > 1) || usedSmartShift || margin.addedSafetyMargin;
+
+  return {
+    cropBox: margin.cropBox,
+    isCroppingNecessary,
+    usedSmartShift,
+    addedSafetyMargin: margin.addedSafetyMargin,
+    safetyMarginPercentage: margin.safetyMarginPercentage,
+    compositionMode,
+    subjectTruncatedByMargin: margin.subjectTruncatedByMargin,
+  };
+}
+
+export function computeSmartShiftCropBox(imgW, imgH, aspectRatio, focal, opts = {}) {
+  const geo = computeGeometricCropBox(imgW, imgH, aspectRatio);
+  const cropW = geo.width;
+  const cropH = geo.height;
+  const isPortrait = opts.isPortrait ?? opts.headPaddingApplied;
+
   let x = Math.round(focal.x - cropW / 2);
-  let y = Math.round(focal.y - cropH * (0.5 - topBias * 0.55));
+  const eyeLine = isPortrait ? 0.38 : 0.48;
+  let y = Math.round(focal.y - cropH * eyeLine);
 
-  // If we know the subject box, nudge crop to contain it when possible.
   if (opts.subjectBox) {
     const sb = opts.subjectBox;
+    const headPad = Math.round(sb.height * (isPortrait ? HEAD_TOP_PADDING_RATIO : 0.04));
     const preferX = Math.round(sb.x + sb.width / 2 - cropW / 2);
-    const preferY = Math.round(sb.y + sb.height * 0.35 - cropH * 0.35);
-    x = Math.round(x * 0.35 + preferX * 0.65);
-    y = Math.round(y * 0.35 + preferY * 0.65);
+    const preferY = Math.round(sb.y - headPad);
+    x = Math.round(x * 0.5 + preferX * 0.5);
+    y = Math.round(y * 0.45 + preferY * 0.55);
   }
 
   return clampCropBox({ x, y, width: cropW, height: cropH }, imgW, imgH);
 }
 
+export function buildPhotographerNote(cropLossPercentage, opts = {}) {
+  const loss = Math.round(Number(cropLossPercentage) * 10) / 10;
+  const marginPct = opts.safetyMarginPercentage ?? Math.round(PRINT_SAFETY_MARGIN_RATIO * 100);
+
+  if (opts.shouldRecommendGenerativeFill || loss > CROP_LOSS_WARN_PERCENT) {
+    return `⚠️ אזהרה: חיתוך עמוק (נחתך ${loss}% מהמקור). מומלץ להפעיל מחולל AI להשלמת הרקע`;
+  }
+  if (opts.addedSafetyMargin && loss <= CROP_LOSS_OK_PERCENT) {
+    return `נוספה הגנת שוליים ומרווח ביטחון של ${marginPct}% מקצוות התמונה`;
+  }
+  if (opts.compositionMode === 'rule_of_thirds') {
+    return `נשמרה קומפוזיציית שלישים מקורית עם מרווח ביטחון להדפסה (אובדן ${loss}%).`;
+  }
+  if (!opts.isCroppingNecessary && !opts.usedSmartShift) {
+    return `קומפוזיציה מאוזנת — התאמת יחס מינימלית בלבד (אובדן ${loss}%).`;
+  }
+  if (loss <= CROP_LOSS_OK_PERCENT) {
+    return `חיתוך אופטימלי | נוסף מרווח ביטחון ${marginPct}% בקצוות`;
+  }
+  return `חיתוך סביר - מוקד התמונה ממורכז ומוגן`;
+}
+
 /**
  * Notes: Keep crop rectangle inside image bounds without changing aspect.
- *
- * @param {BoundingBox} box
- * @param {number} imgW
- * @param {number} imgH
  */
 function clampCropBox(box, imgW, imgH) {
   let { x, y, width, height } = box;

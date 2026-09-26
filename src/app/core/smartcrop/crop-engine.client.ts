@@ -20,7 +20,12 @@ import {
   calculateCorrectionDelta,
   calculateCropLossPercentage,
   calculateTruncationRisk,
+  computePhotographerCropBox,
+  computeSmartShiftCropBox,
+  buildPhotographerNote,
+  CROP_LOSS_WARN_PERCENT,
 } from './crop-engine.math';
+import { orientAspectRatio } from './print-sizes';
 
 const WASM_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm';
 const FACE_MODEL =
@@ -83,11 +88,12 @@ export async function blindCenterCropFromUrl(
   const blob = await res.blob();
   const bitmap = await createImageBitmap(blob);
   try {
-    const cropBox = computeCropBox(bitmap.width, bitmap.height, aspectRatio, {
+    const oriented = orientAspectRatio(aspectRatio, bitmap.width, bitmap.height);
+    const cropBox = computeCropBox(bitmap.width, bitmap.height, oriented, {
       x: bitmap.width / 2,
       y: bitmap.height / 2,
     }, { headPaddingApplied: false });
-    return await renderCropBlob(bitmap, cropBox, aspectRatio);
+    return await renderCropBlob(bitmap, cropBox, oriented);
   } finally {
     bitmap.close();
   }
@@ -100,6 +106,8 @@ async function smartCropFromBitmap(
 ): Promise<ClientCropResult> {
   const imgW = bitmap.width;
   const imgH = bitmap.height;
+  // Auto-orient portrait print ratios for landscape source photos.
+  const orientedAspect = orientAspectRatio(aspectRatio, imgW, imgH);
 
   let analysis: {
     focalPoint: FocalPoint;
@@ -115,17 +123,27 @@ async function smartCropFromBitmap(
     analysis = analyzeCanvasSaliency(bitmap, imgW, imgH);
   }
 
-  const cropBox = computeCropBox(imgW, imgH, aspectRatio, analysis.focalPoint, {
+  const framed = computePhotographerCropBox(imgW, imgH, orientedAspect, analysis.focalPoint, {
     subjectBox: analysis.subjectBox,
     headPaddingApplied: analysis.headPaddingApplied,
+    detectedType: analysis.detectedType,
   });
+  const cropBox = framed.cropBox;
 
   const cropLossPercentage = calculateCropLossPercentage(imgW, imgH, cropBox);
-  const hasTruncationRisk = calculateTruncationRisk(
-    cropBox,
-    analysis.subjectBox,
-    cropLossPercentage,
-  );
+  const hasTruncationRisk =
+    calculateTruncationRisk(cropBox, analysis.subjectBox, cropLossPercentage) ||
+    framed.subjectTruncatedByMargin;
+  const shouldRecommendGenerativeFill =
+    cropLossPercentage > CROP_LOSS_WARN_PERCENT || framed.subjectTruncatedByMargin;
+  const photographerNote = buildPhotographerNote(cropLossPercentage, {
+    shouldRecommendGenerativeFill,
+    usedSmartShift: framed.usedSmartShift,
+    isCroppingNecessary: framed.isCroppingNecessary,
+    addedSafetyMargin: framed.addedSafetyMargin,
+    safetyMarginPercentage: framed.safetyMarginPercentage,
+    compositionMode: framed.compositionMode,
+  });
 
   const correctionDelta = calculateCorrectionDelta(imgW, imgH, analysis.focalPoint);
   const metrics: CropMetrics = {
@@ -135,9 +153,15 @@ async function smartCropFromBitmap(
     headPaddingApplied: analysis.headPaddingApplied,
     hasTruncationRisk,
     correctionDelta,
+    isCroppingNecessary: framed.isCroppingNecessary,
+    usedSmartShift: framed.usedSmartShift,
+    addedSafetyMargin: framed.addedSafetyMargin,
+    safetyMarginPercentage: framed.safetyMarginPercentage,
+    shouldRecommendGenerativeFill,
+    photographerNote,
   };
 
-  const outBlob = await renderCropBlob(bitmap, cropBox, aspectRatio);
+  const outBlob = await renderCropBlob(bitmap, cropBox, orientedAspect);
 
   const cropData: CropData = {
     x: cropBox.x,
@@ -350,41 +374,23 @@ function unionDetections(detections: Detection[], imgW: number, imgH: number): B
 }
 
 /**
- * Notes: Aspect-locked crop around focal point; nudge to contain subject when known.
+ * Notes: Aspect-locked crop — Photographer's Eye (minimal shift when already framed).
  */
 export function computeCropBox(
   imgW: number,
   imgH: number,
   aspectRatio: number,
   focal: FocalPoint,
-  opts: { subjectBox?: BoundingBox | null; headPaddingApplied?: boolean } = {},
+  opts: {
+    subjectBox?: BoundingBox | null;
+    headPaddingApplied?: boolean;
+    forceSmartShift?: boolean;
+  } = {},
 ): BoundingBox {
-  const imgAspect = imgW / imgH;
-  let cropW: number;
-  let cropH: number;
-  if (imgAspect > aspectRatio) {
-    cropH = imgH;
-    cropW = Math.round(cropH * aspectRatio);
-  } else {
-    cropW = imgW;
-    cropH = Math.round(cropW / aspectRatio);
+  if (opts.forceSmartShift) {
+    return computeSmartShiftCropBox(imgW, imgH, aspectRatio, focal, opts);
   }
-
-  const topBias = opts.headPaddingApplied ? HEAD_TOP_PADDING_RATIO : 0.08;
-  let x = Math.round(focal.x - cropW / 2);
-  let y = Math.round(focal.y - cropH * (0.5 - topBias * 0.55));
-
-  if (opts.subjectBox) {
-    const sb = opts.subjectBox;
-    const preferX = Math.round(sb.x + sb.width / 2 - cropW / 2);
-    const preferY = Math.round(sb.y + sb.height * 0.35 - cropH * 0.35);
-    x = Math.round(x * 0.35 + preferX * 0.65);
-    y = Math.round(y * 0.35 + preferY * 0.65);
-  }
-
-  x = Math.max(0, Math.min(x, imgW - cropW));
-  y = Math.max(0, Math.min(y, imgH - cropH));
-  return { x, y, width: Math.round(cropW), height: Math.round(cropH) };
+  return computePhotographerCropBox(imgW, imgH, aspectRatio, focal, opts).cropBox;
 }
 
 /** Notes: Encode crop rectangle as JPEG preview/upload blob. */

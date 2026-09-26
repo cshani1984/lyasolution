@@ -75,8 +75,12 @@
         {{ i18n.t('smartcrop.dash.sizeAll') }}
         <select [ngModel]="sizeFilter()" (ngModelChange)="sizeFilter.set($event)">
           <option value="all">{{ i18n.t('smartcrop.dash.sizeAll') }}</option>
-          @for (s of sizes; track s.id) {
-            <option [value]="s.name">{{ s.name }} ({{ s.width_cm }}×{{ s.height_cm }} cm)</option>
+          @for (group of sizeGroups(); track group.category) {
+            <optgroup [label]="categoryLabel(group.category)">
+              @for (s of group.sizes; track s.id) {
+                <option [value]="s.name">{{ s.name }}</option>
+              }
+            </optgroup>
           }
         </select>
       </label>
@@ -106,8 +110,12 @@
               <label class="sc-demo__size">
                 <span>{{ i18n.t('smartcrop.batch.changeSize') }}</span>
                 <select [ngModel]="photo.target_size_name" (change)="onCardSizeChange(photo, $event)">
-                  @for (s of sizes; track s.id) {
-                    <option [value]="s.name">{{ s.name }}</option>
+                  @for (group of sizeGroups(); track group.category) {
+                    <optgroup [label]="categoryLabel(group.category)">
+                      @for (s of group.sizes; track s.id) {
+                        <option [value]="s.name" [title]="s.description || ''">{{ s.name }}</option>
+                      }
+                    </optgroup>
                   }
                 </select>
               </label>

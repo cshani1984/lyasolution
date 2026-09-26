@@ -6,14 +6,17 @@
       (ngModelChange)="onSizeChange($event)"
       [disabled]="busy"
     >
-      @for (s of sizes; track s.id) {
-        <option [value]="s.name">{{ s.name }} ({{ s.width_cm }}×{{ s.height_cm }} cm)</option>
+      @for (group of sizeGroups(); track group.category) {
+        <optgroup [label]="categoryLabel(group.category)">
+          @for (s of group.sizes; track s.id) {
+            <option [value]="s.name" [title]="s.description || ''">
+              {{ s.name }}@if (s.description) { — {{ s.description }}}
+            </option>
+          }
+        </optgroup>
       }
       @if (!sizes.length) {
-        <option value="10x15">10x15 cm</option>
-        <option value="13x18">13x18 cm</option>
-        <option value="20x30">20x30 cm</option>
-        <option value="A4">A4</option>
+        <option value="10x15 ס&quot;מ">10x15 ס"מ</option>
       }
     </select>
   </label>

@@ -17,6 +17,11 @@ import { SmartcropQuotaExceededModalComponent } from '../components/quota-exceed
 import { FooterComponent } from '../../../layout/footer/footer.component';
 import { CROP_LOSS_WARN_PERCENT, confidenceTone } from '../../../core/smartcrop/crop-engine.math';
 import { DEFAULT_SUPPORT_WA } from '../../../core/smartcrop/subscriptions';
+import {
+  findPrintSize,
+  getCalculatedAspectRatio,
+  defaultPrintSize,
+} from '../../../core/smartcrop/print-sizes';
 import { smartCropFromUrl } from '../../../core/smartcrop/crop-engine.client';
 
 const TUTORIAL_STORAGE_KEY = 'smartcrop-studio-tutorial-v1';
@@ -62,7 +67,7 @@ export class SmartcropDashboardComponent implements OnInit {
   readonly aiBusy = signal(false);
   readonly toast = signal<string | null>(null);
   readonly selectedIds = signal(new Set<string>());
-  readonly uploadSizeName = signal('10x15');
+  readonly uploadSizeName = signal(defaultPrintSize().name);
   /** null = all customers */
   readonly activeCustomerPhone = signal<string | null>(null);
 
@@ -107,10 +112,10 @@ export class SmartcropDashboardComponent implements OnInit {
   readonly activeAspect = computed(() => {
     const photo = this.activePhoto();
     if (!photo) return 2 / 3;
-    const size = this.photosService
-      .sizes()
-      .find((s) => s.id === photo.size_id || s.name === photo.target_size_name);
-    return size ? Number(size.aspect_ratio) : 2 / 3;
+    const size =
+      findPrintSize(this.photosService.sizes(), photo.size_id) ||
+      findPrintSize(this.photosService.sizes(), photo.target_size_name);
+    return size ? getCalculatedAspectRatio(size, false) : 2 / 3;
   });
 
   readonly activeSizeLabel = computed(() => {
@@ -389,7 +394,7 @@ export class SmartcropDashboardComponent implements OnInit {
       return;
     }
 
-    this.uploadSizeName.set(payload.sizeName || '10x15');
+    this.uploadSizeName.set(payload.sizeName || defaultPrintSize().name);
     this.busy.set(true);
     this.aiBusy.set(true);
     this.toast.set(this.i18n.t('smartcrop.studio.aiWorking'));
