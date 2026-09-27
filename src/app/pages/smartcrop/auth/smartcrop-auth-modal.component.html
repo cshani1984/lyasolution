@@ -140,7 +140,32 @@
           } @else {
             <label class="sc-am__field">
               <span>{{ i18n.t('smartcrop.auth.studioName') }}</span>
-              <input type="text" [(ngModel)]="studioName" [placeholder]="i18n.t('smartcrop.auth.studioPlaceholder')" />
+              <input
+                type="text"
+                [ngModel]="studioName"
+                (ngModelChange)="onStudioNameChange($event)"
+                [placeholder]="i18n.t('smartcrop.auth.studioPlaceholder')"
+              />
+            </label>
+
+            <label class="sc-am__field">
+              <span>{{ i18n.t('smartcrop.auth.storeCode') }}</span>
+              <input
+                type="text"
+                class="sc-am__store-code"
+                dir="ltr"
+                [ngModel]="storeCode"
+                (ngModelChange)="onStoreCodeChange($event)"
+                [placeholder]="i18n.t('smartcrop.auth.storeCodePlaceholder')"
+                maxlength="16"
+                autocomplete="off"
+              />
+              <em class="sc-am__hint">{{ i18n.t('smartcrop.auth.storeCodeHint') }}</em>
+              @if (storeCode) {
+                <em class="sc-am__hint sc-am__hint--link" dir="ltr">
+                  /smartcrop/upload/{{ storeCode }}
+                </em>
+              }
             </label>
 
             <label class="sc-am__phone-label">{{ i18n.t('smartcrop.auth.ownerPhone') }}</label>

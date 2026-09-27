@@ -235,6 +235,26 @@
   border: 1px solid var(--sc-border, rgba(30, 36, 48, 0.16));
 }
 
+.sc-am__store-code {
+  letter-spacing: 0.06em;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.sc-am__hint {
+  font-style: normal;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.sc-am__hint--link {
+  color: #4338ca;
+  font-weight: 700;
+  word-break: break-all;
+}
+
 .sc-am__phone-label {
   display: block;
   font-size: 0.82rem;

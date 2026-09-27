@@ -216,6 +216,10 @@ export function parseWhatsAppOrder(caption) {
   if (customerName) score += 5;
   if (!text) score = 25;
   const parseConfidence = Math.min(99, score);
+  const storeCode = extractStoreCode(text);
+  if (storeCode && customerName && customerName.replace(/\s+/g, '').toUpperCase() === storeCode) {
+    customerName = null;
+  }
 
   const mm =
     sizeName === 'A4'
@@ -228,6 +232,7 @@ export function parseWhatsAppOrder(caption) {
 
   const parts = [`${mm}`, `${copies}X`];
   if (paperType) parts.push(`נייר ${paperType}`);
+  if (storeCode) parts.push(`חנות ${storeCode}`);
   const summary = `פוענח: ${parts.join(' | ')}`;
 
   return {
@@ -236,9 +241,84 @@ export function parseWhatsAppOrder(caption) {
     paperType,
     customerPhone,
     customerName,
+    storeCode,
     parseConfidence,
     summary,
   };
+}
+
+/**
+ * Notes: Extract store routing code from WhatsApp body / deep-link text.
+ * Accepts: "code: FLASH101", "CODE=FLASH101", "הגעתי מחנות FLASH101", bare FLASH101 (4–16 alnum).
+ * @param {string | null | undefined} text
+ * @returns {string | null} uppercase store code
+ */
+export function extractStoreCode(text) {
+  const raw = String(text ?? '').trim();
+  if (!raw) return null;
+
+  const tagged =
+    raw.match(/\bcode\s*[:=]\s*([A-Za-z0-9]{3,16})\b/i) ||
+    raw.match(/\bstore\s*[:=]\s*([A-Za-z0-9]{3,16})\b/i) ||
+    raw.match(/הגעתי\s+מחנות\s+([A-Za-z0-9]{3,16})\b/i) ||
+    raw.match(/מחנות\s+([A-Za-z0-9]{3,16})\b/i) ||
+    raw.match(/חנות\s+([A-Za-z0-9]{3,16})\b/i) ||
+    raw.match(/\/upload\/([A-Za-z0-9]{3,16})\b/i);
+
+  if (tagged?.[1]) return String(tagged[1]).toUpperCase();
+
+  // Bare token when the whole message is just the code
+  if (/^[A-Za-z0-9]{3,16}$/.test(raw)) return raw.toUpperCase();
+
+  return null;
+}
+
+/**
+ * Notes: Public app base for magic upload links (no trailing slash).
+ */
+export function smartcropPublicBaseUrl() {
+  const raw =
+    process.env.SMARTCROP_PUBLIC_URL ||
+    process.env.PUBLIC_APP_URL ||
+    'https://www.lya-solution.com/smartcrop';
+  return String(raw).replace(/\/$/, '');
+}
+
+/**
+ * Notes: Uncompressed web-upload landing for a store + customer phone.
+ * @param {{ storeCode: string, customerPhone?: string | null }} opts
+ */
+export function buildMagicUploadUrl(opts) {
+  const code = String(opts.storeCode || '').trim().toUpperCase();
+  const base = smartcropPublicBaseUrl();
+  const phone = normalizePhoneE164(String(opts.customerPhone || ''));
+  const q = phone ? `?phone=${encodeURIComponent(phone)}` : '';
+  return `${base}/upload/${encodeURIComponent(code)}${q}`;
+}
+
+/**
+ * Notes: First-contact WhatsApp reply after store-code registration.
+ * @param {{
+ *   storeName: string,
+ *   storeCode: string,
+ *   customerPhone?: string | null,
+ *   customerName?: string | null,
+ * }} opts
+ */
+export function buildStoreWelcomeReply(opts) {
+  const storeName = String(opts.storeName || 'החנות').trim() || 'החנות';
+  const url = buildMagicUploadUrl({
+    storeCode: opts.storeCode,
+    customerPhone: opts.customerPhone,
+  });
+  const rawName = opts.customerName ? String(opts.customerName).trim() : '';
+  const first = rawName ? rawName.split(/\s+/)[0] : '';
+  const hi = first ? `אהלן ${first}!` : 'אהלן!';
+  return (
+    `${hi} התמונות שלך נשלחות לחנות ${storeName}.\n` +
+    `ניתן להמשיך לשלוח תמונות כאן, או להעלות תמונות באיכות מקורית ללא דחיסה בקישור:\n` +
+    `${url}`
+  );
 }
 
 /**
@@ -249,6 +329,10 @@ export function parseWhatsAppOrder(caption) {
  *   paperType?: string | null,
  *   copies?: number,
  *   metrics?: { confidenceScore?: number } | null,
+ *   storeName?: string | null,
+ *   storeCode?: string | null,
+ *   customerPhone?: string | null,
+ *   includeUploadLink?: boolean,
  * }} result
  */
 export function buildCustomerBotReply(result) {
@@ -264,7 +348,16 @@ export function buildCustomerBotReply(result) {
           ? 'לאסטר'
           : '';
   const req = paperHe ? `${result.sizeName} ${paperHe}` : result.sizeName;
-  return `${hi} זיהינו את הבקשה: ${req}.\nהתמונה נסרקה ב-SmartCrop.\nהתמונות מוכנות להדפסה, יש להיכנס לדשבורד`;
+  let msg = `${hi} זיהינו את הבקשה: ${req}.\nהתמונה נסרקה ב-SmartCrop.\nהתמונות מוכנות להדפסה, יש להיכנס לדשבורד`;
+  if (result.includeUploadLink && result.storeCode) {
+    const storeName = String(result.storeName || 'החנות').trim() || 'החנות';
+    const url = buildMagicUploadUrl({
+      storeCode: result.storeCode,
+      customerPhone: result.customerPhone,
+    });
+    msg += `\n\nלהעלאת תמונות נוספות באיכות מקורית לחנות ${storeName}:\n${url}`;
+  }
+  return msg;
 }
 
 /**

@@ -88,6 +88,41 @@
   border: 1px solid #a7f3d0;
 }
 
+.sc-studio__pill--code {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: 1px solid #c7d2fe;
+  background: #eef2ff;
+  color: #3730a3;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.sc-studio__pill--code .material-symbols-outlined {
+  font-size: 0.85rem;
+}
+
+.sc-studio__pill--link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: 1px solid #a7f3d0;
+  background: #ecfdf5;
+  color: #047857;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.sc-studio__pill--link .material-symbols-outlined {
+  font-size: 0.9rem;
+}
+
 .sc-studio__pill--soft,
 .sc-studio__pill--live {
   display: inline-flex;

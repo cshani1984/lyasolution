@@ -6,6 +6,8 @@ import multer from 'multer';
 import {
   buildCustomerBotReply,
   buildHotfolderPath,
+  buildStoreWelcomeReply,
+  extractStoreCode,
   normalizePhoneE164,
   parseWhatsAppOrder,
   phoneDigits,
@@ -33,6 +35,7 @@ import {
   replyToWhatsApp,
   resolveTwilioMedia,
 } from './twilioWhatsapp.mjs';
+import { registerStoreUploadRoutes } from './storeUploadRoutes.mjs';
 
 const BUCKET = 'photo-prints';
 
@@ -97,15 +100,26 @@ const upload = multer({
 
 /**
  * Notes: Resolve photo-shop (lab) account — owner of the dashboard.
- * Multi-tenant: each studio is identified by profiles.phone after login/register.
- * Priority:
- *   1) explicit user_id (browser upload while logged in)
- *   2) human phones among To/From (skip only Twilio Sandbox +14155238886)
- * Production: To is often the studio Twilio WA number (= profiles.phone) — must NOT skip it.
- * Sandbox: To is +14155…, From is the studio phone — match From.
+ * Multi-tenant on a shared Twilio number:
+ *   1) explicit user_id
+ *   2) store_code from caption / deep-link text
+ *   3) active customer session (shop_customers by phone)
+ *   4) legacy phone match on To/From (per-studio WhatsApp or sandbox)
  */
-async function resolveShopUserId(supabase, { userId, shopPhone, fromPhone }) {
+async function resolveShopUserId(supabase, { userId, shopPhone, fromPhone, storeCode, customerPhone }) {
   if (userId) return userId;
+
+  const code = String(storeCode || '').trim().toUpperCase();
+  if (code) {
+    const byCode = await findUserIdByStoreCode(supabase, code);
+    if (byCode) return byCode;
+  }
+
+  const sessionPhone = customerPhone || fromPhone;
+  if (sessionPhone) {
+    const bySession = await findShopByCustomerSession(supabase, sessionPhone);
+    if (bySession) return bySession;
+  }
 
   const ordered = studioLookupPhones(shopPhone, fromPhone);
   for (const phone of ordered) {
@@ -114,6 +128,83 @@ async function resolveShopUserId(supabase, { userId, shopPhone, fromPhone }) {
   }
 
   return null;
+}
+
+/**
+ * Notes: Match studio by public store_code (shared Twilio routing).
+ * @param {import('@supabase/supabase-js').SupabaseClient} supabase
+ * @param {string} storeCode
+ * @returns {Promise<string | null>}
+ */
+export async function findUserIdByStoreCode(supabase, storeCode) {
+  const code = String(storeCode || '').trim().toUpperCase();
+  if (!code || code.length < 3) return null;
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, store_code, store_name, full_name')
+    .ilike('store_code', code)
+    .limit(5);
+  if (error) {
+    console.warn('[smartcrop] store_code lookup', error.message);
+    return null;
+  }
+  const hit = (data ?? []).find((r) => String(r.store_code || '').toUpperCase() === code);
+  return hit?.id || null;
+}
+
+/**
+ * Notes: Last store this end-customer interacted with (active session).
+ * @param {import('@supabase/supabase-js').SupabaseClient} supabase
+ * @param {string} customerPhone
+ * @returns {Promise<string | null>}
+ */
+async function findShopByCustomerSession(supabase, customerPhone) {
+  const e164 = normalizePhoneE164(String(customerPhone || ''));
+  if (!e164 || e164 === 'admin') return null;
+  const candidates = phoneLookupCandidates(e164);
+  for (const phone of candidates) {
+    const { data } = await supabase
+      .from('shop_customers')
+      .select('shop_user_id, last_order_at')
+      .eq('phone', phone)
+      .order('last_order_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (data?.shop_user_id) return data.shop_user_id;
+  }
+  // Digit-tail fallback across recent customers
+  const tail = phoneDigits(e164).slice(-9);
+  if (tail.length < 8) return null;
+  const { data: rows } = await supabase
+    .from('shop_customers')
+    .select('shop_user_id, phone, last_order_at')
+    .like('phone', `%${tail}%`)
+    .order('last_order_at', { ascending: false })
+    .limit(20);
+  const hit = (rows ?? []).find((r) => phonesMatch(r.phone, phoneDigits(e164)));
+  return hit?.shop_user_id || null;
+}
+
+/**
+ * Notes: Load store display fields for WhatsApp / upload replies.
+ * @param {import('@supabase/supabase-js').SupabaseClient} supabase
+ * @param {string} userId
+ */
+export async function loadStoreProfile(supabase, userId) {
+  if (!userId) return null;
+  const { data } = await supabase
+    .from('profiles')
+    .select('id, store_code, store_name, full_name, phone, email')
+    .eq('id', userId)
+    .maybeSingle();
+  if (!data) return null;
+  return {
+    id: data.id,
+    storeCode: data.store_code ? String(data.store_code).toUpperCase() : null,
+    storeName: data.store_name || data.full_name || 'החנות',
+    phone: data.phone,
+    email: data.email,
+  };
 }
 
 /** Twilio WhatsApp Sandbox — never a SmartCrop studio profile. */
@@ -410,9 +501,11 @@ async function upsertShopCustomer(supabase, { shopUserId, phone, fullName }) {
  *   customer_name?: string,
  *   profile_name?: string,
  *   user_id?: string | null,
+ *   storeCode?: string | null,
+ *   source?: 'WHATSAPP' | 'WEB_UPLOAD',
  * }} input
  */
-async function ingestSmartcropPhoto(input) {
+export async function ingestSmartcropPhoto(input) {
   const order = parseWhatsAppOrder(input.caption_text);
   if (input.sizeName) order.sizeName = input.sizeName;
   if (input.customer_name) order.customerName = String(input.customer_name).trim() || order.customerName;
@@ -428,6 +521,11 @@ async function ingestSmartcropPhoto(input) {
 
   const fromPhone = normalizePhoneE164(String(input.senderPhone ?? ''));
   const shopPhone = normalizePhoneE164(String(input.shopPhone ?? ''));
+  const storeCode =
+    String(input.storeCode || order.storeCode || extractStoreCode(input.caption_text) || '')
+      .trim()
+      .toUpperCase() || null;
+  const source = input.source === 'WEB_UPLOAD' ? 'WEB_UPLOAD' : 'WHATSAPP';
 
   const supabase = getSupabaseAdmin();
 
@@ -436,6 +534,8 @@ async function ingestSmartcropPhoto(input) {
     userId: input.user_id || null,
     shopPhone,
     fromPhone,
+    storeCode,
+    customerPhone: order.customerPhone || fromPhone,
   });
 
   const senderIsShop = await isRegisteredShopPhone(supabase, fromPhone);
@@ -473,11 +573,15 @@ async function ingestSmartcropPhoto(input) {
   if (!userId) {
     throw Object.assign(
       new Error(
-        'No studio account matched this WhatsApp. Register/login with the business phone, or send to that studio WhatsApp number.',
+        storeCode
+          ? `לא מצאנו חנות עם קוד ${storeCode}. בדקו את הקוד או את הקישור.`
+          : 'No studio account matched this WhatsApp. שלחו קוד חנות (למשל code: FLASH101) או הירשמו עם מספר העסק.',
       ),
       { status: 404 },
     );
   }
+
+  const store = await loadStoreProfile(supabase, userId);
 
   const sizeQuery = order.sizeName || '10x15';
 
@@ -612,6 +716,7 @@ async function ingestSmartcropPhoto(input) {
     target_size_name: sizeName,
     crop_data: cropData,
     status: photoStatusFromAutoCrop(cropData?.metrics),
+    source,
   };
 
   let { data: photo, error: photoErr } = await supabase.from('photos').insert(photoRow).select('id').single();
@@ -696,6 +801,10 @@ async function ingestSmartcropPhoto(input) {
     blindUrl,
     metrics: cropData.metrics ?? null,
     cropData,
+    source,
+    storeCode: store?.storeCode || storeCode,
+    storeName: store?.storeName || null,
+    isNewCustomerSession: Boolean(storeCode),
   };
 }
 
@@ -854,9 +963,37 @@ export function registerSmartcropRoutes(app, ctx) {
         });
 
         let reply =
-          'שלום מ-SmartCrop! שלחו תמונה להתחלת הזמנה (אפשר לציין גודל כמו 10x15).';
+          'שלום מ-SmartCrop! שלחו קוד חנות (למשל code: FLASH101) עם תמונה, או פתחו את קישור ההעלאה של החנות.';
 
-        if (parsed.NumMedia > 0 && parsed.MediaUrl0) {
+        const inboundStoreCode =
+          extractStoreCode(parsed.Body) || parseWhatsAppOrder(parsed.Body).storeCode || null;
+
+        // Text-only: register / refresh store session + magic upload link
+        if (!(parsed.NumMedia > 0 && parsed.MediaUrl0) && inboundStoreCode && isSupabaseAdminConfigured()) {
+          const supabase = getSupabaseAdmin();
+          const shopId = await findUserIdByStoreCode(supabase, inboundStoreCode);
+          if (shopId) {
+            const store = await loadStoreProfile(supabase, shopId);
+            await upsertShopCustomer(supabase, {
+              shopUserId: shopId,
+              phone: parsed.senderPhone,
+              fullName: parsed.ProfileName || null,
+            });
+            reply = buildStoreWelcomeReply({
+              storeName: store?.storeName || inboundStoreCode,
+              storeCode: store?.storeCode || inboundStoreCode,
+              customerPhone: parsed.senderPhone,
+              customerName: parsed.ProfileName || null,
+            });
+            log('Twilio store-code session', {
+              storeCode: inboundStoreCode,
+              shopId,
+              customerPhone: parsed.senderPhone,
+            });
+          } else {
+            reply = `לא מצאנו חנות עם הקוד ${inboundStoreCode}. בדקו את הקוד ושלחו שוב.`;
+          }
+        } else if (parsed.NumMedia > 0 && parsed.MediaUrl0) {
           if (!isSupabaseAdminConfigured()) {
             reply =
               'השרת לא מחובר ל-Supabase (חסר SUPABASE_URL / SERVICE_ROLE). לבדיקה חיה הגדירו את Webhook של Twilio ל: https://lyasolution-node-email-server.onrender.com/api/whatsapp/webhook';
@@ -875,6 +1012,8 @@ export function registerSmartcropRoutes(app, ctx) {
                 media_base64: media.media_base64,
                 caption_text: parsed.caption_text,
                 profile_name: parsed.ProfileName,
+                storeCode: inboundStoreCode,
+                source: 'WHATSAPP',
               });
               reply = buildCustomerBotReply({
                 customerName: result.customerName,
@@ -882,6 +1021,10 @@ export function registerSmartcropRoutes(app, ctx) {
                 paperType: result.paperType,
                 copies: result.copies,
                 metrics: result.metrics,
+                storeName: result.storeName,
+                storeCode: result.storeCode,
+                customerPhone: result.customerPhone,
+                includeUploadLink: Boolean(result.storeCode),
               });
               log('Twilio WhatsApp ingested', {
                 photoId: result.photoId,
@@ -889,6 +1032,8 @@ export function registerSmartcropRoutes(app, ctx) {
                 customerPhone: result.customerPhone,
                 customerName: result.customerName,
                 hotfolderPath: result.hotfolderPath,
+                storeCode: result.storeCode,
+                source: result.source,
               });
             }
           }
@@ -903,7 +1048,7 @@ export function registerSmartcropRoutes(app, ctx) {
                   ? 'לאסטר'
                   : '';
           const req = paperHe ? `${preview.sizeName} ${paperHe}` : preview.sizeName;
-          reply = `קיבלנו את ההודעה — זיהינו: ${req}${preview.copies > 1 ? ` · ${preview.copies} עותקים` : ''}.\nשלחו גם את התמונה להדפסה (ואם מעבירים הודעה — שם + טלפון הלקוח; אחרת יישמר תחת Admin).`;
+          reply = `קיבלנו את ההודעה — זיהינו: ${req}${preview.copies > 1 ? ` · ${preview.copies} עותקים` : ''}.\nשלחו גם את התמונה להדפסה, או קוד חנות (code: FLASH101) לקישור העלאה באיכות מלאה.`;
         }
 
         const preferRest = process.env.TWILIO_REPLY_MODE === 'rest';
@@ -1242,5 +1387,14 @@ export function registerSmartcropRoutes(app, ctx) {
       logErr('send-to-print failed', err?.message ?? err);
       res.status(500).json({ ok: false, error: err?.message ?? 'Send to print failed' });
     }
+  });
+
+  registerStoreUploadRoutes(app, {
+    rateLimiter,
+    log,
+    logErr,
+    findUserIdByStoreCode,
+    loadStoreProfile,
+    ingestSmartcropPhoto,
   });
 }

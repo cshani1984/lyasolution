@@ -55,6 +55,9 @@ export class SmartcropAuthModalComponent implements OnChanges, OnDestroy {
 
   phoneLocal = '';
   studioName = '';
+  /** Public store routing code — shown & editable on register. */
+  storeCode = '';
+  private storeCodeTouched = false;
   /** E.164 used for OTP verify after send. */
   private verifiedPhoneE164 = '';
   private resendTimer: ReturnType<typeof setInterval> | null = null;
@@ -249,8 +252,14 @@ export class SmartcropAuthModalComponent implements OnChanges, OnDestroy {
   async submitRegister(): Promise<void> {
     const name = this.studioName.trim();
     const phone = this.normalizeLocal(this.phoneLocal);
+    const code = this.auth.normalizeStoreCode(this.storeCode || this.auth.suggestStoreCode(name, phone));
+    this.storeCode = code;
     if (!name) {
       this.error.set(this.i18n.t('smartcrop.auth.studioRequired'));
+      return;
+    }
+    if (!code || code.length < 3) {
+      this.error.set(this.i18n.t('smartcrop.auth.storeCodeRequired'));
       return;
     }
     if (!phone) {
@@ -260,7 +269,11 @@ export class SmartcropAuthModalComponent implements OnChanges, OnDestroy {
 
     if (this.auth.isSignedIn()) {
       this.busy.set(true);
-      const { error } = await this.auth.completeStudioRegistration({ studioName: name, phone });
+      const { error } = await this.auth.completeStudioRegistration({
+        studioName: name,
+        phone,
+        storeCode: code,
+      });
       this.busy.set(false);
       if (error) {
         this.error.set(error.message);
@@ -273,7 +286,7 @@ export class SmartcropAuthModalComponent implements OnChanges, OnDestroy {
     if (!this.regOtpSent()) {
       this.busy.set(true);
       this.error.set(null);
-      this.auth.stashPendingStudioRegistration(name, phone);
+      this.auth.stashPendingStudioRegistration(name, phone, code);
       const { error } = await this.auth.signInWithPhone(phone);
       this.busy.set(false);
       if (error) {
@@ -330,6 +343,7 @@ export class SmartcropAuthModalComponent implements OnChanges, OnDestroy {
   private async verifyRegisterOtp(): Promise<void> {
     const name = this.studioName.trim();
     const phone = this.verifiedPhoneE164 || this.normalizeLocal(this.phoneLocal);
+    const code = this.auth.normalizeStoreCode(this.storeCode || this.auth.suggestStoreCode(name, phone));
     if (!this.otpComplete()) {
       this.error.set(this.i18n.t('smartcrop.auth.otpRequired'));
       return;
@@ -342,7 +356,11 @@ export class SmartcropAuthModalComponent implements OnChanges, OnDestroy {
       this.error.set(error.message);
       return;
     }
-    const done = await this.auth.completeStudioRegistration({ studioName: name, phone });
+    const done = await this.auth.completeStudioRegistration({
+      studioName: name,
+      phone,
+      storeCode: code,
+    });
     this.busy.set(false);
     if (done.error) {
       this.error.set(done.error.message);
@@ -376,6 +394,19 @@ export class SmartcropAuthModalComponent implements OnChanges, OnDestroy {
     this.clearResendTimer();
     this.resendSeconds.set(0);
     this.verifiedPhoneE164 = '';
+    this.storeCodeTouched = false;
+  }
+
+  onStudioNameChange(value: string): void {
+    this.studioName = value;
+    if (!this.storeCodeTouched) {
+      this.storeCode = this.auth.suggestStoreCode(value, this.phoneLocal || '101');
+    }
+  }
+
+  onStoreCodeChange(value: string): void {
+    this.storeCodeTouched = true;
+    this.storeCode = this.auth.normalizeStoreCode(value);
   }
 
   private resetOtpDigits(): void {

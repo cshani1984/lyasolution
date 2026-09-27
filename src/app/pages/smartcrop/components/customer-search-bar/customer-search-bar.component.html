@@ -37,6 +37,12 @@
             </span>
             <span class="sc-cust-search__badges">
               <span class="sc-cust-search__badge" [attr.title]="i18n.t('smartcrop.studio.caught')">{{ c.photo_count }}</span>
+              @if (c.has_whatsapp) {
+                <span class="sc-cust-search__badge is-wa" title="WhatsApp">WA</span>
+              }
+              @if (c.has_web_upload) {
+                <span class="sc-cust-search__badge is-web" title="Web">Web</span>
+              }
               @if (c.pending_count) {
                 <span class="sc-cust-search__badge is-warn" [attr.title]="i18n.t('smartcrop.studio.pending')">{{ c.pending_count }}</span>
               }

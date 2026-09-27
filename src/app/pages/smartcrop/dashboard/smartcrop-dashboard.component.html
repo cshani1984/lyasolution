@@ -6,6 +6,26 @@
         <span>SmartCrop</span>
       </a>
       <span class="sc-studio__pill sc-studio__pill--green" [title]="i18n.t('smartcrop.studio.proHint')">PRO</span>
+      @if (auth.profile()?.store_code; as code) {
+        <button
+          type="button"
+          class="sc-studio__pill sc-studio__pill--code"
+          [title]="i18n.t('smartcrop.studio.storeCodeHint')"
+          (click)="copyStoreCode(code)"
+        >
+          {{ code }}
+          <span class="material-symbols-outlined" aria-hidden="true">content_copy</span>
+        </button>
+        <button
+          type="button"
+          class="sc-studio__pill sc-studio__pill--link"
+          [title]="i18n.t('smartcrop.studio.copyUploadLinkHint')"
+          (click)="copyStoreUploadLink(code)"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">link</span>
+          {{ i18n.t('smartcrop.studio.copyUploadLink') }}
+        </button>
+      }
       <span class="sc-studio__pill sc-studio__pill--live" [title]="whatsappBadgeTitle()">
         <i class="sc-studio__live-dot" aria-hidden="true"></i>
         {{ whatsappBadge() }}

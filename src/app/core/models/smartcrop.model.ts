@@ -104,6 +104,10 @@ export interface SmartcropProfile {
   email: string | null;
   phone: string | null;
   full_name: string | null;
+  /** Public store routing code (e.g. FLASH101) for shared Twilio + web upload. */
+  store_code?: string | null;
+  /** Customer-facing store display name. */
+  store_name?: string | null;
   avatar_url: string | null;
   language: SmartcropLang;
   created_at: string;
@@ -132,6 +136,8 @@ export interface SmartcropPhoto {
   parse_confidence?: number | null;
   /** Lab hotfolder path e.g. C:\Hotfolder\Dani_Klein_10x15 */
   hotfolder_path?: string | null;
+  /** Intake channel: WhatsApp or uncompressed web upload. */
+  source?: 'WHATSAPP' | 'WEB_UPLOAD' | null;
   original_url: string;
   cropped_url: string | null;
   /** Clipdrop Uncrop / Generative Fill output URL when used. */
@@ -155,6 +161,10 @@ export interface ShopCustomer {
   ready_count?: number;
   crop_loss_alerts?: number;
   last_order_at?: string;
+  /** True when at least one photo arrived via WhatsApp. */
+  has_whatsapp?: boolean;
+  /** True when at least one photo arrived via web upload. */
+  has_web_upload?: boolean;
 }
 
 /** API shape from GET /api/customers/search */

@@ -31,6 +31,13 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'upload/:storeCode',
+        loadComponent: () =>
+          import('./pages/smartcrop/upload/smartcrop-web-upload.component').then(
+            (m) => m.SmartcropWebUploadComponent,
+          ),
+      },
+      {
         path: 'dashboard',
         canActivate: [smartcropAuthGuard],
         loadComponent: () =>

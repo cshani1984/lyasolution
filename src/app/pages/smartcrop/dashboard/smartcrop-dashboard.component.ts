@@ -130,6 +130,8 @@ export class SmartcropDashboardComponent implements OnInit, OnDestroy {
         ready_count: 0,
         crop_loss_alerts: 0,
         last_order_at: p.created_at,
+        has_whatsapp: false,
+        has_web_upload: false,
       };
       row.photo_count += 1;
       if (p.status === 'pending') row.pending_count += 1;
@@ -138,6 +140,8 @@ export class SmartcropDashboardComponent implements OnInit, OnDestroy {
       if (p.crop_data?.metrics?.hasTruncationRisk || loss > CROP_LOSS_WARN_PERCENT) {
         row.crop_loss_alerts = (row.crop_loss_alerts ?? 0) + 1;
       }
+      if (p.source === 'WEB_UPLOAD') row.has_web_upload = true;
+      else row.has_whatsapp = true;
       if (p.customer_name && !row.full_name) row.full_name = p.customer_name;
       if (!row.last_order_at || p.created_at > row.last_order_at) row.last_order_at = p.created_at;
       map.set(phone, row);
@@ -403,6 +407,7 @@ export class SmartcropDashboardComponent implements OnInit, OnDestroy {
   async ngOnInit(): Promise<void> {
     await this.auth.waitUntilReady();
     await this.auth.syncPhoneFromAuthUser();
+    await this.auth.ensureStoreCode();
     await this.photosService.refreshAll();
     const first = this.filteredPhotos()[0];
     if (first) this.activeId.set(first.id);
@@ -1012,6 +1017,34 @@ export class SmartcropDashboardComponent implements OnInit, OnDestroy {
 
   toggleLang(): void {
     this.i18n.toggleLang();
+  }
+
+  async copyStoreCode(code: string): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(code);
+      this.toast.set(this.i18n.t('smartcrop.studio.storeCodeCopied').replace('{code}', code));
+    } catch {
+      this.toast.set(code);
+    }
+  }
+
+  /** Notes: Full customer web-upload URL to paste into WhatsApp / SMS. */
+  storeUploadUrl(code: string): string {
+    const safe = encodeURIComponent(String(code || '').trim().toUpperCase());
+    if (typeof window !== 'undefined' && window.location?.origin) {
+      return `${window.location.origin}/smartcrop/upload/${safe}`;
+    }
+    return `https://www.lya-solution.com/smartcrop/upload/${safe}`;
+  }
+
+  async copyStoreUploadLink(code: string): Promise<void> {
+    const url = this.storeUploadUrl(code);
+    try {
+      await navigator.clipboard.writeText(url);
+      this.toast.set(this.i18n.t('smartcrop.studio.uploadLinkCopied'));
+    } catch {
+      this.toast.set(url);
+    }
   }
 
   statusClass(status: string): string {

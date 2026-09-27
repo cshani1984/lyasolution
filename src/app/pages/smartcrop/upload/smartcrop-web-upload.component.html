@@ -1,0 +1,96 @@
+<div class="sc-upload" dir="rtl">
+  <header class="sc-upload__top">
+    <a routerLink="/smartcrop" class="sc-upload__brand">
+      <img src="/smartcrop-logo.png" alt="SmartCrop" width="28" height="28" />
+      <span>SmartCrop</span>
+    </a>
+  </header>
+
+  <main class="sc-upload__main">
+    @if (loadingStore()) {
+      <p class="sc-upload__status">טוען פרטי חנות…</p>
+    } @else if (storeError()) {
+      <div class="sc-upload__card is-error">
+        <h1>לא ניתן להעלות</h1>
+        <p>{{ storeError() }}</p>
+        <a routerLink="/smartcrop">חזרה לדף הבית</a>
+      </div>
+    } @else {
+      <div class="sc-upload__card">
+        <p class="sc-upload__eyebrow">העלאה באיכות מקורית</p>
+        <h1>{{ storeName() }}</h1>
+        <p class="sc-upload__lede">
+          העלו תמונות ללא דחיסת WhatsApp. הקבצים ייכנסו ישירות לתיקיית הלקוח בחנות
+          <strong>{{ storeCode() }}</strong>.
+        </p>
+
+        <label class="sc-upload__field">
+          <span>שם מלא</span>
+          <input type="text" [(ngModel)]="customerName" name="name" autocomplete="name" placeholder="לדוגמה: דני כהן" />
+        </label>
+
+        <label class="sc-upload__field">
+          <span>מספר טלפון *</span>
+          <input
+            type="tel"
+            [(ngModel)]="customerPhone"
+            name="phone"
+            autocomplete="tel"
+            placeholder="05X-XXXXXXX"
+            dir="ltr"
+          />
+        </label>
+
+        <label class="sc-upload__field">
+          <span>גודל הדפסה</span>
+          <select [(ngModel)]="sizeName" name="size">
+            <option value="10x15">10×15 ס״מ</option>
+            <option value="13x18">13×18 ס״מ</option>
+            <option value="15x21">15×21 ס״מ</option>
+            <option value="20x30">20×30 ס״מ</option>
+            <option value="A4">A4</option>
+          </select>
+        </label>
+
+        <div
+          class="sc-upload__drop"
+          (dragover)="onDragOver($event)"
+          (drop)="onDrop($event)"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">upload_file</span>
+          <p>גררו תמונות לכאן או בחרו מהמחשב</p>
+          <p class="sc-upload__hint">JPG / PNG / HEIC — עד 100MB לקובץ, ללא דחיסה</p>
+          <label class="sc-upload__pick">
+            בחירת קבצים
+            <input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif" multiple (change)="onFilesSelected($event)" />
+          </label>
+        </div>
+
+        @if (files().length) {
+          <ul class="sc-upload__files">
+            @for (f of files(); track f.name + f.size; let i = $index) {
+              <li>
+                <span>{{ f.name }}</span>
+                <em>{{ (f.size / 1024 / 1024) | number: '1.1-1' }} MB</em>
+                <button type="button" (click)="removeFile(i)">הסרה</button>
+              </li>
+            }
+          </ul>
+        }
+
+        @if (errorMsg()) {
+          <p class="sc-upload__err" role="alert">{{ errorMsg() }}</p>
+        }
+        @if (doneMsg()) {
+          <p class="sc-upload__ok" role="status">{{ doneMsg() }}</p>
+        }
+
+        <button type="button" class="sc-upload__submit" (click)="submit()" [disabled]="busy()">
+          {{ busy() ? 'מעלה…' : 'שליחה לחנות' }}
+        </button>
+      </div>
+    }
+  </main>
+
+  <app-footer />
+</div>

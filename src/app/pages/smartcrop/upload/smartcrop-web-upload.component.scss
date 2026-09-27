@@ -1,0 +1,215 @@
+.sc-upload {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(1200px 600px at 90% -10%, rgba(98, 54, 255, 0.12), transparent 55%),
+    linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+  color: #111827;
+  font-family: 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
+}
+
+.sc-upload__top {
+  display: flex;
+  align-items: center;
+  padding: 0.85rem 1.25rem;
+  background: rgba(255, 255, 255, 0.9);
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.sc-upload__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  text-decoration: none;
+  color: inherit;
+  font-weight: 800;
+}
+
+.sc-upload__brand img {
+  border-radius: 8px;
+}
+
+.sc-upload__main {
+  flex: 1;
+  display: grid;
+  place-items: start center;
+  padding: 1.5rem 1rem 2.5rem;
+}
+
+.sc-upload__card {
+  width: min(100%, 34rem);
+  background: #fff;
+  border: 1px solid #cdd5de;
+  border-radius: 1.15rem;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  padding: 1.35rem 1.25rem 1.5rem;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.sc-upload__card.is-error {
+  text-align: center;
+}
+
+.sc-upload__eyebrow {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #6236ff;
+  letter-spacing: 0.02em;
+}
+
+.sc-upload__card h1 {
+  margin: 0;
+  font-size: 1.55rem;
+  line-height: 1.25;
+}
+
+.sc-upload__lede {
+  margin: 0;
+  color: #4b5563;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.sc-upload__field {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.sc-upload__field input,
+.sc-upload__field select {
+  font: inherit;
+  font-weight: 600;
+  padding: 0.7rem 0.8rem;
+  border-radius: 12px;
+  border: 1px solid #d1d5db;
+  background: #f8fafc;
+}
+
+.sc-upload__drop {
+  border: 1.5px dashed #a5b4fc;
+  background: #f5f3ff;
+  border-radius: 14px;
+  padding: 1.25rem 1rem;
+  text-align: center;
+  display: grid;
+  gap: 0.35rem;
+  justify-items: center;
+}
+
+.sc-upload__drop .material-symbols-outlined {
+  font-size: 1.8rem;
+  color: #6236ff;
+}
+
+.sc-upload__drop p {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.sc-upload__hint {
+  font-size: 0.78rem !important;
+  font-weight: 500 !important;
+  color: #6b7280;
+}
+
+.sc-upload__pick {
+  margin-top: 0.35rem;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  background: #6236ff;
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.sc-upload__pick input {
+  display: none;
+}
+
+.sc-upload__files {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.sc-upload__files li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  font-size: 0.8rem;
+}
+
+.sc-upload__files span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.sc-upload__files em {
+  font-style: normal;
+  color: #6b7280;
+  direction: ltr;
+}
+
+.sc-upload__files button {
+  border: 0;
+  background: transparent;
+  color: #b45309;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sc-upload__err {
+  margin: 0;
+  color: #b91c1c;
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+
+.sc-upload__ok {
+  margin: 0;
+  color: #047857;
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+
+.sc-upload__submit {
+  border: 0;
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+  background: #00a86b;
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.sc-upload__submit:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.sc-upload__status {
+  margin: 2rem;
+  font-weight: 700;
+  color: #4b5563;
+}

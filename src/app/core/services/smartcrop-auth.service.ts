@@ -219,23 +219,27 @@ export class SmartcropAuthService {
     await this.updatePhone(phone);
   }
 
-  /** Studio name/phone saved before Google OAuth from the register form. */
-  stashPendingStudioRegistration(studioName: string, phone: string): void {
+  /** Studio name/phone/code saved before Google OAuth / phone OTP from the register form. */
+  stashPendingStudioRegistration(studioName: string, phone: string, storeCode?: string): void {
     if (typeof sessionStorage === 'undefined') return;
     sessionStorage.setItem('sc_studio_name', studioName.trim());
     sessionStorage.setItem('sc_studio_phone', phone.trim());
+    if (storeCode?.trim()) sessionStorage.setItem('sc_studio_code', storeCode.trim());
   }
 
   private async applyPendingStudioRegistration(): Promise<void> {
     if (typeof sessionStorage === 'undefined') return;
     const name = sessionStorage.getItem('sc_studio_name');
     const phone = sessionStorage.getItem('sc_studio_phone');
+    const storeCode = sessionStorage.getItem('sc_studio_code');
     if (!name && !phone) return;
     sessionStorage.removeItem('sc_studio_name');
     sessionStorage.removeItem('sc_studio_phone');
+    sessionStorage.removeItem('sc_studio_code');
     await this.completeStudioRegistration({
       studioName: name || this.profile()?.full_name || 'Studio',
       phone: phone || undefined,
+      storeCode: storeCode || undefined,
     });
   }
 
@@ -337,6 +341,7 @@ export class SmartcropAuthService {
   async completeStudioRegistration(input: {
     studioName: string;
     phone?: string;
+    storeCode?: string;
   }): Promise<{ error: Error | null }> {
     const user = this.user();
     if (!user) {
@@ -344,8 +349,19 @@ export class SmartcropAuthService {
     }
     await this.ensureProfile(user);
     const phone = (input.phone?.trim() || user.phone?.trim() || '') || undefined;
-    const patch: { full_name: string; phone?: string } = {
-      full_name: input.studioName.trim(),
+    const storeName = input.studioName.trim();
+    const storeCode = this.normalizeStoreCode(
+      input.storeCode || this.suggestStoreCode(storeName, phone || user.id),
+    );
+    const patch: {
+      full_name: string;
+      store_name: string;
+      store_code: string;
+      phone?: string;
+    } = {
+      full_name: storeName,
+      store_name: storeName,
+      store_code: storeCode,
     };
     // Only set phone if profile does not already have it (avoids duplicate key).
     if (phone && this.profile()?.phone !== phone) {
@@ -355,9 +371,14 @@ export class SmartcropAuthService {
     const client = this.supabase.requireClient();
     const { error } = await client.from('profiles').update(patch).eq('id', user.id);
     if (error) {
-      if (error.code === '23505' || /profiles_phone_key/i.test(error.message)) {
-        // Name update without phone retry
-        await client.from('profiles').update({ full_name: patch.full_name }).eq('id', user.id);
+      if (error.code === '23505' || /store_code|profiles_phone_key/i.test(error.message)) {
+        // Retry without unique-prone fields
+        const fallback = {
+          full_name: storeName,
+          store_name: storeName,
+          store_code: this.normalizeStoreCode(`${storeCode}${Math.floor(Math.random() * 90 + 10)}`),
+        };
+        await client.from('profiles').update(fallback).eq('id', user.id);
         await this.loadProfile(user.id);
         if (phone) await this.linkPhotosByPhone(phone);
         return { error: null };
@@ -367,6 +388,57 @@ export class SmartcropAuthService {
     if (phone) await this.linkPhotosByPhone(phone);
     await this.loadProfile(user.id);
     return { error: null };
+  }
+
+  /** Notes: Public store code — A–Z / 0–9, 3–16 chars. */
+  normalizeStoreCode(raw: string): string {
+    return String(raw || '')
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .slice(0, 16);
+  }
+
+  suggestStoreCode(studioName: string, seed: string): string {
+    const base = String(studioName || '')
+      .normalize('NFKD')
+      .replace(/[\u0590-\u05FF]/g, '')
+      .replace(/[^A-Za-z0-9]/g, '')
+      .toUpperCase()
+      .slice(0, 8);
+    const digits = String(seed || '').replace(/\D/g, '').slice(-3) || '101';
+    return this.normalizeStoreCode((base || 'STORE') + digits) || `STORE${digits}`;
+  }
+
+  /** Notes: Backfill store_code for shops that registered before multi-store routing. */
+  async ensureStoreCode(): Promise<string | null> {
+    const profile = this.profile();
+    const user = this.user();
+    if (!user) return null;
+    if (profile?.store_code) return profile.store_code;
+    const code = this.suggestStoreCode(
+      profile?.store_name || profile?.full_name || 'STORE',
+      profile?.phone || user.id,
+    );
+    if (!code) return null;
+    const client = this.supabase.requireClient();
+    const patch = {
+      store_code: code,
+      store_name: profile?.store_name || profile?.full_name || code,
+    };
+    const { error } = await client.from('profiles').update(patch).eq('id', user.id);
+    if (error && (error.code === '23505' || /store_code/i.test(error.message))) {
+      const retry = this.normalizeStoreCode(`${code}${Math.floor(Math.random() * 90 + 10)}`);
+      await client
+        .from('profiles')
+        .update({ store_code: retry, store_name: patch.store_name })
+        .eq('id', user.id);
+    } else if (error) {
+      console.warn('[smartcrop] ensureStoreCode', error.message);
+      return null;
+    }
+    await this.loadProfile(user.id);
+    return this.profile()?.store_code ?? code;
   }
 
   async linkPhotosByPhone(phone: string): Promise<void> {
