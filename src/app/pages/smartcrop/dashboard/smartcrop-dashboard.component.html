@@ -71,7 +71,15 @@
     (clear)="clearSelection()"
   />
 
-  @if (activePhoto(); as waPhoto) {
+  @if (!activeCustomerPhone()) {
+    <section class="sc-studio__pick-customer" role="status">
+      <span class="material-symbols-outlined" aria-hidden="true">person_search</span>
+      <h2>{{ i18n.t('smartcrop.studio.pickCustomerTitle') }}</h2>
+      <p>{{ i18n.t('smartcrop.studio.pickCustomerBody') }}</p>
+    </section>
+  }
+
+  @if (activeCustomerPhone() && activePhoto(); as waPhoto) {
     <section class="sc-studio__wa" [attr.aria-label]="i18n.t('smartcrop.studio.waMessage')">
       <div class="sc-studio__wa-left">
         <div class="sc-studio__wa-avatar" aria-hidden="true">WA</div>
@@ -80,6 +88,12 @@
             <strong>{{ waPhoto.customer_name || waPhoto.sender_phone }}</strong>
             <span class="sc-studio__wa-phone">{{ waPhoto.sender_phone }}</span>
             <em class="sc-studio__wa-order">{{ whatsappOrderRef() }}</em>
+            <time class="sc-studio__wa-time" [attr.datetime]="waPhoto.created_at">
+              {{ formatReceivedAt(waPhoto.created_at) }}
+              @if (isNewPhoto(waPhoto.created_at)) {
+                <span class="sc-studio__wa-new">{{ i18n.t('smartcrop.studio.newBadge') }}</span>
+              }
+            </time>
           </div>
           <blockquote class="sc-studio__wa-msg">
             <span class="sc-studio__wa-label">{{ i18n.t('smartcrop.studio.waMessage') }}:</span>
@@ -110,6 +124,7 @@
     </section>
   }
 
+  @if (activeCustomerPhone()) {
   <div class="sc-studio__main">
     <section class="sc-studio__editor">
       @if (activePhoto(); as photo) {
@@ -375,6 +390,9 @@
           <button type="button" class="sc-studio__btn sc-studio__btn--ghost" (click)="downloadActive()" [disabled]="!activePhoto()">
             {{ i18n.t('smartcrop.studio.downloadPrint') }}
           </button>
+          <button type="button" class="sc-studio__btn sc-studio__btn--danger" (click)="deleteActive()" [disabled]="!activePhoto() || busy()">
+            {{ i18n.t('smartcrop.studio.deletePhoto') }}
+          </button>
           <app-smartcrop-file-uploader
             [sizes]="photosService.sizes()"
             [busy]="busy() || aiBusy()"
@@ -416,53 +434,78 @@
       </div>
     </div>
 
-    <div class="sc-studio__thumbs">
-      @for (photo of filteredPhotos(); track photo.id) {
-        <div
-          class="sc-studio__thumb-card"
-          [class.is-active]="isActiveThumb(photo)"
-          [class.is-checked]="isSelected(photo.id)"
-          [class.is-warn]="thumbNeedsReview(photo)"
-          [class.is-ok]="!thumbNeedsReview(photo)"
-        >
-          <label class="sc-studio__check" [attr.title]="i18n.t('smartcrop.batch.selected')">
-            <input type="checkbox" [checked]="isSelected(photo.id)" (click)="toggleSelect(photo.id, $event)" />
-          </label>
-          <button type="button" class="sc-studio__thumb" (click)="selectPhoto(photo)">
-            <span class="sc-studio__thumb-media">
-              <img [src]="photo.cropped_url || photo.original_url" [alt]="thumbSizeLabel(photo)" />
-              @if (isActiveThumb(photo)) {
-                <span class="sc-studio__thumb-selected">{{ i18n.t('smartcrop.studio.selectedNow') }}</span>
+    @if (photosByDate().length) {
+      <div class="sc-studio__date-groups">
+        @for (group of photosByDate(); track group.dateKey) {
+          <div class="sc-studio__date-group" [class.is-new]="group.isToday">
+            <div class="sc-studio__date-label">
+              <strong>{{ group.label }}</strong>
+              <span>{{ group.photos.length }} {{ i18n.t('smartcrop.studio.caught') }}</span>
+              @if (group.isToday) {
+                <em>{{ i18n.t('smartcrop.studio.newBadge') }}</em>
               }
-              <i
-                class="sc-studio__thumb-badge"
-                [class.is-ok]="!thumbNeedsReview(photo)"
-                [class.is-warn]="thumbNeedsReview(photo)"
-                [attr.title]="thumbStatusLabel(photo)"
-                aria-hidden="true"
-              >
-                <span class="material-symbols-outlined">{{ thumbNeedsReview(photo) ? 'priority_high' : 'check' }}</span>
-              </i>
-            </span>
-            <span class="sc-studio__thumb-foot">
-              <span class="sc-studio__thumb-size" [class.is-active]="isActiveThumb(photo)">{{ thumbSizeLabel(photo) }}</span>
-              <span class="sc-studio__thumb-status" [class.is-ok]="!thumbNeedsReview(photo)" [class.is-warn]="thumbNeedsReview(photo)">
-                {{ thumbStatusLabel(photo) }}
-              </span>
-            </span>
-          </button>
-        </div>
-      } @empty {
-        <p class="sc-studio__thumbs-empty">
-          {{
-            activeCustomerPhone()
-              ? i18n.t('smartcrop.studio.noPhotosForCustomer')
-              : i18n.t('smartcrop.dash.empty')
-          }}
-        </p>
-      }
-    </div>
+            </div>
+            <div class="sc-studio__thumbs">
+              @for (photo of group.photos; track photo.id) {
+                <div
+                  class="sc-studio__thumb-card"
+                  [class.is-active]="isActiveThumb(photo)"
+                  [class.is-checked]="isSelected(photo.id)"
+                  [class.is-warn]="thumbNeedsReview(photo)"
+                  [class.is-ok]="!thumbNeedsReview(photo)"
+                >
+                  <label class="sc-studio__check" [attr.title]="i18n.t('smartcrop.batch.selected')">
+                    <input type="checkbox" [checked]="isSelected(photo.id)" (click)="toggleSelect(photo.id, $event)" />
+                  </label>
+                  <button
+                    type="button"
+                    class="sc-studio__thumb-del"
+                    (click)="deletePhoto(photo, $event)"
+                    [attr.title]="i18n.t('smartcrop.studio.deletePhoto')"
+                    [attr.aria-label]="i18n.t('smartcrop.studio.deletePhoto')"
+                  >
+                    <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+                  </button>
+                  <button type="button" class="sc-studio__thumb" (click)="selectPhoto(photo)">
+                    <span class="sc-studio__thumb-media">
+                      <img [src]="photo.cropped_url || photo.original_url" [alt]="thumbSizeLabel(photo)" />
+                      @if (isActiveThumb(photo)) {
+                        <span class="sc-studio__thumb-selected">{{ i18n.t('smartcrop.studio.selectedNow') }}</span>
+                      }
+                      @if (isNewPhoto(photo.created_at)) {
+                        <span class="sc-studio__thumb-new">{{ i18n.t('smartcrop.studio.newBadge') }}</span>
+                      }
+                      <i
+                        class="sc-studio__thumb-badge"
+                        [class.is-ok]="!thumbNeedsReview(photo)"
+                        [class.is-warn]="thumbNeedsReview(photo)"
+                        [attr.title]="thumbStatusLabel(photo)"
+                        aria-hidden="true"
+                      >
+                        <span class="material-symbols-outlined">{{ thumbNeedsReview(photo) ? 'priority_high' : 'check' }}</span>
+                      </i>
+                    </span>
+                    <span class="sc-studio__thumb-foot">
+                      <span class="sc-studio__thumb-size" [class.is-active]="isActiveThumb(photo)">{{ thumbSizeLabel(photo) }}</span>
+                      <span class="sc-studio__thumb-status" [class.is-ok]="!thumbNeedsReview(photo)" [class.is-warn]="thumbNeedsReview(photo)">
+                        {{ thumbStatusLabel(photo) }}
+                      </span>
+                    </span>
+                    <span class="sc-studio__thumb-when">{{ formatReceivedAt(photo.created_at) }}</span>
+                  </button>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    } @else {
+      <p class="sc-studio__thumbs-empty">
+        {{ i18n.t('smartcrop.studio.noPhotosForCustomer') }}
+      </p>
+    }
   </section>
+  }
 
   <app-footer />
 </div>

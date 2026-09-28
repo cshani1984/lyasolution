@@ -172,9 +172,32 @@ export class SmartcropDashboardComponent implements OnInit, OnDestroy {
 
   readonly filteredPhotos = computed(() => {
     const phone = this.activeCustomerPhone();
-    const list = this.photos();
-    if (!phone) return list;
-    return list.filter((p) => p.sender_phone === phone);
+    // Always require a specific customer — never show every shop photo at once.
+    if (!phone) return [];
+    return this.photos().filter((p) => p.sender_phone === phone);
+  });
+
+  /** Notes: Group current customer photos by calendar day (newest first). */
+  readonly photosByDate = computed(() => {
+    const list = [...this.filteredPhotos()].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+    const map = new Map<string, SmartcropPhoto[]>();
+    for (const p of list) {
+      const key = this.calendarDayKey(p.created_at);
+      const bucket = map.get(key) ?? [];
+      bucket.push(p);
+      map.set(key, bucket);
+    }
+    const today = this.calendarDayKey(new Date().toISOString());
+    const yesterday = this.calendarDayKey(new Date(Date.now() - 86_400_000).toISOString());
+    return [...map.entries()].map(([dateKey, photos]) => ({
+      dateKey,
+      isToday: dateKey === today,
+      isYesterday: dateKey === yesterday,
+      label: this.dateGroupLabel(dateKey, today, yesterday),
+      photos,
+    }));
   });
 
   readonly activePhoto = computed(() => {
@@ -409,11 +432,9 @@ export class SmartcropDashboardComponent implements OnInit, OnDestroy {
     await this.auth.syncPhoneFromAuthUser();
     await this.auth.ensureStoreCode();
     await this.photosService.refreshAll();
-    const first = this.filteredPhotos()[0];
-    if (first) this.activeId.set(first.id);
-    // Phone OTP registration already links the number — skip WhatsApp sync modal.
+    // Do not auto-open a photo until a customer is chosen.
+    this.activeId.set(null);
     this.maybeOpenTutorial();
-    // Fallback poll if Realtime is disabled on the project
     this.pollTimer = setInterval(() => {
       void this.photosService.loadPhotosQuiet();
     }, 12_000);
@@ -479,10 +500,86 @@ export class SmartcropDashboardComponent implements OnInit, OnDestroy {
 
   selectCustomer(phone: string | null): void {
     this.activeCustomerPhone.set(phone);
-    const first = this.filteredPhotos()[0];
-    this.activeId.set(first?.id ?? null);
+    this.clearSelection();
     this.compareMode.set(false);
     this.showOriginal.set(false);
+    if (!phone) {
+      this.activeId.set(null);
+      return;
+    }
+    const first = this.filteredPhotos()[0];
+    this.activeId.set(first?.id ?? null);
+  }
+
+  calendarDayKey(iso: string): string {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return 'unknown';
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
+  dateGroupLabel(dateKey: string, today: string, yesterday: string): string {
+    if (dateKey === today) return this.i18n.t('smartcrop.studio.dateToday');
+    if (dateKey === yesterday) return this.i18n.t('smartcrop.studio.dateYesterday');
+    const [y, m, d] = dateKey.split('-');
+    if (!y || !m || !d) return dateKey;
+    return this.i18n.lang() === 'he' ? `${d}.${m}.${y}` : `${y}-${m}-${d}`;
+  }
+
+  /** Notes: Received-at for WhatsApp banner / thumb meta. */
+  formatReceivedAt(iso: string | null | undefined): string {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    const lang = this.i18n.lang() === 'he' ? 'he-IL' : 'en-GB';
+    const datePart = d.toLocaleDateString(lang, {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+    const timePart = d.toLocaleTimeString(lang, { hour: '2-digit', minute: '2-digit' });
+    const today = this.calendarDayKey(new Date().toISOString());
+    const key = this.calendarDayKey(iso);
+    if (key === today) {
+      return `${this.i18n.t('smartcrop.studio.dateToday')} · ${timePart}`;
+    }
+    return `${datePart} · ${timePart}`;
+  }
+
+  isNewPhoto(iso: string | null | undefined): boolean {
+    if (!iso) return false;
+    const age = Date.now() - new Date(iso).getTime();
+    return age >= 0 && age < 24 * 60 * 60 * 1000;
+  }
+
+  async deletePhoto(photo: SmartcropPhoto, event?: Event): Promise<void> {
+    event?.stopPropagation();
+    event?.preventDefault();
+    if (!confirm(this.i18n.t('smartcrop.dash.confirmDeleteOne'))) return;
+    this.busy.set(true);
+    const { error } = await this.photosService.deletePhoto(photo.id);
+    this.busy.set(false);
+    if (error) {
+      this.toast.set(error.message);
+      return;
+    }
+    this.selectedIds.update((set) => {
+      const next = new Set(set);
+      next.delete(photo.id);
+      return next;
+    });
+    if (this.activeId() === photo.id) {
+      this.activeId.set(this.filteredPhotos()[0]?.id ?? null);
+    }
+    this.toast.set(this.i18n.t('smartcrop.dash.deleted'));
+  }
+
+  async deleteActive(): Promise<void> {
+    const photo = this.activePhoto();
+    if (!photo) return;
+    await this.deletePhoto(photo);
   }
 
   selectPhoto(photo: SmartcropPhoto): void {
@@ -804,8 +901,9 @@ export class SmartcropDashboardComponent implements OnInit, OnDestroy {
     await this.photosService.deletePhotos(ids);
     this.busy.set(false);
     this.clearSelection();
-    const first = this.photos()[0];
+    const first = this.filteredPhotos()[0];
     this.activeId.set(first?.id ?? null);
+    this.toast.set(this.i18n.t('smartcrop.dash.deleted'));
   }
 
   async onSimulateFile(event: Event): Promise<void> {

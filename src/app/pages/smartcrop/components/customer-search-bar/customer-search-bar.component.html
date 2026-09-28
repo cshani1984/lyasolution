@@ -15,12 +15,6 @@
 
   @if (open()) {
     <ul class="sc-cust-search__menu" role="listbox">
-      <li role="option">
-        <button type="button" class="sc-cust-search__item sc-cust-search__item--all" (click)="pickAll()">
-          <strong>{{ i18n.t('smartcrop.studio.allCustomers') }}</strong>
-          <span class="sc-cust-search__badge">{{ totalPhotos }}</span>
-        </button>
-      </li>
       @for (c of matches(); track c.phone) {
         <li role="option">
           <button

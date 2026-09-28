@@ -243,6 +243,15 @@ export class SmartcropPhotosService {
   }
 
   async deletePhoto(id: string): Promise<{ error: Error | null }> {
+    const existing = this.photos().find((p) => p.id === id);
+    if (existing && this.isLocalOnly(existing)) {
+      this.photos.update((list) => list.filter((p) => p.id !== id));
+      return { error: null };
+    }
+    if (!this.supabase.isConfigured()) {
+      this.photos.update((list) => list.filter((p) => p.id !== id));
+      return { error: null };
+    }
     const client = this.supabase.requireClient();
     const { error } = await client.from('photos').delete().eq('id', id);
     if (error) return { error: new Error(error.message) };
@@ -252,8 +261,21 @@ export class SmartcropPhotosService {
 
   async deletePhotos(ids: string[]): Promise<{ error: Error | null }> {
     if (!ids.length) return { error: null };
+    const localIds = ids.filter((id) => {
+      const p = this.photos().find((x) => x.id === id);
+      return p && this.isLocalOnly(p);
+    });
+    const remoteIds = ids.filter((id) => !localIds.includes(id));
+    if (localIds.length) {
+      this.photos.update((list) => list.filter((p) => !localIds.includes(p.id)));
+    }
+    if (!remoteIds.length) return { error: null };
+    if (!this.supabase.isConfigured()) {
+      this.photos.update((list) => list.filter((p) => !remoteIds.includes(p.id)));
+      return { error: null };
+    }
     const client = this.supabase.requireClient();
-    const { error } = await client.from('photos').delete().in('id', ids);
+    const { error } = await client.from('photos').delete().in('id', remoteIds);
     if (error) return { error: new Error(error.message) };
     await this.loadPhotos();
     return { error: null };
