@@ -3,7 +3,7 @@
     <div class="sc-studio__brand">
       <a routerLink="/smartcrop" class="sc-studio__logo-link" [attr.aria-label]="i18n.t('nav.home')">
         <img src="/smartcrop-logo.png" alt="SmartCrop" width="32" height="32" />
-        <span>SmartCrop</span>
+        <span class="sc-studio__brand-name">SmartCrop</span>
       </a>
       <span class="sc-studio__pill sc-studio__pill--green" [title]="i18n.t('smartcrop.studio.proHint')">PRO</span>
       @if (auth.profile()?.store_code; as code) {
@@ -23,7 +23,7 @@
           (click)="copyStoreUploadLink(code)"
         >
           <span class="material-symbols-outlined" aria-hidden="true">link</span>
-          {{ i18n.t('smartcrop.studio.copyUploadLink') }}
+          <span class="sc-studio__pill-text">{{ i18n.t('smartcrop.studio.copyUploadLink') }}</span>
         </button>
       }
       <span class="sc-studio__pill sc-studio__pill--live" [title]="whatsappBadgeTitle()">
@@ -50,7 +50,10 @@
         {{ i18n.lang() === 'he' ? 'EN' : 'עב' }}
       </button>
       <div class="sc-studio__avatar" [attr.title]="userLabel()" aria-hidden="true">{{ userInitials() }}</div>
-      <button type="button" class="sc-studio__signout" (click)="signOut()">{{ i18n.t('smartcrop.dash.signOut') }}</button>
+      <button type="button" class="sc-studio__signout" (click)="signOut()">
+        <span class="sc-studio__signout-text">{{ i18n.t('smartcrop.dash.signOut') }}</span>
+        <span class="material-symbols-outlined sc-studio__signout-ico" aria-hidden="true">logout</span>
+      </button>
     </div>
   </header>
 
@@ -237,11 +240,11 @@
               <button type="button" class="sc-studio__ico" (click)="panCrop('down')" [disabled]="!activePhoto() || busy() || showOriginal() || compareMode()" [attr.title]="i18n.t('smartcrop.studio.panDown')">
                 <span class="material-symbols-outlined">arrow_downward</span>
               </button>
-              <button type="button" class="sc-studio__ico" (click)="panCrop('left')" [disabled]="!activePhoto() || busy() || showOriginal() || compareMode()" [attr.title]="i18n.t('smartcrop.studio.panLeft')">
-                <span class="material-symbols-outlined">arrow_back</span>
-              </button>
               <button type="button" class="sc-studio__ico" (click)="panCrop('right')" [disabled]="!activePhoto() || busy() || showOriginal() || compareMode()" [attr.title]="i18n.t('smartcrop.studio.panRight')">
                 <span class="material-symbols-outlined">arrow_forward</span>
+              </button>
+              <button type="button" class="sc-studio__ico" (click)="panCrop('left')" [disabled]="!activePhoto() || busy() || showOriginal() || compareMode()" [attr.title]="i18n.t('smartcrop.studio.panLeft')">
+                <span class="material-symbols-outlined">arrow_back</span>
               </button>
               <span class="sc-studio__adjust-sep" aria-hidden="true"></span>
               <button type="button" class="sc-studio__ico" (click)="zoomCrop('in')" [disabled]="!activePhoto() || busy() || showOriginal() || compareMode()" [attr.title]="i18n.t('smartcrop.studio.zoomIn')">
@@ -335,7 +338,7 @@
         </div>
       </div>
 
-      <div class="sc-studio__step">
+      <!-- <div class="sc-studio__step">
         <h3><span>2</span> {{ i18n.t('smartcrop.studio.stepAi') }}</h3>
         <div class="sc-studio__ai-findings">
           @if (aiFindingTags().length) {
@@ -348,7 +351,7 @@
             <p class="sc-studio__ai-empty">{{ i18n.t('smartcrop.studio.aiNoFindings') }}</p>
           }
         </div>
-      </div>
+      </div> -->
 
       @if (activePhoto(); as ap) {
         @if (ap.hotfolder_path) {
@@ -381,12 +384,12 @@
       <div class="sc-studio__step sc-studio__step--actions">
         <h3><span>3</span> {{ i18n.t('smartcrop.studio.stepActions') }}</h3>
         <div class="sc-studio__actions">
-          <button type="button" class="sc-studio__btn sc-studio__btn--primary" (click)="approveActive()" [disabled]="!activePhoto() || busy()">
+          <!-- <button type="button" class="sc-studio__btn sc-studio__btn--primary" (click)="approveActive()" [disabled]="!activePhoto() || busy()">
             {{ i18n.t('smartcrop.studio.approvePrint') }}
           </button>
           <button type="button" class="sc-studio__btn sc-studio__btn--green" (click)="approveAll()" [disabled]="busy()">
             {{ i18n.t('smartcrop.studio.sendWhatsApp') }}
-          </button>
+          </button> -->
           <button type="button" class="sc-studio__btn sc-studio__btn--ghost" (click)="downloadActive()" [disabled]="!activePhoto()">
             {{ i18n.t('smartcrop.studio.downloadPrint') }}
           </button>

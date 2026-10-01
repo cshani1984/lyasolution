@@ -6,13 +6,39 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 0.65rem;
-  margin-block-start: 1.25rem;
+  margin: 1.25rem 0.75rem 0;
+  max-width: calc(100% - 1.5rem);
+  box-sizing: border-box;
   padding: 0.85rem 1rem;
   border-radius: 16px;
   border: 1px solid rgba(55, 71, 79, 0.12);
   background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(12px);
   box-shadow: var(--shadow-soft);
+}
+
+@media (max-width: 768px) {
+  .sc-batch {
+    inset-block-end: 0.5rem;
+    margin: 0.75rem 0.5rem 0;
+    max-width: calc(100% - 1rem);
+    padding: 0.65rem 0.75rem;
+    gap: 0.45rem;
+  }
+
+  .sc-batch__count {
+    flex: 1 1 100%;
+    margin-inline-end: 0;
+  }
+
+  .sc-batch__size {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .sc-batch__size select {
+    max-width: 100%;
+  }
 }
 
 .sc-batch__count {

@@ -123,6 +123,15 @@
 }
 
 @media (max-width: 640px) {
+  .sc-cust-head {
+    padding: 0.55rem 0.75rem;
+    gap: 0.55rem;
+  }
+
+  .sc-cust-head__who {
+    flex: 1 1 100%;
+  }
+
   .sc-cust-head__clear {
     width: 100%;
     margin-inline-start: 0;
