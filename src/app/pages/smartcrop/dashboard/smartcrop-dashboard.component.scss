@@ -963,6 +963,7 @@
   border-radius: 1rem;
   border: 1px solid var(--sc-border, #e2e8f0);
   box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.03);
+  height: 100%;
 }
 
 .sc-studio__customer {
@@ -2082,6 +2083,10 @@
     max-width: 100%;
   }
 
+  .sc-studio__canvas{
+    height: calc(100% - 146px);
+  }
+
   .sc-studio__canvas-head {
     padding: 0.75rem 0.85rem 0.65rem;
     gap: 0.5rem;
@@ -2156,6 +2161,10 @@
 }
 
 @media (max-width: 420px) {
+  .sc-studio__canvas{
+    height: auto;
+  }
+
   .sc-studio__pill--live {
     max-width: 7.5rem;
     overflow: hidden;
