@@ -18,6 +18,7 @@ export class SmartcropBatchActionBarComponent {
 
   @Input() count = 0;
   @Input() sizes: PrintSize[] = [];
+  @Input() busy = false;
 
   @Output() readonly changeSize = new EventEmitter<string>();
   @Output() readonly approve = new EventEmitter<void>();

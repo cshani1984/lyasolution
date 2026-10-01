@@ -1,5 +1,5 @@
 @if (count > 0) {
-  <div class="sc-batch" role="toolbar">
+  <div class="sc-batch" role="toolbar" [attr.aria-label]="i18n.t('smartcrop.batch.selected').replace('{n}', '' + count)">
     <p class="sc-batch__count">{{ i18n.t('smartcrop.batch.selected').replace('{n}', '' + count) }}</p>
     <label class="sc-batch__size">
       <span>{{ i18n.t('smartcrop.batch.changeSize') }}</span>
@@ -14,13 +14,15 @@
         }
       </select>
     </label>
-    <button type="button" class="btn btn--primary" (click)="approve.emit()">
-      {{ i18n.t('smartcrop.batch.approve') }}
+    <button type="button" class="sc-batch__btn sc-batch__btn--print" (click)="approve.emit()" [disabled]="busy">
+      <span class="material-symbols-outlined" aria-hidden="true">print</span>
+      {{ i18n.t('smartcrop.batch.sendPrint') }}
     </button>
-    <button type="button" class="btn btn--ghost" (click)="remove.emit()">
+    <button type="button" class="sc-batch__btn sc-batch__btn--danger" (click)="remove.emit()" [disabled]="busy">
+      <span class="material-symbols-outlined" aria-hidden="true">delete</span>
       {{ i18n.t('smartcrop.batch.delete') }}
     </button>
-    <button type="button" class="btn btn--ghost" (click)="clear.emit()">
+    <button type="button" class="sc-batch__btn sc-batch__btn--ghost" (click)="clear.emit()" [disabled]="busy">
       {{ i18n.t('smartcrop.batch.clear') }}
     </button>
   </div>

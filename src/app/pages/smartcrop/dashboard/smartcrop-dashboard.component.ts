@@ -586,14 +586,36 @@ export class SmartcropDashboardComponent implements OnInit, OnDestroy {
     this.activeId.set(photo.id);
     this.showOriginal.set(false);
     this.compareMode.set(false);
+    if (photo.target_size_name) this.uploadSizeName.set(photo.target_size_name);
   }
 
-  toggleSelect(photoId: string, event: Event): void {
-    event.stopPropagation();
+  toggleSelect(photoId: string, event?: Event): void {
+    event?.stopPropagation();
     const next = new Set(this.selectedIds());
     if (next.has(photoId)) next.delete(photoId);
     else next.add(photoId);
     this.selectedIds.set(next);
+  }
+
+  onSelectChange(photoId: string, event: Event): void {
+    event.stopPropagation();
+    const checked = (event.target as HTMLInputElement).checked;
+    const next = new Set(this.selectedIds());
+    if (checked) next.add(photoId);
+    else next.delete(photoId);
+    this.selectedIds.set(next);
+  }
+
+  selectAllFiltered(): void {
+    this.selectedIds.set(new Set(this.filteredPhotos().map((p) => p.id)));
+  }
+
+  /** Notes: Select pending/approved photos ready to send to the lab. */
+  selectAllReady(): void {
+    const ids = this.filteredPhotos()
+      .filter((p) => p.status === 'pending' || p.status === 'approved')
+      .map((p) => p.id);
+    this.selectedIds.set(new Set(ids));
   }
 
   clearSelection(): void {
@@ -763,23 +785,45 @@ export class SmartcropDashboardComponent implements OnInit, OnDestroy {
   }
 
   async selectSize(sizeId: string): Promise<void> {
-    const photo = this.activePhoto();
     const size = this.photosService.sizes().find((s) => s.id === sizeId);
-    if (!photo || !size) return;
-    if (photo.size_id === size.id && photo.target_size_name === size.name) return;
+    if (!size) return;
+
+    // Studio size panel is the source of truth for upload + print.
+    this.uploadSizeName.set(size.name);
+
+    const selected = this.filteredPhotos().filter((p) => this.selectedIds().has(p.id));
+    const targets =
+      selected.length > 0
+        ? selected
+        : this.activePhoto()
+          ? [this.activePhoto()!]
+          : [];
+
+    if (!targets.length) {
+      this.toast.set(this.i18n.t('smartcrop.studio.sizeReadyForUpload').replace('{size}', size.name));
+      return;
+    }
+
+    const needsWork = targets.filter(
+      (p) => !(p.size_id === size.id && p.target_size_name === size.name),
+    );
+    if (!needsWork.length) return;
 
     this.busy.set(true);
     this.aiBusy.set(true);
     this.toast.set(this.i18n.t('smartcrop.studio.aiWorking'));
     try {
-      // Always recrop in place — never reload the photo list (that wiped blob uploads).
-      const err = await this.photosService.recropPhotoWithAi(photo, size);
-      if (err.error) {
-        this.toast.set(err.error.message);
-        return;
+      const remoteIds: string[] = [];
+      for (const photo of needsWork) {
+        const err = await this.photosService.recropPhotoWithAi(photo, size);
+        if (err.error) {
+          this.toast.set(err.error.message);
+          return;
+        }
+        if (!this.photosService.isLocalOnly(photo)) remoteIds.push(photo.id);
       }
-      if (this.api.isConfigured() && !this.photosService.isLocalOnly(photo)) {
-        await this.api.batchUpdate({ photoIds: [photo.id], sizeId: size.id });
+      if (this.api.isConfigured() && remoteIds.length) {
+        await this.api.batchUpdate({ photoIds: remoteIds, sizeId: size.id });
       }
       this.compareMode.set(false);
       this.showOriginal.set(false);
@@ -796,6 +840,7 @@ export class SmartcropDashboardComponent implements OnInit, OnDestroy {
   onModalSizeChanged(ev: { sizeId: string; sizeName: string }): void {
     const photo = this.activePhoto();
     if (!photo) return;
+    this.uploadSizeName.set(ev.sizeName);
     this.photosService.patchPhoto(photo.id, {
       size_id: ev.sizeId,
       target_size_name: ev.sizeName,
@@ -903,7 +948,11 @@ export class SmartcropDashboardComponent implements OnInit, OnDestroy {
     this.clearSelection();
     const first = this.filteredPhotos()[0];
     this.activeId.set(first?.id ?? null);
-    this.toast.set(this.i18n.t('smartcrop.dash.deleted'));
+    this.toast.set(
+      ids.length === 1
+        ? this.i18n.t('smartcrop.dash.deleted')
+        : this.i18n.t('smartcrop.dash.deletedMany').replace('{n}', '' + ids.length),
+    );
   }
 
   async onSimulateFile(event: Event): Promise<void> {
@@ -922,7 +971,9 @@ export class SmartcropDashboardComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.uploadSizeName.set(payload.sizeName || defaultPrintSize().name);
+    // Prefer studio panel size over any uploader-local value.
+    const sizeName = this.uploadSizeName() || payload.sizeName || defaultPrintSize().name;
+    this.uploadSizeName.set(sizeName);
     this.busy.set(true);
     this.aiBusy.set(true);
     this.toast.set(this.i18n.t('smartcrop.studio.aiWorking'));
@@ -933,7 +984,7 @@ export class SmartcropDashboardComponent implements OnInit, OnDestroy {
     if (this.api.isConfigured() && phone) {
       const remote = await this.api.uploadPhotos({
         files: payload.files,
-        sizeName: payload.sizeName,
+        sizeName,
         senderPhone: phone,
         userId: this.auth.user()?.id,
       });
@@ -942,7 +993,7 @@ export class SmartcropDashboardComponent implements OnInit, OnDestroy {
         lastId = remote.photos?.[0]?.photoId;
       } else {
         for (const file of payload.files) {
-          const local = await this.photosService.simulateFromFile(file, phone, payload.sizeName);
+          const local = await this.photosService.simulateFromFile(file, phone, sizeName);
           if (local.error) {
             this.busy.set(false);
             this.aiBusy.set(false);
@@ -954,7 +1005,7 @@ export class SmartcropDashboardComponent implements OnInit, OnDestroy {
       }
     } else {
       for (const file of payload.files) {
-        const local = await this.photosService.simulateFromFile(file, phone, payload.sizeName);
+        const local = await this.photosService.simulateFromFile(file, phone, sizeName);
         if (local.error) {
           this.busy.set(false);
           this.aiBusy.set(false);
@@ -1183,11 +1234,13 @@ export class SmartcropDashboardComponent implements OnInit, OnDestroy {
 
   isSizeSelected(size: { id: string; name: string }): boolean {
     const photo = this.activePhoto();
-    if (!photo) return false;
-    const matched =
-      findPrintSize(this.photosService.sizes(), photo.target_size_name) ||
-      findPrintSize(this.photosService.sizes(), photo.size_id);
-    return matched?.id === size.id;
+    if (photo) {
+      const matched =
+        findPrintSize(this.photosService.sizes(), photo.target_size_name) ||
+        findPrintSize(this.photosService.sizes(), photo.size_id);
+      if (matched) return matched.id === size.id;
+    }
+    return this.uploadSizeName() === size.name;
   }
 
   isActiveThumb(photo: SmartcropPhoto): boolean {

@@ -38,7 +38,7 @@ export function FileUploader({
 
   return (
     <div className="sc-uploader" dir="auto">
-      <label className="sc-uploader__size">
+      {/* <label className="sc-uploader__size">
         <span>Print size</span>
         <select value={sizeName} onChange={(e) => setSizeName(e.target.value)} disabled={busy}>
           {sizes.map((s) => (
@@ -47,7 +47,7 @@ export function FileUploader({
             </option>
           ))}
         </select>
-      </label>
+      </label> */}
 
       <div
         className={`sc-uploader__zone${dragging ? ' is-drag' : ''}${busy ? ' is-busy' : ''}`}

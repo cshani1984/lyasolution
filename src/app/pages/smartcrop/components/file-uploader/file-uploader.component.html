@@ -1,25 +1,27 @@
 <div class="sc-uploader" [attr.dir]="i18n.isRtl() ? 'rtl' : 'ltr'">
-  <label class="sc-uploader__size">
-    <span>{{ i18n.t('smartcrop.upload.size') }}</span>
-    <select
-      [ngModel]="sizeName"
-      (ngModelChange)="onSizeChange($event)"
-      [disabled]="busy"
-    >
-      @for (group of sizeGroups(); track group.category) {
-        <optgroup [label]="categoryLabel(group.category)">
-          @for (s of group.sizes; track s.id) {
-            <option [value]="s.name" [title]="s.description || ''">
-              {{ s.name }}@if (s.description) { — {{ s.description }}}
-            </option>
-          }
-        </optgroup>
-      }
-      @if (!sizes.length) {
-        <option value="10x15 ס&quot;מ">10x15 ס"מ</option>
-      }
-    </select>
-  </label>
+  @if (showSizePicker) {
+    <label class="sc-uploader__size">
+      <span>{{ i18n.t('smartcrop.upload.size') }}</span>
+      <select
+        [ngModel]="sizeName"
+        (ngModelChange)="onSizeChange($event)"
+        [disabled]="busy"
+      >
+        @for (group of sizeGroups(); track group.category) {
+          <optgroup [label]="categoryLabel(group.category)">
+            @for (s of group.sizes; track s.id) {
+              <option [value]="s.name" [title]="s.description || ''">
+                {{ s.name }}@if (s.description) { — {{ s.description }}}
+              </option>
+            }
+          </optgroup>
+        }
+        @if (!sizes.length) {
+          <option value="10x15 ס&quot;מ">10x15 ס"מ</option>
+        }
+      </select>
+    </label>
+  }
 
   <div
     class="sc-uploader__zone"

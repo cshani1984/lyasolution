@@ -27,6 +27,8 @@ export class SmartcropFileUploaderComponent {
   @Input() sizes: PrintSize[] = DEMO_PRINT_SIZES;
   @Input() busy = false;
   @Input() sizeName = defaultPrintSize().name;
+  /** Notes: Dashboard uses sc-studio__sizes — keep picker off there. Demo can enable it. */
+  @Input() showSizePicker = false;
 
   @Output() readonly sizeNameChange = new EventEmitter<string>();
   @Output() readonly filesSelected = new EventEmitter<{ files: File[]; sizeName: string }>();

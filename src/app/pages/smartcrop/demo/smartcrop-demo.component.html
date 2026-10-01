@@ -43,6 +43,7 @@
         [sizes]="sizes"
         [busy]="busy() || aiBusy() || generativeBusy()"
         [sizeName]="uploadSizeName()"
+        [showSizePicker]="true"
         (sizeNameChange)="uploadSizeName.set($event)"
         (filesSelected)="onUploadFiles($event)"
       />

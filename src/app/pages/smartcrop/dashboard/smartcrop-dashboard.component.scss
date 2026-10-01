@@ -29,6 +29,10 @@
   box-sizing: border-box;
 }
 
+.sc-studio.has-batch {
+  padding-bottom: 6.5rem;
+}
+
 .sc-studio__top {
   display: flex;
   flex-wrap: wrap;
@@ -429,14 +433,22 @@
 .sc-studio__check {
   position: absolute;
   z-index: 3;
-  top: 0.55rem;
-  inset-inline-end: 0.55rem;
-  width: 1rem;
-  height: 1rem;
+  top: 0.45rem;
+  inset-inline-end: 0.45rem;
+  width: 1.45rem;
+  height: 1.45rem;
   display: grid;
   place-items: center;
-  background: rgba(255, 255, 255, 0.92);
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 0.4rem;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+  cursor: pointer;
+}
+
+.sc-studio__thumb-card.is-checked .sc-studio__check {
+  background: #ecfdf5;
+  border-color: #34d399;
 }
 
 .sc-studio__thumb-del {
@@ -481,8 +493,9 @@
 .sc-studio__check input {
   margin: 0;
   cursor: pointer;
-  width: 0.85rem;
-  height: 0.85rem;
+  width: 1rem;
+  height: 1rem;
+  accent-color: #6236ff;
 }
 
 .sc-studio__thumb-card .sc-studio__thumb {
@@ -1778,6 +1791,37 @@
   gap: 0.75rem 1rem;
   flex-wrap: wrap;
   margin: 0;
+}
+
+.sc-studio__strip-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.55rem;
+  justify-content: flex-end;
+}
+
+.sc-studio__strip-btn {
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid rgba(98, 54, 255, 0.28);
+  background: #f5f3ff;
+  color: #4c1d95;
+  cursor: pointer;
+}
+
+.sc-studio__strip-btn:hover {
+  background: #ede9fe;
+}
+
+.sc-studio__strip-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
 }
 
 .sc-studio__strip-lead {
