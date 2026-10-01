@@ -1210,6 +1210,171 @@ html[dir='ltr'] .sc-lp__grad {
   font-size: 1.1rem;
 }
 
+/* Pricing */
+.sc-lp__pricing {
+  display: grid;
+  gap: 1.5rem;
+  margin-top: 3rem;
+  align-items: stretch;
+  max-width: 52rem;
+  margin-inline: auto;
+}
+
+@media (min-width: 768px) {
+  .sc-lp__pricing {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.75rem;
+  }
+}
+
+.sc-lp__plan {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1.75rem;
+  padding: 2rem 1.75rem;
+  border-radius: 1.5rem;
+  background: var(--sc-surface-lowest);
+  box-shadow: 0 4px 20px -4px rgba(19, 27, 46, 0.06);
+  border: 1px solid transparent;
+}
+
+.sc-lp__plan.is-popular {
+  box-shadow: 0 16px 40px -12px rgba(42, 20, 180, 0.22);
+  border-color: color-mix(in srgb, var(--sc-primary) 18%, transparent);
+}
+
+.sc-lp__plan-badge {
+  position: absolute;
+  top: -0.85rem;
+  inset-inline-end: 1.5rem;
+  padding: 0.3rem 0.9rem;
+  border-radius: 999px;
+  background: var(--sc-primary);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  box-shadow: 0 6px 14px rgba(42, 20, 180, 0.28);
+  white-space: nowrap;
+}
+
+.sc-lp__plan-body {
+  display: grid;
+  gap: 1.35rem;
+  padding-top: 0.25rem;
+}
+
+.sc-lp__plan-head strong {
+  display: block;
+  font-family: var(--sc-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--sc-on-surface);
+}
+
+.sc-lp__plan-head strong.is-accent {
+  color: var(--sc-primary);
+}
+
+.sc-lp__plan-head p {
+  margin: 0.35rem 0 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--sc-on-variant);
+}
+
+.sc-lp__plan-price {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+}
+
+.sc-lp__plan-price span {
+  font-family: var(--sc-display);
+  font-size: clamp(2rem, 4vw, 2.5rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--sc-on-surface);
+}
+
+.sc-lp__plan.is-popular .sc-lp__plan-price span {
+  color: var(--sc-primary);
+}
+
+.sc-lp__plan-price em {
+  font-style: normal;
+  font-size: 0.95rem;
+  color: var(--sc-on-variant);
+}
+
+.sc-lp__plan-features {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.sc-lp__plan-features li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--sc-on-surface);
+}
+
+.sc-lp__plan-features .material-symbols-outlined {
+  flex: 0 0 auto;
+  margin-top: 0.05rem;
+  font-size: 1.15rem;
+  color: var(--sc-primary);
+}
+
+.sc-lp__plan-features li.is-muted {
+  color: var(--sc-on-variant);
+  opacity: 0.75;
+}
+
+.sc-lp__plan-features li.is-muted .material-symbols-outlined {
+  color: var(--sc-outline);
+}
+
+.sc-lp__plan-cta {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0.9rem 1.25rem;
+  border: 0;
+  border-radius: 0.85rem;
+  font: inherit;
+  font-family: var(--sc-display);
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  background: var(--sc-surface-high);
+  color: var(--sc-on-surface);
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.sc-lp__plan-cta:hover {
+  background: var(--sc-surface-container);
+}
+
+.sc-lp__plan-cta.is-primary {
+  background: var(--sc-primary);
+  color: #fff;
+  box-shadow: 0 8px 20px -4px rgba(42, 20, 180, 0.35);
+}
+
+.sc-lp__plan-cta.is-primary:hover {
+  background: var(--sc-secondary-container);
+  transform: translateY(-1px);
+}
+
 /* Testimonials */
 .sc-lp__reviews {
   display: grid;

@@ -11,6 +11,7 @@
           <button type="button" (click)="scrollTo('features')">{{ t.navFeatures }}</button>
           <button type="button" (click)="scrollTo('how')">{{ t.navHow }}</button>
           <button type="button" (click)="scrollTo('compare')">{{ t.navCompare }}</button>
+          <button type="button" (click)="scrollTo('pricing')">{{ t.navPricing }}</button>
           <button type="button" (click)="scrollTo('testimonials')">{{ t.navTestimonials }}</button>
           <button type="button" (click)="scrollTo('faq')">{{ t.navFaq }}</button>
         </nav>
@@ -35,6 +36,7 @@
       <button type="button" (click)="scrollTo('features')">{{ t.navFeatures }}</button>
       <button type="button" (click)="scrollTo('how')">{{ t.navHow }}</button>
       <button type="button" (click)="scrollTo('compare')">{{ t.navCompare }}</button>
+      <button type="button" (click)="scrollTo('pricing')">{{ t.navPricing }}</button>
       <button type="button" (click)="scrollTo('testimonials')">{{ t.navTestimonials }}</button>
       <button type="button" (click)="scrollTo('faq')">{{ t.navFaq }}</button>
       <button type="button" (click)="openLogin()">{{ t.login }}</button>
@@ -353,6 +355,52 @@
       </div>
     </section>
 
+    <section class="sc-lp__section sc-lp__section--tint" id="pricing">
+      <div class="sc-lp__wrap">
+        <div class="sc-lp__center">
+          <span class="sc-lp__kicker">{{ t.pricingKicker }}</span>
+          <h2>{{ t.pricingTitle }}</h2>
+          <p class="sc-lp__section-lede">{{ t.pricingLede }}</p>
+        </div>
+
+        <div class="sc-lp__pricing">
+          @for (plan of t.plans; track plan.id) {
+            <article class="sc-lp__plan" [class.is-popular]="plan.popular">
+              @if (plan.badge) {
+                <span class="sc-lp__plan-badge">{{ plan.badge }}</span>
+              }
+              <div class="sc-lp__plan-body">
+                <div class="sc-lp__plan-head">
+                  <strong [class.is-accent]="plan.popular">{{ plan.name }}</strong>
+                  <p>{{ plan.desc }}</p>
+                </div>
+                <div class="sc-lp__plan-price">
+                  <span>{{ plan.price }}</span>
+                  <em>{{ t.pricingPerMonth }}</em>
+                </div>
+                <ul class="sc-lp__plan-features">
+                  @for (f of plan.features; track f.text) {
+                    <li [class.is-muted]="!f.included">
+                      <span class="material-symbols-outlined" aria-hidden="true">check_circle</span>
+                      <span>{{ f.text }}</span>
+                    </li>
+                  }
+                </ul>
+              </div>
+              <button
+                type="button"
+                class="sc-lp__plan-cta"
+                [class.is-primary]="plan.popular"
+                (click)="openRegister()"
+              >
+                {{ t.pricingTrialCta }}
+              </button>
+            </article>
+          }
+        </div>
+      </div>
+    </section>
+
     <section class="sc-lp__section" id="testimonials">
       <div class="sc-lp__wrap">
         <div class="sc-lp__center">
@@ -472,6 +520,7 @@
         <div>
           <h4>{{ t.footerSupport }}</h4>
           <ul>
+            <li><button type="button" (click)="scrollTo('pricing')">{{ t.navPricing }}</button></li>
             <li><button type="button" (click)="scrollTo('faq')">{{ t.footerFaq }}</button></li>
             <li><button type="button" (click)="scrollTo('testimonials')">{{ t.footerStories }}</button></li>
             <li><button type="button" (click)="openLogin()">{{ t.login }}</button></li>

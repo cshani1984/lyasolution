@@ -5,10 +5,26 @@ export interface ScLandingFaq {
   a: string;
 }
 
+export interface ScLandingPriceFeature {
+  text: string;
+  included: boolean;
+}
+
+export interface ScLandingPlan {
+  id: string;
+  name: string;
+  desc: string;
+  price: string;
+  popular?: boolean;
+  badge?: string;
+  features: ScLandingPriceFeature[];
+}
+
 export interface ScLandingCopy {
   navFeatures: string;
   navHow: string;
   navCompare: string;
+  navPricing: string;
   navTestimonials: string;
   navFaq: string;
   login: string;
@@ -111,6 +127,12 @@ export interface ScLandingCopy {
   mapBleedVal: string;
   mapRender: string;
   mapRenderVal: string;
+  pricingKicker: string;
+  pricingTitle: string;
+  pricingLede: string;
+  pricingPerMonth: string;
+  pricingTrialCta: string;
+  plans: ScLandingPlan[];
   testimonialsKicker: string;
   testimonialsTitle: string;
   testimonialsLede: string;
@@ -147,6 +169,7 @@ export const SC_LANDING: Record<ScLandingLang, ScLandingCopy> = {
     navFeatures: 'תכונות',
     navHow: 'איך זה עובד',
     navCompare: 'השוואת חיתוך AI',
+    navPricing: 'מחירים',
     navTestimonials: 'המלצות',
     navFaq: 'שאלות נפוצות',
     login: 'כניסה למערכת',
@@ -256,6 +279,43 @@ export const SC_LANDING: Record<ScLandingLang, ScLandingCopy> = {
     mapBleedVal: '3mm Bleed',
     mapRender: 'זמן רינדור',
     mapRenderVal: '0.18 שניות',
+    pricingKicker: 'תוכניות ומחירים',
+    pricingTitle: 'החזר השקעה מלא כבר בשבוע הראשון',
+    pricingLede: 'ללא התחייבות, ללא עלויות הקמה. 30 ימי ניסיון חינם בכל התוכניות.',
+    pricingPerMonth: '/ חודש',
+    pricingTrialCta: '30 ימי ניסיון חינם',
+    plans: [
+      {
+        id: 'starter',
+        name: 'סטודיו מתחיל',
+        desc: 'לחנויות צילום שכונתיות וצלמי סטודיו',
+        price: '₪149',
+        features: [
+          { text: 'עד 500 תמונות מעובדות בחודש', included: true },
+          { text: 'מספר ווטסאפ אחד מקושר', included: true },
+          { text: 'חיתוך אוטומטי AI עם שמירת ראשים', included: true },
+          { text: 'הודעות אישור אינטראקטיביות', included: false },
+        ],
+      },
+      {
+        id: 'pro',
+        name: 'מעבדת פוטו מקצועית (Pro)',
+        desc: 'למעבדות עם נפח הזמנות יומי גבוה',
+        price: '₪249',
+        popular: true,
+        badge: 'הכי פופולרי במעבדות פוטו',
+        features: [
+          { text: 'עד 3000 תמונות מעובדות בחודש ויותר', included: true },
+          { text: 'מספר ווטסאפ אחד מקושר', included: true },
+          { text: 'חיתוך אוטומטי AI עם שמירת ראשים', included: true },
+          { text: 'הודעות אישור אינטראקטיביות', included: false },
+          {
+            text: 'מחולל AI שיודע לנקות את התמונה, להשלים רקע, לחדד תמונה מפוקסלת ועוד...',
+            included: true,
+          },
+        ],
+      },
+    ],
     testimonialsKicker: 'סיפורי הצלחה מהשטח',
     testimonialsTitle: 'מה אומרים מנהלי חנויות צילום בישראל?',
     testimonialsLede: 'מעבדות שחיברו את SmartCrop חוסכות בממוצע 3 שעות עבודה ידנית ביום ומבטלות כמעט לחלוטין את החזרות ההדפסה.',
@@ -310,6 +370,7 @@ export const SC_LANDING: Record<ScLandingLang, ScLandingCopy> = {
     navFeatures: 'Features',
     navHow: 'How it works',
     navCompare: 'AI crop comparison',
+    navPricing: 'Pricing',
     navTestimonials: 'Testimonials',
     navFaq: 'FAQ',
     login: 'Sign in',
@@ -419,6 +480,43 @@ export const SC_LANDING: Record<ScLandingLang, ScLandingCopy> = {
     mapBleedVal: '3mm Bleed',
     mapRender: 'Render time',
     mapRenderVal: '0.18 sec',
+    pricingKicker: 'Plans & pricing',
+    pricingTitle: 'Full ROI in the first week',
+    pricingLede: 'No commitment, no setup fees. 30-day free trial on every plan.',
+    pricingPerMonth: '/ month',
+    pricingTrialCta: '30-day free trial',
+    plans: [
+      {
+        id: 'starter',
+        name: 'Starter Studio',
+        desc: 'For neighborhood photo shops and studio photographers',
+        price: '₪149',
+        features: [
+          { text: 'Up to 500 processed photos per month', included: true },
+          { text: 'One linked WhatsApp number', included: true },
+          { text: 'AI auto-crop that protects heads', included: true },
+          { text: 'Interactive confirmation messages', included: false },
+        ],
+      },
+      {
+        id: 'pro',
+        name: 'Professional Photo Lab (Pro)',
+        desc: 'For labs with high daily order volume',
+        price: '₪249',
+        popular: true,
+        badge: 'Most popular with photo labs',
+        features: [
+          { text: 'Up to 3,000+ processed photos per month', included: true },
+          { text: 'One linked WhatsApp number', included: true },
+          { text: 'AI auto-crop that protects heads', included: true },
+          { text: 'Interactive confirmation messages', included: false },
+          {
+            text: 'AI generator that can clean photos, fill backgrounds, sharpen pixelated images, and more…',
+            included: true,
+          },
+        ],
+      },
+    ],
     testimonialsKicker: 'Success stories',
     testimonialsTitle: 'What photo shop managers in Israel say',
     testimonialsLede: 'Labs using SmartCrop save about 3 hours of manual work daily and nearly eliminate reprint returns.',
