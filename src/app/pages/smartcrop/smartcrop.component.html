@@ -380,7 +380,7 @@
                 </div>
                 <ul class="sc-lp__plan-features">
                   @for (f of plan.features; track f.text) {
-                    <li [class.is-muted]="!f.included">
+                    <li>
                       <span class="material-symbols-outlined" aria-hidden="true">check_circle</span>
                       <span>{{ f.text }}</span>
                     </li>
